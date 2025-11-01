@@ -1,10 +1,12 @@
 /**
  * Playwright-based scraper for dynamic sites with stealth plugin
  * Uses multiple strategies: stealth plugin, mobile user agents, JSON-LD extraction
+ * Enhanced with JSDOM for reliable HTML parsing and regex price fallback
  */
 import { chromium as chromiumExtra } from 'playwright-extra';
 import StealthPlugin from 'playwright-extra-plugin-stealth';
 import type { Browser } from 'playwright';
+import { JSDOM } from 'jsdom';
 import { ScrapeResult } from './static-scraper';
 
 // Apply stealth plugin to bypass bot detection
@@ -12,67 +14,85 @@ chromiumExtra.use(StealthPlugin());
 
 // Multiple user agents for rotation and mobile fallback
 const DESKTOP_USER_AGENT =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36';
 
 const MOBILE_USER_AGENT =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
 
 /**
- * Extract product data from HTML string (for mobile scrape)
+ * Extract product data from HTML using JSDOM (more reliable than regex)
+ * Uses structured data (JSON-LD) → meta tags → regex fallback
  */
-async function extractDataFromHtml(html: string, url: string): Promise<ScrapeResult> {
-  let title: string | null = null;
-  let image: string | null = null;
+function extractDataFromHtml(html: string, url: string): ScrapeResult {
+  const dom = new JSDOM(html);
+  const doc = dom.window.document;
+
+  // --- TITLE ---
+  let title: string | null =
+    doc.querySelector('meta[property="og:title"]')?.getAttribute('content') ||
+    doc.querySelector('title')?.textContent ||
+    null;
+
+  // --- IMAGE ---
+  let image: string | null =
+    doc.querySelector('meta[property="og:image"]')?.getAttribute('content') ||
+    doc.querySelector('img')?.getAttribute('src') ||
+    null;
+
+  // --- PRICE ---
+  // Try structured JSON-LD first
   let priceRaw: string | null = null;
-  let description: string | null = null;
 
-  // Extract JSON-LD
-  try {
-    const jsonLdMatch = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>(.*?)<\/script>/is);
-    if (jsonLdMatch) {
-      const jsonLd = JSON.parse(jsonLdMatch[1]);
-      const arr = Array.isArray(jsonLd) ? jsonLd : [jsonLd];
+  const jsonLdScripts = Array.from(doc.querySelectorAll('script[type="application/ld+json"]'));
+  for (const script of jsonLdScripts) {
+    try {
+      const jsonLd = JSON.parse(script.textContent || '');
+      const items = Array.isArray(jsonLd) ? jsonLd : [jsonLd];
 
-      for (const item of arr) {
+      for (const item of items) {
         if (item && (item['@type'] === 'Product' || item['@type'] === 'Offer')) {
-          if (item.name && typeof item.name === 'string') {
-            title = item.name;
-          }
-          if (item.image) {
-            const img = Array.isArray(item.image) ? item.image[0] : item.image;
-            if (typeof img === 'string') image = img;
-          }
+          // Try offers.price, then price
           if (item.offers?.price) {
             priceRaw = String(item.offers.price);
+            break;
           } else if (item.price) {
             priceRaw = String(item.price);
-          }
-          if (item.description && typeof item.description === 'string') {
-            description = item.description;
+            break;
           }
         }
       }
+      if (priceRaw) break;
+    } catch (e) {
+      // Ignore JSON parse errors
     }
-  } catch (e) {
-    // Ignore JSON-LD parse errors
   }
 
-  // Extract from meta tags
-  if (!title) {
-    const titleMatch = html.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i);
-    if (titleMatch) title = titleMatch[1];
+  // Fallback: regex search for price in text ($XX.XX format)
+  if (!priceRaw) {
+    const bodyText = doc.body?.textContent || '';
+    const priceMatch = bodyText.match(/\$[0-9,.]+/);
+    if (priceMatch) {
+      priceRaw = priceMatch[0];
+    }
   }
 
-  if (!image) {
-    const imageMatch = html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i);
-    if (imageMatch) image = imageMatch[1];
-  }
+  // --- DESCRIPTION ---
+  let description: string | null =
+    doc.querySelector('meta[property="og:description"]')?.getAttribute('content') ||
+    doc.querySelector('meta[name="description"]')?.getAttribute('content') ||
+    null;
+
+  // --- CLEANUP ---
+  title = title?.replace(/\s+/g, ' ').trim() || null;
+  image = image?.startsWith('http') ? image : (image ? new URL(image, url).href : null);
+  priceRaw = priceRaw?.trim() || null;
+  description = description?.trim() || null;
 
   return {
-    title: title?.trim() || null,
-    image: image || null,
-    priceRaw: priceRaw?.trim() || null,
-    description: description?.trim() || null,
+    title,
+    image,
+    priceRaw,
+    description,
     url,
     html,
   };
@@ -162,7 +182,7 @@ export async function playwrightScrape(url: string, useMobile: boolean = false):
     });
 
     // Wait for scripts to load (important for dynamic content)
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(2500);
     await page.mouse.move(
       100 + Math.floor(Math.random() * 200),
       100 + Math.floor(Math.random() * 200)
@@ -174,127 +194,12 @@ export async function playwrightScrape(url: string, useMobile: boolean = false):
     });
 
     const html = await page.content();
-
-    // Extract data from HTML (before closing page/context)
-    let title: string | null = null;
-    let image: string | null = null;
-    let priceRaw: string | null = null;
-    let description: string | null = null;
-
-    try {
-      const jsonldScripts = await page.$$eval(
-        'script[type="application/ld+json"]',
-        (els) => els.map((e) => e.textContent || '').filter(Boolean)
-      );
-
-      for (const jsonldText of jsonldScripts) {
-        try {
-          const j = JSON.parse(jsonldText);
-
-          const processProduct = (item: any) => {
-            if (item['@type'] === 'Product') {
-              if (item.name && typeof item.name === 'string') {
-                title = item.name;
-              }
-              if (item.image) {
-                const img = Array.isArray(item.image) ? item.image[0] : item.image;
-                if (typeof img === 'string') image = img;
-              }
-              if (item.offers?.price) {
-                priceRaw = String(item.offers.price);
-              } else if (item.aggregateRating?.price) {
-                priceRaw = String(item.aggregateRating.price);
-              }
-              if (item.description && typeof item.description === 'string') {
-                description = item.description;
-              }
-            }
-          };
-
-          if (Array.isArray(j)) {
-            for (const item of j) {
-              processProduct(item);
-            }
-          } else {
-            processProduct(j);
-          }
-        } catch (e) {
-          // Ignore JSON parse errors
-        }
-      }
-    } catch (e) {
-      // Ignore JSON-LD extraction errors
-    }
-
-    // Fallback selectors for Amazon
-    if (!title) {
-      try {
-        const titleText = await page
-          .locator('#productTitle, h1[data-automation-id="title"]')
-          .first()
-          .textContent();
-        if (titleText) title = titleText;
-      } catch (e) {
-        // Ignore
-      }
-    }
-
-    if (!priceRaw) {
-      try {
-        // Try multiple price selectors
-        const price1 = await page
-          .locator('.a-price .a-offscreen, [data-automation-id="price"]')
-          .first()
-          .textContent();
-        if (price1) {
-          priceRaw = price1;
-        } else {
-          const price2 = await page
-            .locator('[data-testid="price"], .price')
-            .first()
-            .textContent();
-          if (price2) priceRaw = price2;
-        }
-      } catch (e) {
-        // Ignore
-      }
-    }
-
-    if (!image) {
-      try {
-        const img1 = await page
-          .locator('#landingImage, img[data-automation-id="product-image"]')
-          .first()
-          .getAttribute('src');
-        if (img1) {
-          image = img1;
-        } else {
-          const img2 = await page
-            .locator('#landingImage')
-            .first()
-            .getAttribute('data-old-hires');
-          if (img2) image = img2;
-        }
-      } catch (e) {
-        // Ignore
-      }
-    }
-
     await context.close();
     await browser.close();
     browser = null;
 
-    // Ensure proper types for return - TypeScript type narrowing workaround
-    const desc: string | null = description as string | null;
-
-    return {
-      title: title ? title.trim() : null,
-      image: image || null,
-      priceRaw: priceRaw ? priceRaw.trim() : null,
-      description: desc ? desc.trim() : null,
-      url,
-      html,
-    };
+    // Use JSDOM for reliable HTML parsing (simpler and more robust)
+    return extractDataFromHtml(html, url);
   } catch (err) {
     if (browser) {
       try {
