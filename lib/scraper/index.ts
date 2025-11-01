@@ -34,13 +34,19 @@ export async function scrapeProduct(
     let data;
 
     if (isDynamic(domain)) {
-      // Try Playwright path for dynamic sites
+      // Try Playwright path for dynamic sites (desktop with stealth)
       try {
-        data = await playwrightScrape(url);
+        data = await playwrightScrape(url, false);
       } catch (err: any) {
-        console.error('Playwright failed, trying static fallback', err.message);
-        // Fallback to static if playwright fails
-        data = await staticScrape(url);
+        console.error('Playwright desktop failed, trying mobile', err.message);
+        // Try mobile user agent (often bypasses bot detection)
+        try {
+          data = await playwrightScrape(url, true);
+        } catch (mobileErr: any) {
+          console.error('Playwright mobile failed, trying static fallback', mobileErr.message);
+          // Fallback to static scraping
+          data = await staticScrape(url);
+        }
       }
     } else {
       data = await staticScrape(url);
