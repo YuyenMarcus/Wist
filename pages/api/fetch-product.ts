@@ -358,6 +358,9 @@ function getSupabase() {
 
 
 
+// Import new smart retry scraper
+import { scrapeAndSaveProduct } from '../../lib/scraper/scrape-and-save';
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
 
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -365,11 +368,44 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
 
   const { url, save = false, user_id } = req.body || {};
-
   if (!url || typeof url !== 'string') return res.status(400).json({ error: 'Missing url in request body' });
 
+  // Use new smart retry scraper with Supabase integration if save is requested
+  if (save && user_id) {
+    try {
+      const result = await scrapeAndSaveProduct(url, user_id);
+      
+      if (result.success && result.data) {
+        return res.status(200).json({
+          ok: true,
+          data: {
+            title: result.data.title,
+            price: result.data.price,
+            priceRaw: result.data.price_raw,
+            image: result.data.image,
+            description: result.data.description,
+            domain: result.data.domain,
+            url: result.data.url,
+          },
+          saved: true,
+        });
+      } else {
+        return res.status(500).json({
+          ok: false,
+          error: result.error || 'Failed to scrape and save product',
+        });
+      }
+    } catch (err: any) {
+      console.error('scrapeAndSaveProduct error:', err);
+      return res.status(500).json({
+        ok: false,
+        error: 'Failed to scrape and save product',
+        detail: err.message,
+      });
+    }
+  }
 
-
+  // Fall back to original scraper if save is false or no user_id
   const domain = extractDomain(url);
 
 
