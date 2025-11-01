@@ -11,6 +11,7 @@ import { playwrightScrape } from './playwright-scraper';
 import { staticScrape } from './static-scraper';
 import { extractDomain } from './utils';
 import { extractAll, extractStructuredData, extractMetaData } from './structured-data';
+import { extractStructuredDataFromUrl, extractFromGoogleCache } from './google-cache';
 
 // Apply stealth plugin
 chromiumExtra.use(StealthPlugin());
@@ -136,23 +137,57 @@ export async function scrapeAndSaveProduct(
     description: string | null;
   } | null = null;
 
-  // --- Try 1: Playwright with Stealth ---
+  // --- Try 1: Lightweight Structured Data Extraction (Fast, Legal, No Bot Detection) ---
+  // This is the preferred method - just fetch HTML and parse structured data
   try {
-    const playwrightResult = await playwrightScrape(url, false);
+    const structured = await extractStructuredDataFromUrl(url);
     
-    productData = {
-      title: playwrightResult.title,
-      image: playwrightResult.image,
-      price: playwrightResult.priceRaw,
-      description: playwrightResult.description,
-    };
+    if (structured && structured.title && structured.title !== 'Unknown Item') {
+      productData = {
+        title: structured.title,
+        image: structured.image,
+        price: structured.price,
+        description: structured.description,
+      };
+      console.log('✅ Extracted from structured data (fast, legal)');
+    }
+  } catch (err: any) {
+    console.warn('Structured data extraction failed:', err.message);
+  }
 
-    // Only proceed if we got meaningful data
-    if (productData.title && productData.title !== 'Unknown Item') {
-      // Success - continue to normalization
-    } else {
-      // Try to extract from HTML using structured data
-      if (playwrightResult.html) {
+  // --- Try 2: Google Cached Results (Legal Fallback) ---
+  if (!productData || !productData.title || productData.title === 'Unknown Item') {
+    await delay(1000);
+    try {
+      const cached = await extractFromGoogleCache(url);
+      if (cached && cached.title && cached.title !== 'Unknown Item') {
+        productData = {
+          title: cached.title,
+          image: cached.image,
+          price: cached.price,
+          description: cached.description,
+        };
+        console.log('✅ Extracted from Google cache (legal fallback)');
+      }
+    } catch (err: any) {
+      console.warn('Google cache extraction failed:', err.message);
+    }
+  }
+
+  // --- Try 3: Playwright with Stealth (Only if structured data fails) ---
+  if (!productData || !productData.title || productData.title === 'Unknown Item') {
+    try {
+      const playwrightResult = await playwrightScrape(url, false);
+      
+      productData = {
+        title: playwrightResult.title,
+        image: playwrightResult.image,
+        price: playwrightResult.priceRaw,
+        description: playwrightResult.description,
+      };
+
+      // Try structured data extraction from Playwright HTML if direct extraction failed
+      if ((!productData.title || productData.title === 'Unknown Item') && playwrightResult.html) {
         const structured = extractStructuredData(playwrightResult.html);
         if (structured && structured.title && structured.title !== 'Unknown Item') {
           productData = {
@@ -161,18 +196,18 @@ export async function scrapeAndSaveProduct(
             price: structured.price,
             description: structured.description,
           };
-        } else {
-          throw new Error('Playwright returned insufficient data');
         }
-      } else {
-        throw new Error('Playwright returned insufficient data');
       }
+
+      if (productData.title && productData.title !== 'Unknown Item') {
+        console.log('✅ Extracted with Playwright (full scrape)');
+      }
+    } catch (err: any) {
+      console.warn('Playwright blocked or failed:', err.message);
     }
-  } catch (err: any) {
-    console.warn('Playwright blocked or failed, retrying with structured data extraction...', err.message);
   }
 
-  // --- Try 2: Static fetch fallback ---
+  // --- Try 4: Static fetch fallback ---
   if (!productData || !productData.title || productData.title === 'Unknown Item') {
     await delay(1500);
     productData = await staticFetchScrape(url);
