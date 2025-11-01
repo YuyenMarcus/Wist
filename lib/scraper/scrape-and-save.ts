@@ -10,6 +10,7 @@ import { createClient } from '@supabase/supabase-js';
 import { playwrightScrape } from './playwright-scraper';
 import { staticScrape } from './static-scraper';
 import { extractDomain } from './utils';
+import { extractAll, extractStructuredData, extractMetaData } from './structured-data';
 
 // Apply stealth plugin
 chromiumExtra.use(StealthPlugin());
@@ -82,7 +83,7 @@ function extractJsonLD(doc: Document): any {
   return null;
 }
 
-// Helper: Static scrape with fetch
+// Helper: Static scrape with fetch using Cheerio for structured data
 async function staticFetchScrape(url: string): Promise<{
   title: string | null;
   image: string | null;
@@ -99,35 +100,16 @@ async function staticFetchScrape(url: string): Promise<{
     });
 
     const html = await res.text();
-    const dom = new JSDOM(html);
-    const doc = dom.window.document;
-
-    let title: string | null =
-      doc.querySelector('meta[property="og:title"]')?.getAttribute('content') ||
-      doc.querySelector('title')?.textContent ||
-      'Unknown Item';
-
-    let image: string | null =
-      doc.querySelector('meta[property="og:image"]')?.getAttribute('content') ||
-      doc.querySelector('img')?.getAttribute('src') ||
-      '';
-
-    const jsonLd = extractJsonLD(doc);
-    let price: string | number | null = jsonLd?.offers?.price || jsonLd?.price || null;
-
-    // Fallback: regex price search
-    if (!price) {
-      const text = doc.body?.textContent || '';
-      const match = text.match(/\$[0-9,.]+/);
-      price = match ? match[0] : null;
-    }
-
-    const description: string | null =
-      doc.querySelector('meta[property="og:description"]')?.getAttribute('content') ||
-      doc.querySelector('meta[name="description"]')?.getAttribute('content') ||
-      null;
-
-    return { title, image, price, description };
+    
+    // Use Cheerio-based extraction (more reliable for structured data)
+    const extracted = extractAll(html);
+    
+    return {
+      title: extracted.title,
+      image: extracted.image,
+      price: extracted.price,
+      description: extracted.description,
+    };
   } catch (err: any) {
     console.error('Static fetch scrape failed:', err.message);
     return null;
@@ -169,10 +151,25 @@ export async function scrapeAndSaveProduct(
     if (productData.title && productData.title !== 'Unknown Item') {
       // Success - continue to normalization
     } else {
-      throw new Error('Playwright returned insufficient data');
+      // Try to extract from HTML using structured data
+      if (playwrightResult.html) {
+        const structured = extractStructuredData(playwrightResult.html);
+        if (structured && structured.title && structured.title !== 'Unknown Item') {
+          productData = {
+            title: structured.title,
+            image: structured.image,
+            price: structured.price,
+            description: structured.description,
+          };
+        } else {
+          throw new Error('Playwright returned insufficient data');
+        }
+      } else {
+        throw new Error('Playwright returned insufficient data');
+      }
     }
   } catch (err: any) {
-    console.warn('Playwright blocked or failed, retrying with static fetch...', err.message);
+    console.warn('Playwright blocked or failed, retrying with structured data extraction...', err.message);
   }
 
   // --- Try 2: Static fetch fallback ---

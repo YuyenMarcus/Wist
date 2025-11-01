@@ -1,13 +1,14 @@
 /**
  * Playwright-based scraper for dynamic sites with stealth plugin
  * Uses multiple strategies: stealth plugin, mobile user agents, JSON-LD extraction
- * Enhanced with JSDOM for reliable HTML parsing and regex price fallback
+ * Enhanced with JSDOM for reliable HTML parsing and Cheerio for structured data
  */
 import { chromium as chromiumExtra } from 'playwright-extra';
 import StealthPlugin from 'playwright-extra-plugin-stealth';
 import type { Browser } from 'playwright';
 import { JSDOM } from 'jsdom';
 import { ScrapeResult } from './static-scraper';
+import { extractStructuredData } from './structured-data';
 
 // Apply stealth plugin to bypass bot detection
 chromiumExtra.use(StealthPlugin());
@@ -177,12 +178,12 @@ export async function playwrightScrape(url: string, useMobile: boolean = false):
     });
 
     await page.goto(url, {
-      waitUntil: 'domcontentloaded',
+      waitUntil: 'networkidle',
       timeout: 30000,
     });
 
     // Wait for scripts to load (important for dynamic content)
-    await page.waitForTimeout(2500);
+    await page.waitForTimeout(2000);
     await page.mouse.move(
       100 + Math.floor(Math.random() * 200),
       100 + Math.floor(Math.random() * 200)
@@ -198,8 +199,25 @@ export async function playwrightScrape(url: string, useMobile: boolean = false):
     await browser.close();
     browser = null;
 
-    // Use JSDOM for reliable HTML parsing (simpler and more robust)
-    return extractDataFromHtml(html, url);
+    // First try JSDOM extraction
+    let result = extractDataFromHtml(html, url);
+    
+    // If title is missing or "Unknown Item", try structured data extraction (Cheerio)
+    if (!result.title || result.title === 'Unknown Item') {
+      const structured = extractStructuredData(html);
+      if (structured && structured.title && structured.title !== 'Unknown Item') {
+        result = {
+          title: structured.title || result.title,
+          image: structured.image || result.image,
+          priceRaw: structured.price ? String(structured.price) : result.priceRaw,
+          description: structured.description || result.description,
+          url,
+          html,
+        };
+      }
+    }
+    
+    return result;
   } catch (err) {
     if (browser) {
       try {
