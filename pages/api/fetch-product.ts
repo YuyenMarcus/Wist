@@ -370,7 +370,67 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { url, save = false, user_id } = req.body || {};
   if (!url || typeof url !== 'string') return res.status(400).json({ error: 'Missing url in request body' });
 
-  // Use new smart retry scraper with Supabase integration if save is requested
+  // Try structured data extraction first (fast, legal, no bot detection)
+  try {
+    const html = await fetch(url, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121 Safari/537.36',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+    }).then((r) => r.text());
+
+    const { extractAll } = await import('../../lib/scraper/structured-data');
+    const structured = extractAll(html);
+
+    // If we got good data from structured extraction, use it
+    if (structured && structured.title && structured.title !== 'Unknown Item' && structured.title !== 'Unknown Product') {
+      const cleanPriceValue = structured.price ? parseFloat(String(structured.price).replace(/[^\d.,]/g, '').replace(',', '.')) : null;
+      const normalized = {
+        title: structured.title.trim(),
+        price: cleanPriceValue,
+        priceRaw: structured.price ? String(structured.price) : null,
+        currency: structured.currency || 'USD',
+        image: structured.image || null,
+        description: structured.description || null,
+        domain: extractDomain(url),
+        url,
+        blocked: false,
+      };
+
+      // Save to Supabase if requested
+      if (save && user_id) {
+        const sb = getSupabase();
+        if (sb) {
+          try {
+            await sb.from('wishlist_items').insert([
+              {
+                user_id,
+                title: normalized.title,
+                description: normalized.description,
+                price: normalized.price,
+                price_raw: normalized.priceRaw,
+                currency: normalized.currency,
+                image: normalized.image,
+                domain: normalized.domain,
+                url: normalized.url,
+                meta: { scraped_at: new Date().toISOString(), method: 'structured_data' },
+              },
+            ]);
+          } catch (supabaseErr) {
+            console.error('Supabase save failed:', supabaseErr);
+          }
+        }
+      }
+
+      return res.status(200).json({ ok: true, data: normalized, method: 'structured_data' });
+    }
+  } catch (structuredErr: any) {
+    console.log('Structured data extraction failed, trying Playwright fallback:', structuredErr.message);
+  }
+
+  // Use smart retry scraper with Supabase integration if save is requested (fallback)
   if (save && user_id) {
     try {
       const result = await scrapeAndSaveProduct(url, user_id);
