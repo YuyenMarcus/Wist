@@ -1,7 +1,8 @@
 // pages/api/fetch-product.ts
-// Updated to use Python Flask microservice instead of Node.js scraper
+// Updated to use Python Flask microservice with Supabase caching
 
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { getSupabaseAdmin } from '@/lib/supabase/client';
 
 const SCRAPER_SERVICE_URL = process.env.NEXT_PUBLIC_SCRAPER_SERVICE_URL || 'http://localhost:5000';
 
@@ -21,6 +22,52 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ success: false, error: 'Missing URL in request body' });
     }
 
+    // --- 1. CHECK SUPABASE CACHE FIRST (if configured) ---
+    try {
+      const supabase = getSupabaseAdmin();
+      if (supabase) {
+        const { data: cachedProducts, error: cacheError } = await supabase
+          .from('products')
+          .select('*')
+          .eq('url', url)
+          .limit(1)
+          .single();
+
+        if (!cacheError && cachedProducts) {
+          // Check if cache is fresh (less than 6 hours old)
+          const lastScraped = cachedProducts.last_scraped 
+            ? new Date(cachedProducts.last_scraped)
+            : null;
+          
+          if (lastScraped) {
+            const ageHours = (Date.now() - lastScraped.getTime()) / (1000 * 60 * 60);
+            
+            if (ageHours < 6) {
+              console.log(`✅ [fetch-product] Cache hit: ${cachedProducts.title?.substring(0, 50)}... (age: ${ageHours.toFixed(1)}h)`);
+              
+              return res.status(200).json({
+                success: true,
+                title: cachedProducts.title || 'Unknown Item',
+                price: cachedProducts.price || null,
+                priceRaw: cachedProducts.price_raw || cachedProducts.price || null,
+                image: cachedProducts.image || '',
+                description: cachedProducts.description || null,
+                domain: cachedProducts.domain || new URL(url).hostname.replace('www.', ''),
+                url: cachedProducts.url || url,
+                source: 'cache', // Let frontend know it was cached
+              });
+            } else {
+              console.log(`⚠️  [fetch-product] Cache expired (${ageHours.toFixed(1)}h old), re-scraping...`);
+            }
+          }
+        }
+      }
+    } catch (cacheErr: any) {
+      // Don't fail if cache check fails, just log and continue
+      console.warn('[fetch-product] Cache check failed:', cacheErr?.message);
+    }
+
+    // --- 2. IF NOT IN CACHE, CALL FLASK SERVICE TO SCRAPE ---
     try {
       // Call Python Flask microservice sync endpoint
       console.log(`[fetch-product] Calling Flask service: ${SCRAPER_SERVICE_URL}/api/scrape/sync`);

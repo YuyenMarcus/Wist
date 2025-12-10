@@ -4,10 +4,30 @@ Flask microservice for product scraping with Scrapy
 Uses crochet to manage Scrapy's Twisted reactor lifecycle
 CRITICAL: Let Scrapy use whatever reactor crochet sets up (SelectReactor)
 """
+import os
 import uuid
 import time
+from datetime import datetime, timedelta
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Initialize Supabase (optional - won't crash if not configured)
+try:
+    from supabase import create_client, Client
+    supabase_url = os.environ.get("SUPABASE_URL")
+    supabase_key = os.environ.get("SUPABASE_KEY") or os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    supabase: Client = create_client(supabase_url, supabase_key) if supabase_url and supabase_key else None
+    if supabase:
+        print("✅ Supabase connected for caching")
+    else:
+        print("⚠️  Supabase not configured (caching disabled)")
+except Exception as e:
+    print(f"⚠️  Supabase initialization failed: {e}")
+    supabase = None
 
 # Initialize Crochet - it will set up the SelectReactor
 from crochet import setup, wait_for
@@ -339,6 +359,11 @@ def scrape_sync():
     """
     Synchronous scraping endpoint (for fast methods only)
     Note: Still uses crochet, but waits for result
+    
+    CACHE LOGIC:
+    1. Check Supabase cache first (if configured)
+    2. If found and fresh (< 6 hours old), return cached data
+    3. Otherwise, scrape and save to cache
     """
     data = request.get_json()
     url = data.get('url') if data else None
@@ -346,6 +371,51 @@ def scrape_sync():
     if not url:
         return jsonify({"error": "URL required"}), 400
     
+    print(f"🔔 Request received for: {url}")
+    
+    # --- 1. CHECK DATABASE (CACHE) FIRST ---
+    if supabase:
+        try:
+            # Check if we scraped this URL in the last 6 hours
+            response = supabase.table('products').select("*").eq('url', url).execute()
+            
+            if response.data and len(response.data) > 0:
+                cached_item = response.data[0]
+                last_scraped = cached_item.get('last_scraped')
+                
+                # Check if cache is fresh (less than 6 hours old)
+                if last_scraped:
+                    try:
+                        last_scraped_dt = datetime.fromisoformat(last_scraped.replace('Z', '+00:00'))
+                        age_hours = (datetime.now(last_scraped_dt.tzinfo) - last_scraped_dt).total_seconds() / 3600
+                        
+                        if age_hours < 6:
+                            print(f"✅ Found in Cache (Database): {cached_item.get('title', '')[:50]}... (age: {age_hours:.1f}h)")
+                            
+                            # Return the cached data immediately!
+                            return jsonify({
+                                "success": True,
+                                "result": {
+                                    "title": cached_item.get('title'),
+                                    "price": cached_item.get('price'),
+                                    "priceRaw": cached_item.get('price_raw') or cached_item.get('price'),
+                                    "image": cached_item.get('image'),
+                                    "description": cached_item.get('description'),
+                                    "domain": cached_item.get('domain'),
+                                    "url": cached_item.get('url'),
+                                    "source": "cache"  # Let frontend know it was cached
+                                }
+                            }), 200
+                        else:
+                            print(f"⚠️  Cache expired ({age_hours:.1f}h old), re-scraping...")
+                    except Exception as e:
+                        print(f"⚠️  Error parsing cache timestamp: {e}, re-scraping...")
+                else:
+                    print(f"⚠️  Cache missing timestamp, re-scraping...")
+        except Exception as e:
+            print(f"⚠️  Database Read Error: {e}")
+    
+    # --- 2. IF NOT IN DB OR EXPIRED, SCRAPE IT ---
     job_id = str(uuid.uuid4())
     JOBS[job_id] = {
         "id": job_id,
@@ -378,9 +448,43 @@ def scrape_sync():
             time.sleep(0.5)  # Check every 500ms
         
         if JOBS[job_id]["status"] == STATUS_COMPLETED:
+            result_data = JOBS[job_id]["data"]
+            
+            # --- 3. SAVE TO SUPABASE CACHE ---
+            if supabase and result_data:
+                try:
+                    from urllib.parse import urlparse
+                    domain = urlparse(url).netloc.replace('www.', '')
+                    
+                    product_data = {
+                        "url": url,
+                        "title": result_data.get('title'),
+                        "price": str(result_data.get('price', '')) if result_data.get('price') else None,
+                        "price_raw": result_data.get('priceRaw') or result_data.get('price'),
+                        "image": result_data.get('image'),
+                        "description": result_data.get('description'),
+                        "domain": domain,
+                        "last_scraped": datetime.utcnow().isoformat() + 'Z',
+                        "meta": {
+                            "scraped_at": datetime.utcnow().isoformat(),
+                            "method": "scrapy_playwright"
+                        }
+                    }
+                    
+                    # Use upsert to handle duplicates (update if exists, insert if new)
+                    supabase.table('products').upsert(
+                        product_data,
+                        on_conflict='url'
+                    ).execute()
+                    
+                    print(f"✅ Saved to Supabase cache: {result_data.get('title', '')[:50]}...")
+                except Exception as e:
+                    print(f"⚠️  Failed to save to Supabase cache: {e}")
+                    # Don't fail the request if cache save fails
+            
             return jsonify({
                 "success": True,
-                "result": JOBS[job_id]["data"]
+                "result": result_data
             }), 200
         else:
             return jsonify({
@@ -398,9 +502,12 @@ def scrape_sync():
 
 
 if __name__ == '__main__':
+    # Get port from environment variable (for Railway/Render) or default to 5000
+    port = int(os.environ.get('PORT', 5000))
+    
     print("=" * 60)
     print("Starting Wist Scraper Service...")
     print("Using crochet to manage Scrapy reactor")
-    print("Service will be available at http://0.0.0.0:5000")
+    print(f"Service will be available at http://0.0.0.0:{port}")
     print("=" * 60)
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    app.run(host='0.0.0.0', port=port, debug=False)

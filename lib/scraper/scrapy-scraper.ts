@@ -54,7 +54,7 @@ export async function scrapyScrape(
       image: result.image || null,
       description: result.description || null,
       url: url,
-      html: null, // Scrapy doesn't return HTML by default
+      // html is optional, Scrapy doesn't return HTML by default
     };
 
     return normalized;

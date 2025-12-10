@@ -113,12 +113,17 @@ export default function Dashboard() {
   function savePreview() {
     if (!preview) return;
 
+    const priceValue = preview.price ? (typeof preview.price === 'number' ? preview.price : parseFloat(String(preview.price))) : null;
+    const priceString = preview.price ? String(preview.price) : null;
+
     const item: Product = {
       id: `product_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       title: preview.title || preview.name || 'Unknown Item',
       image: preview.image || '',
-      price: preview.price ? String(preview.price) : null,
-      priceRaw: preview.price ? String(preview.price) : null,
+      price: priceString,
+      priceRaw: priceString,
+      currentPrice: priceValue,
+      priceHistory: priceValue !== null ? [{ date: new Date().toISOString(), price: priceValue, priceRaw: priceString }] : [],
       description: preview.description || null,
       url: preview.url || url,
       domain: preview.source || new URL(preview.url || url).hostname.replace('www.', ''),
@@ -137,6 +142,8 @@ export default function Dashboard() {
       image: item.image,
       price: item.price,
       priceRaw: item.priceRaw,
+      currentPrice: item.currentPrice,
+      priceHistory: item.priceHistory,
       description: item.description,
       url: item.url,
       domain: item.domain,

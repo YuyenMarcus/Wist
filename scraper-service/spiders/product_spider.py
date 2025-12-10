@@ -193,11 +193,68 @@ class ProductSpider(Spider):
                 result['price'] = self.clean_price(price.strip())
                 break
         
-        # Image
-        image = response.css('#landingImage::attr(src)').get() or \
-                response.css('#imgBlkFront::attr(src)').get() or \
-                response.css('img#main-image::attr(src)').get()
-        result['image'] = image or ''
+        # --- ROBUST AMAZON IMAGE EXTRACTION ---
+        # Amazon uses lazy loading - src often contains a 1x1 placeholder
+        # We need to check data-a-dynamic-image for the real high-res image
+        image_url = None
+        
+        # Strategy 1: "data-a-dynamic-image" (The Gold Standard)
+        # Amazon stores all resolutions in a JSON object inside this attribute
+        try:
+            img_data = response.css('#landingImage::attr(data-a-dynamic-image)').get() or \
+                      response.css('#imgBlkFront::attr(data-a-dynamic-image)').get()  # For Books
+            
+            if img_data:
+                # It's a JSON string like {"url1": [size], "url2": [size]}
+                # We grab the first key (usually the best one)
+                images = json.loads(img_data)
+                if images:
+                    image_url = list(images.keys())[0]
+        except Exception:
+            pass
+        
+        # Strategy 2: "data-old-hires" (Older Amazon pages)
+        if not image_url:
+            image_url = response.css('#landingImage::attr(data-old-hires)').get()
+        
+        # Strategy 3: Standard src (Fallback)
+        if not image_url:
+            image_url = response.css('#landingImage::attr(src)').get() or \
+                       response.css('#imgTagWrapperId img::attr(src)').get() or \
+                       response.css('#imgBlkFront::attr(src)').get() or \
+                       response.css('img#main-image::attr(src)').get()
+        
+        # Strategy 4: JSON-LD (The Backup)
+        if not image_url:
+            try:
+                script_data = response.xpath('//script[@type="application/ld+json"]//text()').get()
+                if script_data:
+                    data = json.loads(script_data)
+                    # Handle list or dict
+                    if isinstance(data, list):
+                        for item in data:
+                            if item.get('@type') == 'Product':
+                                image_url = item.get('image')
+                                if isinstance(image_url, list):
+                                    image_url = image_url[0] if image_url else None
+                                elif isinstance(image_url, dict):
+                                    image_url = image_url.get('url')
+                                break
+                    elif isinstance(data, dict):
+                        if data.get('@type') == 'Product':
+                            image_url = data.get('image')
+                            if isinstance(image_url, list):
+                                image_url = image_url[0] if image_url else None
+                            elif isinstance(image_url, dict):
+                                image_url = image_url.get('url')
+            except:
+                pass
+        
+        # Clean the URL (remove any weird encoded spaces)
+        if image_url:
+            image_url = image_url.strip()
+        
+        result['image'] = image_url or ''
         
         # Description
         desc = response.css('#productDescription p::text').getall()
