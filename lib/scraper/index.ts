@@ -4,6 +4,7 @@
 import { isDynamic, extractDomain, cleanPrice, detectBlock, NormalizedProduct } from './utils';
 import { staticScrape } from './static-scraper';
 import { playwrightScrape } from './playwright-scraper';
+import { scrapyScrape, checkScrapyAvailable } from './scrapy-scraper';
 
 export interface ScrapeOptions {
   url: string;
@@ -34,18 +35,39 @@ export async function scrapeProduct(
     let data;
 
     if (isDynamic(domain)) {
-      // Try Playwright path for dynamic sites (desktop with stealth)
-      try {
-        data = await playwrightScrape(url, false);
-      } catch (err: any) {
-        console.error('Playwright desktop failed, trying mobile', err.message);
-        // Try mobile user agent (often bypasses bot detection)
+      // For Amazon and other bot-detection-heavy sites, try Scrapy first
+      const isAmazon = domain.includes('amazon');
+      const scrapyAvailable = await checkScrapyAvailable();
+      
+      if (isAmazon && scrapyAvailable) {
         try {
-          data = await playwrightScrape(url, true);
-        } catch (mobileErr: any) {
-          console.error('Playwright mobile failed, trying static fallback', mobileErr.message);
-          // Fallback to static scraping
-          data = await staticScrape(url);
+          console.log('Trying Scrapy for Amazon product...');
+          data = await scrapyScrape({ url });
+          if (data.title && data.title !== 'Unknown Item') {
+            console.log('✅ Scrapy extraction successful');
+          } else {
+            throw new Error('Scrapy returned insufficient data');
+          }
+        } catch (scrapyErr: any) {
+          console.warn('Scrapy failed, falling back to Playwright:', scrapyErr.message);
+          // Fall through to Playwright
+        }
+      }
+      
+      // If Scrapy didn't work or wasn't tried, use Playwright
+      if (!data || !data.title || data.title === 'Unknown Item') {
+        try {
+          data = await playwrightScrape(url, false);
+        } catch (err: any) {
+          console.error('Playwright desktop failed, trying mobile', err.message);
+          // Try mobile user agent (often bypasses bot detection)
+          try {
+            data = await playwrightScrape(url, true);
+          } catch (mobileErr: any) {
+            console.error('Playwright mobile failed, trying static fallback', mobileErr.message);
+            // Fallback to static scraping
+            data = await staticScrape(url);
+          }
         }
       }
     } else {

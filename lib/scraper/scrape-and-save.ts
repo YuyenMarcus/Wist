@@ -3,18 +3,18 @@
  * Tries: Playwright → Static → Manual fallback
  * Automatically saves to Supabase wishlist_items
  */
-import { chromium as chromiumExtra } from 'playwright-extra';
-import StealthPlugin from 'playwright-extra-plugin-stealth';
+import { chromium } from 'playwright-extra';
+import StealthPlugin from '@cliqzdev/playwright-extra-plugin-stealth';
 import { JSDOM } from 'jsdom';
+
+chromium.use(StealthPlugin());
+
 import { createClient } from '@supabase/supabase-js';
 import { playwrightScrape } from './playwright-scraper';
 import { staticScrape } from './static-scraper';
 import { extractDomain } from './utils';
 import { extractAll, extractStructuredData, extractMetaData } from './structured-data';
 import { extractStructuredDataFromUrl, extractFromGoogleCache } from './google-cache';
-
-// Apply stealth plugin
-chromiumExtra.use(StealthPlugin());
 
 // Supabase client
 function getSupabase() {
@@ -49,42 +49,34 @@ function cleanPrice(raw: string | number | null): number | null {
 
 // Helper: Normalize title
 function cleanTitle(title: string | null): string {
-  if (!title) return 'Unknown Item';
-  
-  return title
-    .replace(/\s+/g, ' ')
-    .replace(/[-|•].*$/, '')
-    .trim();
+  if (!title || title === 'Unknown Item') return 'Unknown Item';
+  return title.replace(/\s+/g, ' ').replace(/[-|•].*$/, '').trim();
 }
 
 // Helper: Normalize domain
 function cleanDomain(url: string): string {
   try {
-    return new URL(url).hostname.replace('www.', '');
+    return new URL(url).hostname.replace(/^www\./, '');
   } catch {
     return 'unknown';
   }
 }
 
-// Helper: Extract JSON-LD from document
-function extractJsonLD(doc: Document): any {
+// Helper: Extract JSON-LD from HTML
+function extractJsonLD(doc: Document): any | null {
   const scripts = Array.from(doc.querySelectorAll('script[type="application/ld+json"]'));
-  
   for (const el of scripts) {
     try {
       const data = JSON.parse(el.textContent || '');
       if (data?.offers?.price || data?.price) {
         return data;
       }
-    } catch {
-      // Ignore parse errors
-    }
+    } catch {}
   }
-  
   return null;
 }
 
-// Helper: Static scrape with fetch using Cheerio for structured data
+// Helper: Static fetch scrape (fallback)
 async function staticFetchScrape(url: string): Promise<{
   title: string | null;
   image: string | null;
@@ -92,42 +84,49 @@ async function staticFetchScrape(url: string): Promise<{
   description: string | null;
 } | null> {
   try {
-    const res = await fetch(url, {
+    const html = await fetch(url, {
       headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
-          '(KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
       },
-    });
+    }).then(r => r.text());
 
-    const html = await res.text();
-    
-    // Use Cheerio-based extraction (more reliable for structured data)
-    const extracted = extractAll(html);
-    
-    return {
-      title: extracted.title,
-      image: extracted.image,
-      price: extracted.price,
-      description: extracted.description,
-    };
-  } catch (err: any) {
-    console.error('Static fetch scrape failed:', err.message);
+    const dom = new JSDOM(html);
+    const doc = dom.window.document;
+
+    const title = doc.querySelector('meta[property="og:title"]')?.getAttribute('content') ||
+                  doc.querySelector('title')?.textContent ||
+                  null;
+
+    const image = doc.querySelector('meta[property="og:image"]')?.getAttribute('content') ||
+                  doc.querySelector('img')?.getAttribute('src') ||
+                  null;
+
+    const jsonLd = extractJsonLD(doc);
+    const price = jsonLd?.offers?.price || jsonLd?.price || null;
+
+    const description = doc.querySelector('meta[property="og:description"]')?.getAttribute('content') ||
+                       doc.querySelector('meta[name="description"]')?.getAttribute('content') ||
+                       null;
+
+    return { title, image, price, description };
+  } catch (err) {
+    console.error('Static scrape failed:', err);
     return null;
   }
 }
 
 /**
- * Main function: Scrape and save product to Supabase
- * Smart retry: Playwright → Static → Manual fallback
+ * Simple scraper function - just returns product data without saving
+ * This is the main function to use in API routes
  */
-export async function scrapeAndSaveProduct(
-  url: string,
-  userId: string | null = null
-): Promise<{
-  success: boolean;
-  data?: any;
-  error?: string;
+export async function scrapeAndSave(url: string): Promise<{
+  title: string;
+  price: string | number | null;
+  priceRaw?: string | null;
+  image: string | null;
+  description: string | null;
+  domain: string;
+  url: string;
 }> {
   const domain = cleanDomain(url);
   let productData: {
@@ -138,7 +137,6 @@ export async function scrapeAndSaveProduct(
   } | null = null;
 
   // --- Try 1: Lightweight Structured Data Extraction (Fast, Legal, No Bot Detection) ---
-  // This is the preferred method - just fetch HTML and parse structured data
   try {
     const structured = await extractStructuredDataFromUrl(url);
     
@@ -213,7 +211,7 @@ export async function scrapeAndSaveProduct(
     productData = await staticFetchScrape(url);
   }
 
-  // --- Try 3: Final fallback (manual input) ---
+  // --- Final fallback (manual input) ---
   if (!productData) {
     productData = {
       title: 'Unknown Item',
@@ -231,20 +229,46 @@ export async function scrapeAndSaveProduct(
     ? new URL(productData.image, url).href
     : '';
   const price = cleanPrice(productData.price);
+  const priceRaw = productData.price ? String(productData.price) : null;
   const description = productData.description?.trim() || null;
 
-  const product = {
+  return {
     title,
-    price: price || null,
-    price_raw: productData.price ? String(productData.price) : null,
+    price: price || priceRaw || null,
+    priceRaw,
     image,
     description,
     domain,
     url,
+  };
+}
+
+/**
+ * Main function: Scrape and save product to Supabase
+ * Smart retry: Playwright → Static → Manual fallback
+ */
+export async function scrapeAndSaveProduct(
+  url: string,
+  userId: string | null = null
+): Promise<{
+  success: boolean;
+  data?: any;
+  error?: string;
+}> {
+  const scraped = await scrapeAndSave(url);
+
+  const product = {
+    title: scraped.title,
+    price: cleanPrice(scraped.price) || null,
+    price_raw: scraped.priceRaw || null,
+    image: scraped.image,
+    description: scraped.description,
+    domain: scraped.domain,
+    url: scraped.url,
     user_id: userId,
     meta: {
       scraped_at: new Date().toISOString(),
-      method: productData.title === 'Unknown Item' ? 'manual_fallback' : 'scraped',
+      method: scraped.title === 'Unknown Item' ? 'manual_fallback' : 'scraped',
     },
   };
 
@@ -271,7 +295,7 @@ export async function scrapeAndSaveProduct(
 
     return {
       success: true,
-      data: data || product, // Return inserted data or fallback to product object
+      data: data || product,
     };
   } catch (err: any) {
     console.error('Supabase insert failed:', err);
@@ -281,4 +305,3 @@ export async function scrapeAndSaveProduct(
     };
   }
 }
-

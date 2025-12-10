@@ -2,16 +2,16 @@
  * Playwright-based scraper for dynamic sites with stealth plugin
  * Uses multiple strategies: stealth plugin, mobile user agents, JSON-LD extraction
  * Enhanced with JSDOM for reliable HTML parsing and Cheerio for structured data
+ * Includes platform-specific selectors for Amazon, eBay, BestBuy, Target, Walmart
  */
-import { chromium as chromiumExtra } from 'playwright-extra';
-import StealthPlugin from 'playwright-extra-plugin-stealth';
-import type { Browser } from 'playwright';
+import { chromium } from 'playwright-extra';
+import StealthPlugin from '@cliqzdev/playwright-extra-plugin-stealth';
+import type { Browser, Page } from 'playwright';
 import { JSDOM } from 'jsdom';
 import { ScrapeResult } from './static-scraper';
 import { extractStructuredData } from './structured-data';
 
-// Apply stealth plugin to bypass bot detection
-chromiumExtra.use(StealthPlugin());
+chromium.use(StealthPlugin());
 
 // Multiple user agents for rotation and mobile fallback
 const DESKTOP_USER_AGENT =
@@ -19,6 +19,219 @@ const DESKTOP_USER_AGENT =
 
 const MOBILE_USER_AGENT =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+
+/**
+ * Safe selector evaluation with fallback
+ * Gracefully handles missing selectors without throwing errors
+ */
+async function safeEval(page: Page, selector: string, fallback: string = ''): Promise<string> {
+  try {
+    return await page.$eval(selector, (el: Element) => {
+      if (el instanceof HTMLElement) {
+        return el.textContent?.trim() || '';
+      }
+      return el.getAttribute('textContent') || el.getAttribute('content') || '';
+    });
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * Safe attribute evaluation with fallback
+ * Gracefully handles missing selectors and extracts attributes
+ */
+async function safeAttr(page: Page, selector: string, attribute: string, fallback: string = ''): Promise<string> {
+  try {
+    return await page.$eval(selector, (el: Element, attr: string) => {
+      return el.getAttribute(attr) || '';
+    }, attribute);
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * Platform-specific extraction using Playwright page.evaluate()
+ * Returns extracted data or null if selectors don't match
+ */
+async function extractPlatformSpecific(page: Page, source: string): Promise<{
+  title: string | null;
+  price: string | null;
+  image: string | null;
+  rating: string | null;
+} | null> {
+  try {
+    if (source.includes('amazon')) {
+      // Wait for Amazon-specific elements
+      try {
+        await page.waitForSelector('#productTitle, .a-price, #landingImage', { timeout: 5000 }).catch(() => {});
+      } catch {}
+
+      // Use safeEval for graceful fallbacks
+      const title = await safeEval(page, '#productTitle', 'Unknown Product');
+      
+      // Try multiple price selectors with fallbacks
+      let price = await safeEval(page, '.a-price .a-offscreen', '');
+      if (!price) {
+        price = await safeEval(page, '.a-price-whole', '');
+      }
+      if (price) {
+        price = price.replace(/[^0-9.,]/g, '');
+      }
+
+      // Try multiple image selectors with fallbacks
+      let image = await safeAttr(page, '#landingImage', 'src', '');
+      if (!image) {
+        image = await safeAttr(page, '#landingImage', 'data-old-hires', '');
+      }
+      if (!image) {
+        image = await safeAttr(page, '#imgBlkFront', 'src', '');
+      }
+
+      const rating = await safeEval(page, '.a-icon-alt', '');
+      const ratingValue = rating ? rating.split(' ')[0] : null;
+
+      if (title && title !== 'Unknown Product') {
+        return {
+          title: title || null,
+          price: price || null,
+          image: image || null,
+          rating: ratingValue,
+        };
+      }
+    } else if (source.includes('ebay')) {
+      // Wait for eBay-specific elements
+      try {
+        await page.waitForSelector('#itemTitle, #prcIsum, #icImg', { timeout: 5000 }).catch(() => {});
+      } catch {}
+
+      // Try primary selectors first, then fallback
+      let title = await safeEval(page, '#itemTitle', '');
+      if (!title) {
+        title = await safeEval(page, 'h1#x-item-title-label', '');
+      }
+      title = title.replace('Details about', '').trim();
+
+      let price = await safeEval(page, '#prcIsum', '');
+      if (!price) {
+        price = await safeEval(page, '.notranslate[itemprop="price"]', '');
+      }
+      if (price) {
+        price = price.replace(/[^0-9.,]/g, '');
+      }
+
+      let image = await safeAttr(page, '#icImg', 'src', '');
+      if (!image) {
+        image = await safeAttr(page, '#vi_main_img_fs', 'src', '');
+      }
+
+      const rating = await safeEval(page, '.reviews-seeall-hdn', '');
+      const ratingValue = rating ? rating.split(' ')[0] : null;
+
+      if (title && title !== 'Unknown Product') {
+        return {
+          title: title || null,
+          price: price || null,
+          image: image || null,
+          rating: ratingValue,
+        };
+      }
+    } else if (source.includes('bestbuy')) {
+      try {
+        await page.waitForSelector('.priceView-price, h1.heading-5', { timeout: 5000 }).catch(() => {});
+      } catch {}
+
+      let title = await safeEval(page, 'h1.heading-5', '');
+      if (!title) {
+        title = await safeEval(page, '[data-testid="product-title"]', '');
+      }
+
+      let price = await safeEval(page, '.priceView-price', '');
+      if (!price) {
+        price = await safeEval(page, '[data-testid="price"]', '');
+      }
+      if (price) {
+        price = price.replace(/[^0-9.,]/g, '');
+      }
+
+      let image = await safeAttr(page, '[data-testid="product-image"] img', 'src', '');
+      if (!image) {
+        image = await safeAttr(page, '.product-image img', 'src', '');
+      }
+
+      if (title && title !== 'Unknown Product') {
+        return {
+          title: title || null,
+          price: price || null,
+          image: image || null,
+          rating: null,
+        };
+      }
+    } else if (source.includes('target')) {
+      try {
+        await page.waitForSelector('[data-test="product-title"], [data-test="product-price"]', { timeout: 5000 }).catch(() => {});
+      } catch {}
+
+      const title = await safeEval(page, 'h1[data-test="product-title"]', 'Unknown Product');
+
+      let price = await safeEval(page, '[data-test="product-price"]', '');
+      if (!price) {
+        price = await safeEval(page, '[data-test="price-current"]', '');
+      }
+      if (price) {
+        price = price.replace(/[^0-9.,]/g, '');
+      }
+
+      const image = await safeAttr(page, '[data-test="product-image"] img', 'src', '');
+
+      if (title && title !== 'Unknown Product') {
+        return {
+          title: title || null,
+          price: price || null,
+          image: image || null,
+          rating: null,
+        };
+      }
+    } else if (source.includes('walmart')) {
+      try {
+        await page.waitForSelector('h1.prod-ProductTitle, [itemprop="price"]', { timeout: 5000 }).catch(() => {});
+      } catch {}
+
+      let title = await safeEval(page, 'h1.prod-ProductTitle', '');
+      if (!title) {
+        title = await safeEval(page, '[data-testid="product-title"]', '');
+      }
+
+      let price = await safeEval(page, '[itemprop="price"]', '');
+      if (!price) {
+        price = await safeEval(page, '.price-current', '');
+      }
+      if (price) {
+        price = price.replace(/[^0-9.,]/g, '');
+      }
+
+      let image = await safeAttr(page, '[data-testid="product-image"] img', 'src', '');
+      if (!image) {
+        image = await safeAttr(page, '[itemprop="image"]', 'src', '');
+      }
+
+      if (title && title !== 'Unknown Product') {
+        return {
+          title: title || null,
+          price: price || null,
+          image: image || null,
+          rating: null,
+        };
+      }
+    }
+
+    return null;
+  } catch (err) {
+    console.warn('Platform-specific extraction failed:', err);
+    return null;
+  }
+}
 
 /**
  * Extract product data from HTML using JSDOM (more reliable than regex)
@@ -139,7 +352,7 @@ export async function playwrightScrape(url: string, useMobile: boolean = false):
   let browser: Browser | null = null;
 
   try {
-    browser = await chromiumExtra.launch({
+    browser = await chromium.launch({
       headless: true,
       args: [
         '--no-sandbox',
@@ -194,12 +407,28 @@ export async function playwrightScrape(url: string, useMobile: boolean = false):
       // Ignore timeout, continue anyway
     });
 
+    // Try platform-specific extraction first (more accurate for known sites)
+    const source = new URL(url).hostname.toLowerCase();
+    const platformData = await extractPlatformSpecific(page, source);
+
     const html = await page.content();
     await context.close();
     await browser.close();
     browser = null;
 
-    // First try JSDOM extraction
+    // If platform-specific extraction succeeded, use it
+    if (platformData && (platformData.title || platformData.price)) {
+      return {
+        title: platformData.title,
+        image: platformData.image,
+        priceRaw: platformData.price,
+        description: null, // Platform-specific doesn't extract description
+        url,
+        html,
+      };
+    }
+
+    // Fallback to JSDOM extraction
     let result = extractDataFromHtml(html, url);
     
     // If title is missing or "Unknown Item", try structured data extraction (Cheerio)
