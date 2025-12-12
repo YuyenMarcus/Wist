@@ -52,39 +52,35 @@ class ProductSpider(Spider):
     def parse(self, response):
         print(f"👀 SPIDER SUCCESS: Landed on {response.url}")
 
-        # 1. Try JSON-LD (Usually best, but sometimes has "List Price" vs "Deal Price")
+        # 1. ALWAYS Try JSON-LD First (Usually most accurate for price)
         json_ld_data = self.extract_json_ld(response)
-        
-        # 2. Try specific extractors (Amazon, etc.) - These are often MORE accurate for price
-        domain = urlparse(self.url).netloc.lower()
-        specific_data = {}
-        
-        if 'amazon' in domain:
-            specific_data = self.extract_amazon(response)
-        elif 'bestbuy' in domain:
-            specific_data = self.extract_bestbuy(response)
-        elif 'target' in domain:
-            specific_data = self.extract_target(response)
-        
-        # 3. DECISION TIME: Which data is better?
-        # If we have specific Amazon data, use it (it often has the real deal price).
-        # Otherwise, fall back to JSON-LD.
         final_product = {}
-        
-        if specific_data and specific_data.get('title'):
-            final_product = specific_data
-        elif json_ld_data:
-            final_product = self.normalize_json_ld(json_ld_data, response.url)
-        else:
-            final_product = self.extract_generic(response)
 
-        # 4. YIELD (Using Safe Dictionary)
+        if json_ld_data:
+            print("✅ Found JSON-LD Data")
+            final_product = self.normalize_json_ld(json_ld_data, response.url)
+        
+        # 2. Only if JSON-LD failed (or missed the title), try specific extractors
+        if not final_product or not final_product.get('title'):
+            print("⚠️ JSON-LD missing/incomplete, trying CSS selectors...")
+            domain = urlparse(self.url).netloc.lower()
+            
+            if 'amazon' in domain:
+                final_product = self.extract_amazon(response)
+            elif 'bestbuy' in domain:
+                final_product = self.extract_bestbuy(response)
+            elif 'target' in domain:
+                final_product = self.extract_target(response)
+            else:
+                final_product = self.extract_generic(response)
+
+        # 3. YIELD (Using Safe Dictionary)
         if final_product and final_product.get('title'):
             # Construct the item manually (No ProductItem class)
             item = {
                 'title': final_product.get('title', ''),
                 'price': final_product.get('price'),
-                'priceRaw': final_product.get('priceRaw', ''),
+                'priceRaw': final_product.get('priceRaw', ''),  # Kept for frontend, removed in pipeline
                 'currency': final_product.get('currency', 'USD'),
                 'image': final_product.get('image', ''),
                 'description': final_product.get('description', ''),
@@ -96,7 +92,7 @@ class ProductSpider(Spider):
                 self.on_item_scraped(item)
 
             # Send to Database
-            print(f"📦 HANDING TO PIPELINE: {item['title']}")
+            print(f"📦 HANDING TO PIPELINE: {item['title']} (Price: {item['price']})")
             yield item
             
         else:
