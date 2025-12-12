@@ -51,76 +51,50 @@ class ProductSpider(Spider):
     
     def parse(self, response):
         """Extract product data from the page"""
-        # 1. Attempt JSON-LD extraction (Most reliable for Amazon/Target/BestBuy)
+        print(f"👀 SPIDER SUCCESS: Landed on {response.url}")
+
+        # 1. Attempt JSON-LD extraction
         json_ld_data = self.extract_json_ld(response)
         
-        if json_ld_data:
-            product = self.normalize_json_ld(json_ld_data, response.url)
-            if self.on_item_scraped:
-                self.on_item_scraped(product)  # CRITICAL: Send data back to Flask
-            
-            # 👇 SAFE FIX: Use a simple dictionary instead of ProductItem 👇
-            item = {
-                'title': product.get('title', ''),
-                'price': product.get('price'),
-                'priceRaw': product.get('priceRaw', ''),
-                'currency': product.get('currency', 'USD'),
-                'image': product.get('image', ''),
-                'description': product.get('description', ''),
-                'url': product.get('url', response.url)
-            }
-            
-            print(f"📦 YIELDING ITEM: {item['title']}")  # Force print to logs
-            yield item
-            return
-        
-        # 2. Fallback to domain-specific extraction
-        domain = urlparse(self.url).netloc.lower()
         result = {}
-        
-        if 'amazon' in domain:
-            result = self.extract_amazon(response)
-        elif 'bestbuy' in domain:
-            result = self.extract_bestbuy(response)
-        elif 'target' in domain:
-            result = self.extract_target(response)
+        if json_ld_data:
+            result = self.normalize_json_ld(json_ld_data, response.url)
         else:
-            result = self.extract_generic(response)
-        
-        # 3. Fallback to OpenGraph meta tags
-        if not result.get('title') or result.get('title') == '':
-            og_product = self.extract_opengraph(response)
-            if og_product and og_product.get('title'):
-                result = og_product
-        
-        # Normalize and send back via callback
+            # 2. Fallback extraction
+            domain = urlparse(self.url).netloc.lower()
+            if 'amazon' in domain:
+                result = self.extract_amazon(response)
+            elif 'bestbuy' in domain:
+                result = self.extract_bestbuy(response)
+            elif 'target' in domain:
+                result = self.extract_target(response)
+            else:
+                result = self.extract_generic(response)
+
+        # 3. If we found data, Process it!
         if result and result.get('title'):
-            product = {
+            # A. Prepare the data object (Dictionary)
+            product_data = {
                 'title': result.get('title', ''),
                 'price': result.get('price'),
                 'priceRaw': result.get('priceRaw', ''),
                 'currency': result.get('currency', 'USD'),
                 'image': result.get('image', ''),
                 'description': result.get('description', ''),
-                'url': self.url
+                'url': result.get('url', self.url)
             }
-            
+
+            # B. Send to Frontend (This is what works now)
             if self.on_item_scraped:
-                self.on_item_scraped(product)  # CRITICAL: Send data back to Flask
+                print(f"🚀 SENDING TO FRONTEND: {product_data['title']}")
+                self.on_item_scraped(product_data)
             
-            # 👇 SAFE FIX: Use a simple dictionary instead of ProductItem 👇
-            item = {
-                'title': product.get('title', ''),
-                'price': product.get('price'),
-                'priceRaw': product.get('priceRaw', ''),
-                'currency': product.get('currency', 'USD'),
-                'image': product.get('image', ''),
-                'description': product.get('description', ''),
-                'url': product.get('url', self.url)
-            }
+            # C. Send to Database (This was broken, now fixed)
+            print(f"📦 HANDING TO PIPELINE (DATABASE): {product_data['title']}")
+            yield product_data 
             
-            print(f"📦 YIELDING ITEM: {item['title']}")  # Force print to logs
-            yield item
+        else:
+            print("❌ FAILED: Could not find product title on page.")
     
     def extract_json_ld(self, response):
         """Extract from JSON-LD structured data (schema.org)"""
