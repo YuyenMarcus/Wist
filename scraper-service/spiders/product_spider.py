@@ -50,51 +50,57 @@ class ProductSpider(Spider):
         )
     
     def parse(self, response):
-        """Extract product data from the page"""
         print(f"👀 SPIDER SUCCESS: Landed on {response.url}")
 
-        # 1. Attempt JSON-LD extraction
+        # 1. Try JSON-LD (Usually best, but sometimes has "List Price" vs "Deal Price")
         json_ld_data = self.extract_json_ld(response)
         
-        result = {}
-        if json_ld_data:
-            result = self.normalize_json_ld(json_ld_data, response.url)
+        # 2. Try specific extractors (Amazon, etc.) - These are often MORE accurate for price
+        domain = urlparse(self.url).netloc.lower()
+        specific_data = {}
+        
+        if 'amazon' in domain:
+            specific_data = self.extract_amazon(response)
+        elif 'bestbuy' in domain:
+            specific_data = self.extract_bestbuy(response)
+        elif 'target' in domain:
+            specific_data = self.extract_target(response)
+        
+        # 3. DECISION TIME: Which data is better?
+        # If we have specific Amazon data, use it (it often has the real deal price).
+        # Otherwise, fall back to JSON-LD.
+        final_product = {}
+        
+        if specific_data and specific_data.get('title'):
+            final_product = specific_data
+        elif json_ld_data:
+            final_product = self.normalize_json_ld(json_ld_data, response.url)
         else:
-            # 2. Fallback extraction
-            domain = urlparse(self.url).netloc.lower()
-            if 'amazon' in domain:
-                result = self.extract_amazon(response)
-            elif 'bestbuy' in domain:
-                result = self.extract_bestbuy(response)
-            elif 'target' in domain:
-                result = self.extract_target(response)
-            else:
-                result = self.extract_generic(response)
+            final_product = self.extract_generic(response)
 
-        # 3. If we found data, Process it!
-        if result and result.get('title'):
-            # A. Prepare the data object (Dictionary)
-            product_data = {
-                'title': result.get('title', ''),
-                'price': result.get('price'),
-                'priceRaw': result.get('priceRaw', ''),
-                'currency': result.get('currency', 'USD'),
-                'image': result.get('image', ''),
-                'description': result.get('description', ''),
-                'url': result.get('url', self.url)
+        # 4. YIELD (Using Safe Dictionary)
+        if final_product and final_product.get('title'):
+            # Construct the item manually (No ProductItem class)
+            item = {
+                'title': final_product.get('title', ''),
+                'price': final_product.get('price'),
+                'priceRaw': final_product.get('priceRaw', ''),
+                'currency': final_product.get('currency', 'USD'),
+                'image': final_product.get('image', ''),
+                'description': final_product.get('description', ''),
+                'url': final_product.get('url', self.url)
             }
 
-            # B. Send to Frontend (This is what works now)
+            # Send to Frontend
             if self.on_item_scraped:
-                print(f"🚀 SENDING TO FRONTEND: {product_data['title']}")
-                self.on_item_scraped(product_data)
-            
-            # C. Send to Database (This was broken, now fixed)
-            print(f"📦 HANDING TO PIPELINE (DATABASE): {product_data['title']}")
-            yield product_data 
+                self.on_item_scraped(item)
+
+            # Send to Database
+            print(f"📦 HANDING TO PIPELINE: {item['title']}")
+            yield item
             
         else:
-            print("❌ FAILED: Could not find product title on page.")
+            print("❌ FAILED: Could not find product data.")
     
     def extract_json_ld(self, response):
         """Extract from JSON-LD structured data (schema.org)"""
