@@ -88,3 +88,4 @@ curl http://localhost:5000/api/job/<job_id>
 - Verify dependencies: `pip list | grep -E "(scrapy|crochet|flask)"`
 
 
+

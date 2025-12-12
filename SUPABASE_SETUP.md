@@ -80,3 +80,4 @@ pip install -r requirements.txt
 - Make sure `scraper-service/.env` exists with `SUPABASE_URL` and `SUPABASE_KEY`
 - Check Flask service logs for Supabase connection messages
 
+

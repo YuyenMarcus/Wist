@@ -1,0 +1,42 @@
+[1mdiff --git a/scraper-service/app.py b/scraper-service/app.py[m
+[1mindex 56a5479..06992fe 100644[m
+[1m--- a/scraper-service/app.py[m
+[1m+++ b/scraper-service/app.py[m
+[36m@@ -71,9 +71,8 @@[m [mdef get_scrapy_settings():[m
+     settings.set('ROBOTSTXT_OBEY', False)[m
+     settings.set('LOG_LEVEL', 'ERROR')[m
+     [m
+[31m-    # REMOVED: Windows-specific reactor setting - Railway (Linux) will auto-detect EPoll reactor[m
+[31m-    # Don't force SelectReactor on Linux - let the system choose the best reactor[m
+[31m-    # settings.set('TWISTED_REACTOR', 'twisted.internet.selectreactor.SelectReactor')[m
+[32m+[m[32m    # CRITICAL: Ensure we use SelectReactor (matches what crochet installs)[m
+[32m+[m[32m    settings.set('TWISTED_REACTOR', 'twisted.internet.selectreactor.SelectReactor')[m
+     [m
+     # Ensure user-agent rotation is enabled[m
+     if 'scrapy_user_agents.middlewares.RandomUserAgentMiddleware' not in settings.get('DOWNLOADER_MIDDLEWARES', {}):[m
+[1mdiff --git a/scraper-service/settings.py b/scraper-service/settings.py[m
+[1mindex 0cb9bcf..30f03aa 100644[m
+[1m--- a/scraper-service/settings.py[m
+[1m+++ b/scraper-service/settings.py[m
+[36m@@ -58,18 +58,7 @@[m [mLOG_LEVEL = 'ERROR'[m
+ ITEM_PIPELINES = {}[m
+ [m
+ # 10. Reactor Configuration[m
+[31m-# SMART REACTOR SELECTION - Choose the correct reactor based on OS[m
+[31m-# This forces Railway (Linux) to use EPollReactor and Windows to use SelectReactor[m
+[31m-import sys[m
+[31m-[m
+[31m-# ---------------------------------------------------------[m
+[31m-# SMART REACTOR SELECTION[m
+[31m-# This forces Railway (Linux) to use the correct engine[m
+[31m-# and keeps Windows using the Windows engine.[m
+[31m-# ---------------------------------------------------------[m
+[31m-if sys.platform == 'linux':[m
+[31m-    TWISTED_REACTOR = 'twisted.internet.epollreactor.EPollReactor'[m
+[31m-else:[m
+[31m-    # Default for Windows/Mac[m
+[31m-    TWISTED_REACTOR = 'twisted.internet.selectreactor.SelectReactor'[m
+[32m+[m[32m# IMPORTANT: Explicitly use SelectReactor to match what crochet installs[m
+[32m+[m[32m# Crochet sets up SelectReactor, and we must tell Scrapy to use the same one[m
+[32m+[m[32mTWISTED_REACTOR = 'twisted.internet.selectreactor.SelectReactor'[m
+ [m

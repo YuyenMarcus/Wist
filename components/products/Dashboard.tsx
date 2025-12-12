@@ -53,12 +53,23 @@ export default function Dashboard() {
     setPreview(null);
 
     try {
+      // TODO: Get user_id from your auth context
+      // Examples:
+      //   - Supabase Auth: const { data: { user } } = await supabase.auth.getUser()
+      //   - Clerk: const { user } = useUser()
+      //   - NextAuth: const { data: session } = useSession()
+      const user_id = 'temp-user-id';  // REPLACE THIS with actual user.id from your auth
+
       const response = await fetch('/api/fetch-product', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ url: url.trim(), save: false }),
+        body: JSON.stringify({ 
+          url: url.trim(), 
+          save: false,
+          user_id  // 👈 Include user_id so backend can save it
+        }),
       });
 
       // Check if response is actually JSON

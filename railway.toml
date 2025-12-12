@@ -4,3 +4,4 @@ builder = "nixpacks"
 [deploy]
 startCommand = "cd scraper-service && python app.py"
 
+

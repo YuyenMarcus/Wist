@@ -16,11 +16,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
 
-    const { url } = req.body || {};
+    const { url, user_id } = req.body || {};
     
     if (!url || typeof url !== 'string') {
       return res.status(400).json({ success: false, error: 'Missing URL in request body' });
     }
+
+    // TODO: Get user_id from authentication (session, JWT, etc.)
+    // For now, accept user_id from request body
+    // In production, extract from: req.headers.authorization or req.session.user.id
 
     // --- 1. CHECK SUPABASE CACHE FIRST (if configured) ---
     try {
@@ -77,7 +81,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ 
+          url,
+          user_id  // 👈 Pass user_id to backend
+        }),
       });
 
       if (!response.ok) {

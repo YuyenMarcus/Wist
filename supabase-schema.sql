@@ -42,3 +42,4 @@ for insert with check (true);
 create policy "Public Update" on products
 for update using (true);
 
+
