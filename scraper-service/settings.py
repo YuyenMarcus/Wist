@@ -58,7 +58,7 @@ LOG_LEVEL = 'ERROR'
 ITEM_PIPELINES = {}
 
 # 10. Reactor Configuration
-# IMPORTANT: Explicitly use SelectReactor to match what crochet installs
-# Crochet sets up SelectReactor, and we must tell Scrapy to use the same one
-TWISTED_REACTOR = 'twisted.internet.selectreactor.SelectReactor'
+# Let Railway (Linux) automatically choose the best reactor (EPoll)
+# Don't force Windows-specific SelectReactor - Railway will pick the right one
+# TWISTED_REACTOR = 'twisted.internet.selectreactor.SelectReactor'  # REMOVED: Windows-specific, breaks on Linux
 

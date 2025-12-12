@@ -71,8 +71,9 @@ def get_scrapy_settings():
     settings.set('ROBOTSTXT_OBEY', False)
     settings.set('LOG_LEVEL', 'ERROR')
     
-    # CRITICAL: Ensure we use SelectReactor (matches what crochet installs)
-    settings.set('TWISTED_REACTOR', 'twisted.internet.selectreactor.SelectReactor')
+    # REMOVED: Windows-specific reactor setting - Railway (Linux) will auto-detect EPoll reactor
+    # Don't force SelectReactor on Linux - let the system choose the best reactor
+    # settings.set('TWISTED_REACTOR', 'twisted.internet.selectreactor.SelectReactor')
     
     # Ensure user-agent rotation is enabled
     if 'scrapy_user_agents.middlewares.RandomUserAgentMiddleware' not in settings.get('DOWNLOADER_MIDDLEWARES', {}):
