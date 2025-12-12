@@ -24,11 +24,12 @@ class ProductItem(Item):
 class ProductSpider(Spider):
     name = 'product_spider'
     
-    def __init__(self, url=None, on_item_scraped=None, *args, **kwargs):
+    def __init__(self, url=None, on_item_scraped=None, user_id=None, *args, **kwargs):
         super(ProductSpider, self).__init__(*args, **kwargs)
         self.url = url
         self.start_urls = [url] if url else []
         self.on_item_scraped = on_item_scraped  # Store the callback function
+        self.user_id = user_id  # Save user_id to the class
         
     def start_requests(self):
         """
@@ -77,7 +78,8 @@ class ProductSpider(Spider):
                 'title': final_product.get('title', ''),
                 'price': final_product.get('price'),
                 'image': final_product.get('image', ''),
-                'url': final_product.get('url', self.url)
+                'url': final_product.get('url', self.url),
+                'user_id': self.user_id  # 👇 CRITICAL: Attach the ID here!
             }
             
             if self.on_item_scraped:

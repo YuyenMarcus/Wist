@@ -21,7 +21,8 @@ class SupabasePipeline:
                     'title': item.get('title'),
                     'price': item.get('price'),
                     'image': item.get('image'),
-                    'url': item.get('url')
+                    'url': item.get('url'),
+                    'user_id': item.get('user_id')  # 👈 Add this line!
                     # We EXCLUDE 'priceRaw', 'currency', 'description' to prevent errors
                 }
 

@@ -208,7 +208,7 @@ def detect_captcha_trap(data):
 
 
 @wait_for(timeout=60.0)  # 60s timeout
-def run_spider(url, job_id):
+def run_spider(url, job_id, user_id=None):
     """
     Run Scrapy spider using CrawlerRunner (managed by crochet)
     This runs in a separate thread managed by crochet's reactor
@@ -224,8 +224,8 @@ def run_spider(url, job_id):
         print(f"✅ Job {job_id} found item: {item.get('title', '')[:50]}...")
         SCRAPED_ITEMS[job_id] = item  # Store in global dict
     
-    # Pass the callback to the spider via arguments
-    deferred = runner.crawl(ProductSpider, url=url, on_item_scraped=store_scraped_item)
+    # Pass the callback and user_id to the spider via arguments
+    deferred = runner.crawl(ProductSpider, url=url, on_item_scraped=store_scraped_item, user_id=user_id)
     
     def on_success(result):
         """Called when crawl completes successfully"""
@@ -292,6 +292,8 @@ def start_scrape_job():
     """
     data = request.get_json()
     url = data.get('url') if data else None
+    # 👇 NEW: Get user_id from the frontend request
+    user_id = data.get('user_id')
     
     if not url:
         return jsonify({"error": "URL required"}), 400
@@ -321,7 +323,8 @@ def start_scrape_job():
     
     # Start the scrape in the background (crochet manages the reactor)
     try:
-        run_spider(url, job_id)
+        # 👇 PASS user_id TO THE SPIDER
+        run_spider(url, job_id, user_id)
     except Exception as e:
         JOBS[job_id]["status"] = STATUS_FAILED
         JOBS[job_id]["error"] = str(e)
@@ -383,11 +386,13 @@ def scrape_sync():
     """
     data = request.get_json()
     url = data.get('url') if data else None
+    # 👇 NEW: Get user_id from the frontend request
+    user_id = data.get('user_id')
     
     if not url:
         return jsonify({"error": "URL required"}), 400
     
-    print(f"🔔 Request received for: {url}")
+    print(f"🔔 Request received for: {url} (user_id: {user_id})")
     
     # --- 1. CHECK DATABASE (CACHE) FIRST ---
     if supabase:
@@ -446,7 +451,8 @@ def scrape_sync():
     
     try:
         # Run spider and wait for result (crochet handles this)
-        run_spider(url, job_id)
+        # 👇 PASS user_id TO THE SPIDER
+        run_spider(url, job_id, user_id)
         
         # Poll until complete (with timeout)
         max_wait = 30  # 30 second timeout for sync
