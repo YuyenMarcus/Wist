@@ -58,6 +58,20 @@ class ProductSpider(Spider):
             product = self.normalize_json_ld(json_ld_data, response.url)
             if self.on_item_scraped:
                 self.on_item_scraped(product)  # CRITICAL: Send data back to Flask
+            
+            # 👇 SAFE FIX: Use a simple dictionary instead of ProductItem 👇
+            item = {
+                'title': product.get('title', ''),
+                'price': product.get('price'),
+                'priceRaw': product.get('priceRaw', ''),
+                'currency': product.get('currency', 'USD'),
+                'image': product.get('image', ''),
+                'description': product.get('description', ''),
+                'url': product.get('url', response.url)
+            }
+            
+            print(f"📦 YIELDING ITEM: {item['title']}")  # Force print to logs
+            yield item
             return
         
         # 2. Fallback to domain-specific extraction
@@ -93,6 +107,20 @@ class ProductSpider(Spider):
             
             if self.on_item_scraped:
                 self.on_item_scraped(product)  # CRITICAL: Send data back to Flask
+            
+            # 👇 SAFE FIX: Use a simple dictionary instead of ProductItem 👇
+            item = {
+                'title': product.get('title', ''),
+                'price': product.get('price'),
+                'priceRaw': product.get('priceRaw', ''),
+                'currency': product.get('currency', 'USD'),
+                'image': product.get('image', ''),
+                'description': product.get('description', ''),
+                'url': product.get('url', self.url)
+            }
+            
+            print(f"📦 YIELDING ITEM: {item['title']}")  # Force print to logs
+            yield item
     
     def extract_json_ld(self, response):
         """Extract from JSON-LD structured data (schema.org)"""

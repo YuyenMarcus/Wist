@@ -43,6 +43,9 @@ from scrapy.crawler import CrawlerRunner
 from scrapy.utils.project import get_project_settings
 from spiders.product_spider import ProductSpider
 
+# 👇 IMPORT THE PIPELINE DIRECTLY 👇
+from pipelines import SupabasePipeline
+
 app = Flask(__name__)
 CORS(app)  # Allow Next.js frontend to call this
 
@@ -69,18 +72,18 @@ def get_scrapy_settings():
     
     # Force override critical settings just in case
     settings.set('ROBOTSTXT_OBEY', False)
-    settings.set('LOG_LEVEL', 'ERROR')
+    
+    # 👇 CHANGE LOG LEVEL TO INFO (So we can see the logs!) 👇
+    settings.set('LOG_LEVEL', 'INFO')
     
     # REMOVED: Windows-specific reactor setting - Railway (Linux) will auto-detect EPoll reactor
     # Don't force SelectReactor on Linux - let the system choose the best reactor
     # settings.set('TWISTED_REACTOR', 'twisted.internet.selectreactor.SelectReactor')
     
-    # 👇 FORCE PIPELINE TO BE ENABLED 👇
-    # Explicitly enable SupabasePipeline to ensure data is saved
+    # 👇 USE THE IMPORTED CLASS DIRECTLY 👇
     settings.set('ITEM_PIPELINES', {
-        'pipelines.SupabasePipeline': 300,
+        SupabasePipeline: 300,
     })
-    # 👆 END OF PIPELINE CONFIGURATION 👆
     
     # Ensure user-agent rotation is enabled
     if 'scrapy_user_agents.middlewares.RandomUserAgentMiddleware' not in settings.get('DOWNLOADER_MIDDLEWARES', {}):
