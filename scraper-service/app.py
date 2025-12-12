@@ -75,6 +75,13 @@ def get_scrapy_settings():
     # Don't force SelectReactor on Linux - let the system choose the best reactor
     # settings.set('TWISTED_REACTOR', 'twisted.internet.selectreactor.SelectReactor')
     
+    # 👇 FORCE PIPELINE TO BE ENABLED 👇
+    # Explicitly enable SupabasePipeline to ensure data is saved
+    settings.set('ITEM_PIPELINES', {
+        'pipelines.SupabasePipeline': 300,
+    })
+    # 👆 END OF PIPELINE CONFIGURATION 👆
+    
     # Ensure user-agent rotation is enabled
     if 'scrapy_user_agents.middlewares.RandomUserAgentMiddleware' not in settings.get('DOWNLOADER_MIDDLEWARES', {}):
         settings.set('DOWNLOADER_MIDDLEWARES', {
