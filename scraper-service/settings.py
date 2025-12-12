@@ -54,8 +54,11 @@ AUTOTHROTTLE_DEBUG = False
 # 8. Logging (Keep it quiet)
 LOG_LEVEL = 'ERROR'
 
-# 9. Item Pipelines (None needed for our use case)
-ITEM_PIPELINES = {}
+# 9. Item Pipelines - Enable Supabase pipeline to save scraped data
+# Enable the pipeline we just created
+ITEM_PIPELINES = {
+    'pipelines.SupabasePipeline': 300,
+}
 
 # 10. Reactor Configuration
 # SMART REACTOR SELECTION - Choose the correct reactor based on OS
