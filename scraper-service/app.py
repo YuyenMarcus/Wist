@@ -5,6 +5,14 @@ Uses crochet to manage Scrapy's Twisted reactor lifecycle
 CRITICAL: Let Scrapy use whatever reactor crochet sets up (SelectReactor)
 """
 import os
+
+# 1. IMPORT CROCHET FIRST - MUST BE BEFORE ANY OTHER IMPORTS
+import crochet
+
+# 2. RUN SETUP IMMEDIATELY - MUST RUN BEFORE FLASK, SCRAPY, OR ANYTHING ELSE
+crochet.setup()
+
+# 3. ONLY THEN import everything else
 import uuid
 import time
 from datetime import datetime, timedelta
@@ -29,11 +37,8 @@ except Exception as e:
     print(f"⚠️  Supabase initialization failed: {e}")
     supabase = None
 
-# Initialize Crochet - it will set up the SelectReactor
-from crochet import setup, wait_for
-setup()
-
-# Now import Scrapy components
+# Now import Scrapy components (after crochet.setup())
+from crochet import wait_for
 from scrapy.crawler import CrawlerRunner
 from scrapy.utils.project import get_project_settings
 from spiders.product_spider import ProductSpider
