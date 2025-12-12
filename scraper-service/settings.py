@@ -58,7 +58,18 @@ LOG_LEVEL = 'ERROR'
 ITEM_PIPELINES = {}
 
 # 10. Reactor Configuration
-# Let Railway (Linux) automatically choose the best reactor (EPoll)
-# Don't force Windows-specific SelectReactor - Railway will pick the right one
-# TWISTED_REACTOR = 'twisted.internet.selectreactor.SelectReactor'  # REMOVED: Windows-specific, breaks on Linux
+# SMART REACTOR SELECTION - Choose the correct reactor based on OS
+# This forces Railway (Linux) to use EPollReactor and Windows to use SelectReactor
+import sys
+
+# ---------------------------------------------------------
+# SMART REACTOR SELECTION
+# This forces Railway (Linux) to use the correct engine
+# and keeps Windows using the Windows engine.
+# ---------------------------------------------------------
+if sys.platform == 'linux':
+    TWISTED_REACTOR = 'twisted.internet.epollreactor.EPollReactor'
+else:
+    # Default for Windows/Mac
+    TWISTED_REACTOR = 'twisted.internet.selectreactor.SelectReactor'
 
