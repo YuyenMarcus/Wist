@@ -51,50 +51,40 @@ class ProductSpider(Spider):
     
     def parse(self, response):
         print(f"👀 SPIDER SUCCESS: Landed on {response.url}")
-
-        # 1. ALWAYS Try JSON-LD First (Usually most accurate for price)
-        json_ld_data = self.extract_json_ld(response)
-        final_product = {}
-
-        if json_ld_data:
-            print("✅ Found JSON-LD Data")
-            final_product = self.normalize_json_ld(json_ld_data, response.url)
         
-        # 2. Only if JSON-LD failed (or missed the title), try specific extractors
-        if not final_product or not final_product.get('title'):
-            print("⚠️ JSON-LD missing/incomplete, trying CSS selectors...")
-            domain = urlparse(self.url).netloc.lower()
-            
-            if 'amazon' in domain:
-                final_product = self.extract_amazon(response)
-            elif 'bestbuy' in domain:
-                final_product = self.extract_bestbuy(response)
-            elif 'target' in domain:
-                final_product = self.extract_target(response)
-            else:
-                final_product = self.extract_generic(response)
+        final_product = {}
+        domain = urlparse(self.url).netloc.lower()
 
-        # 3. YIELD (Using Safe Dictionary)
+        # STRATEGY: Try Domain-Specific Extractor FIRST (It sees the sale price)
+        if 'amazon' in domain:
+            print("🛒 Detected Amazon - Using visual extractor first")
+            final_product = self.extract_amazon(response)
+        elif 'bestbuy' in domain:
+            final_product = self.extract_bestbuy(response)
+        elif 'target' in domain:
+            final_product = self.extract_target(response)
+
+        # FALLBACK: If Amazon extractor failed (or it's a generic site), try JSON-LD
+        if not final_product or not final_product.get('price'):
+            print("⚠️ Visual extraction failed/incomplete, trying JSON-LD...")
+            json_ld_data = self.extract_json_ld(response)
+            if json_ld_data:
+                final_product = self.normalize_json_ld(json_ld_data, response.url)
+
+        # YIELD (Standard Logic)
         if final_product and final_product.get('title'):
-            # Construct the item manually (No ProductItem class)
             item = {
                 'title': final_product.get('title', ''),
                 'price': final_product.get('price'),
-                'priceRaw': final_product.get('priceRaw', ''),  # Kept for frontend, removed in pipeline
-                'currency': final_product.get('currency', 'USD'),
                 'image': final_product.get('image', ''),
-                'description': final_product.get('description', ''),
                 'url': final_product.get('url', self.url)
             }
-
-            # Send to Frontend
+            
             if self.on_item_scraped:
                 self.on_item_scraped(item)
 
-            # Send to Database
             print(f"📦 HANDING TO PIPELINE: {item['title']} (Price: {item['price']})")
             yield item
-            
         else:
             print("❌ FAILED: Could not find product data.")
     
@@ -165,107 +155,46 @@ class ProductSpider(Spider):
         }
     
     def extract_amazon(self, response):
-        """Amazon-specific extraction"""
-        result = {}
+        """
+        Robust Amazon extraction that looks for the 'Deal Price' first.
+        """
+        product = {}
         
-        # Title
-        title_selectors = [
-            '#productTitle::text',
-            'h1.a-size-large::text',
-            'span#productTitle::text',
-            'h1 span::text'
-        ]
-        for selector in title_selectors:
-            title = response.css(selector).get()
-            if title:
-                result['title'] = title.strip()
-                break
-        
-        # Price
-        price_selectors = [
-            'span.a-price-whole::text',
-            '.a-price .a-offscreen::text',
-            '#priceblock_ourprice::text',
-            '#priceblock_dealprice::text',
-            'span.a-price-symbol + span::text',
-            '.a-price-range .a-offscreen::text'
-        ]
-        for selector in price_selectors:
-            price = response.css(selector).get()
-            if price:
-                result['priceRaw'] = price.strip()
-                result['price'] = self.clean_price(price.strip())
-                break
-        
-        # --- ROBUST AMAZON IMAGE EXTRACTION ---
-        # Amazon uses lazy loading - src often contains a 1x1 placeholder
-        # We need to check data-a-dynamic-image for the real high-res image
-        image_url = None
-        
-        # Strategy 1: "data-a-dynamic-image" (The Gold Standard)
-        # Amazon stores all resolutions in a JSON object inside this attribute
-        try:
-            img_data = response.css('#landingImage::attr(data-a-dynamic-image)').get() or \
-                      response.css('#imgBlkFront::attr(data-a-dynamic-image)').get()  # For Books
+        # 1. TITLE extraction
+        title = response.css('#productTitle::text').get()
+        if title:
+            product['title'] = title.strip()
             
-            if img_data:
-                # It's a JSON string like {"url1": [size], "url2": [size]}
-                # We grab the first key (usually the best one)
-                images = json.loads(img_data)
-                if images:
-                    image_url = list(images.keys())[0]
-        except Exception:
-            pass
+        # 2. PRICE extraction (The tricky part)
+        # We check these specific classes in order of accuracy
+        price_selectors = [
+            '.a-price.a-text-price.a-size-medium .a-offscreen::text',  # Deal price text
+            '.a-price .a-offscreen::text',                            # Standard price text
+            '#priceblock_ourprice::text',                             # Old style
+            '#priceblock_dealprice::text',                            # Old style deal
+            '.a-price-whole::text',                                   # Last resort (might miss cents)
+        ]
         
-        # Strategy 2: "data-old-hires" (Older Amazon pages)
-        if not image_url:
-            image_url = response.css('#landingImage::attr(data-old-hires)').get()
-        
-        # Strategy 3: Standard src (Fallback)
-        if not image_url:
-            image_url = response.css('#landingImage::attr(src)').get() or \
-                       response.css('#imgTagWrapperId img::attr(src)').get() or \
-                       response.css('#imgBlkFront::attr(src)').get() or \
-                       response.css('img#main-image::attr(src)').get()
-        
-        # Strategy 4: JSON-LD (The Backup)
-        if not image_url:
-            try:
-                script_data = response.xpath('//script[@type="application/ld+json"]//text()').get()
-                if script_data:
-                    data = json.loads(script_data)
-                    # Handle list or dict
-                    if isinstance(data, list):
-                        for item in data:
-                            if item.get('@type') == 'Product':
-                                image_url = item.get('image')
-                                if isinstance(image_url, list):
-                                    image_url = image_url[0] if image_url else None
-                                elif isinstance(image_url, dict):
-                                    image_url = image_url.get('url')
-                                break
-                    elif isinstance(data, dict):
-                        if data.get('@type') == 'Product':
-                            image_url = data.get('image')
-                            if isinstance(image_url, list):
-                                image_url = image_url[0] if image_url else None
-                            elif isinstance(image_url, dict):
-                                image_url = image_url.get('url')
-            except:
-                pass
-        
-        # Clean the URL (remove any weird encoded spaces)
-        if image_url:
-            image_url = image_url.strip()
-        
-        result['image'] = image_url or ''
-        
-        # Description
-        desc = response.css('#productDescription p::text').getall()
-        result['description'] = ' '.join(desc).strip() if desc else ''
-        result['currency'] = 'USD'
-        
-        return result
+        for selector in price_selectors:
+            price_text = response.css(selector).get()
+            if price_text:
+                # Clean the price (remove currency symbol and whitespace)
+                cleaned_price = price_text.replace('$', '').replace(',', '').strip()
+                try:
+                    product['price'] = float(cleaned_price)
+                    # If we found a valid price, STOP looking
+                    break 
+                except ValueError:
+                    continue
+
+        # 3. IMAGE extraction
+        # Amazon often hides the hi-res image in a JSON object, but the simple ID works too
+        img = response.css('#landingImage::attr(src)').get()
+        if not img:
+            img = response.css('#imgBlkFront::attr(src)').get()
+        product['image'] = img
+
+        return product
     
     def extract_bestbuy(self, response):
         """Best Buy specific extraction"""
