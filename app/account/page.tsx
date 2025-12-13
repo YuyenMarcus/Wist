@@ -411,6 +411,34 @@ export default function AccountPage() {
               </div>
             </div>
 
+            {/* Bio Input */}
+            <div className="mb-6">
+              <label htmlFor="bio" className="block text-xs font-medium text-zinc-500 mb-2">
+                Bio
+              </label>
+              <textarea
+                id="bio"
+                value={bio}
+                onChange={(e) => {
+                  if (e.target.value.length <= BIO_MAX_LENGTH) {
+                    setBio(e.target.value)
+                  }
+                }}
+                rows={3}
+                className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-900 placeholder-zinc-400 shadow-sm focus:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-200 transition-colors resize-none"
+                placeholder="Tell us about yourself..."
+              />
+              <div className="flex justify-end mt-1">
+                <span className={`text-xs ${
+                  bio.length >= BIO_MAX_LENGTH 
+                    ? 'text-red-500 font-medium' 
+                    : 'text-zinc-400'
+                }`}>
+                  {bio.length}/{BIO_MAX_LENGTH}
+                </span>
+              </div>
+            </div>
+
             <div className="flex items-center justify-end gap-3">
               <button
                 type="button"
