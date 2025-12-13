@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import AddItemForm from '@/components/dashboard/AddItemForm'
-import WishlistGrid from '@/components/dashboard/WishlistGrid'
+import WishlistGrid from '@/components/wishlist/WishlistGrid'
 import ShareButton from '@/components/dashboard/ShareButton'
+import { getUserProducts, SupabaseProduct, deleteUserProduct } from '@/lib/supabase/products'
 
 export default function DashboardPage() {
   const [user, setUser] = useState<{ id: string } | null>(null)

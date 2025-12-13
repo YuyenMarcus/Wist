@@ -4,15 +4,24 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { getProfileByUsername, PublicProfile } from '@/lib/supabase/profile'
-import { getPublicProducts, SupabaseProduct } from '@/lib/supabase/products'
-import WishlistGrid from '@/components/dashboard/WishlistGrid'
+import { getUserProducts, SupabaseProduct, reserveProduct, unreserveProduct } from '@/lib/supabase/products'
+import WishlistGrid from '@/components/wishlist/WishlistGrid'
 
 export default function PublicProfilePage() {
   const params = useParams()
   const username = params?.username as string
   const [profile, setProfile] = useState<PublicProfile | null>(null)
+  const [products, setProducts] = useState<SupabaseProduct[]>([])
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Get current user
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setCurrentUserId(user?.id || null)
+    })
+  }, [])
 
   useEffect(() => {
     async function loadProfile() {
@@ -31,6 +40,18 @@ export default function PublicProfilePage() {
         }
 
         setProfile(profileData)
+
+        // Load products for this user (public view)
+        const { data: productsData, error: productsError } = await getUserProducts(
+          profileData.id,
+          currentUserId || undefined
+        )
+
+        if (productsError) {
+          console.error('Error loading products:', productsError)
+        } else if (productsData) {
+          setProducts(productsData)
+        }
       } catch (err: any) {
         console.error('Error loading profile:', err)
         setError(err.message || 'Failed to load profile')
@@ -40,7 +61,39 @@ export default function PublicProfilePage() {
     }
 
     loadProfile()
-  }, [username])
+  }, [username, currentUserId])
+
+  const handleReserve = async (productId: string) => {
+    if (!currentUserId) {
+      alert('Please log in to reserve items')
+      return
+    }
+
+    const product = products.find(p => p.id === productId)
+    if (!product) return
+
+    const isReserved = product.reserved_by === currentUserId
+
+    try {
+      if (isReserved) {
+        const { error } = await unreserveProduct(productId, currentUserId)
+        if (error) throw error
+      } else {
+        const { error } = await reserveProduct(productId, currentUserId)
+        if (error) throw error
+      }
+      
+      // Reload products
+      if (profile) {
+        const { data } = await getUserProducts(profile.id, currentUserId || undefined)
+        if (data) {
+          setProducts(data)
+        }
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to update reservation')
+    }
+  }
 
   if (loading) {
     return (
@@ -101,8 +154,12 @@ export default function PublicProfilePage() {
           </div>
         </div>
 
-        {/* Wishlist Grid (Guest View) */}
-        <WishlistGrid userId={profile.id} isOwner={false} />
+        {/* Wishlist Grid (Guest View) - Masonry Layout */}
+        <WishlistGrid 
+          items={products}
+          isOwner={false}
+          onReserve={handleReserve}
+        />
       </div>
     </div>
   )
