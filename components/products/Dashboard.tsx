@@ -26,6 +26,9 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [items, setItems] = useState<Product[]>([]);
+  // TODO: Replace this with your actual user object from auth
+  // Example: const { data: { user } } = await supabase.auth.getUser()
+  const [user, setUser] = useState<{ id?: string } | null>(null);
 
   // Load saved items on mount
   useEffect(() => {
@@ -193,6 +196,11 @@ export default function Dashboard() {
           <p className="mt-3 text-[var(--color-text-muted)]">
             Paste a product link and Wist will pull title, image and price. Save it to your collection.
           </p>
+          
+          {/* TEMPORARY DEBUGGER */}
+          <div style={{ background: '#f0f0f0', padding: '10px', margin: '10px 0', border: '1px solid red' }}>
+            <p><strong>My Login ID:</strong> {user?.id || 'NOT SET - Replace user state with your auth'}</p>
+          </div>
         </section>
 
         <section className="mb-8">

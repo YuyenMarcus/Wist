@@ -65,25 +65,31 @@ export default function ProductGridWithSupabase({ onUpdate, userId }: ProductGri
       return;
     }
 
-    console.log("Deleting Product ID:", productId); // Debug log
+    console.log("-----------------------------------");
+    console.log("🗑️ ATTEMPTING DELETE");
+    console.log("Product ID:", productId);
+    console.log("User ID:", userId);
 
-    // 1. Simple Delete Command (Let RLS handle the security)
+    // 1. Send Delete Command
     const { error, count } = await supabase
       .from('products')
-      .delete({ count: 'exact' }) // Ask Supabase how many rows were deleted
+      .delete({ count: 'exact' }) // Ask for a count of deleted rows
       .eq('id', productId);
 
-    // 2. Debugging Results
+    // 2. Analyze Result
     if (error) {
-      console.error("❌ Supabase Error:", error.message);
-      alert("Error deleting!");
-    } else if (count === 0) {
-      console.warn("⚠️ Success, but 0 items deleted. ID Mismatch?");
-      alert("Could not delete item (Permission denied or ID wrong)");
-    } else {
-      console.log("✅ Successfully deleted from DB");
+      console.error("❌ DATABASE ERROR:", error.message);
+      alert("Database Error: " + error.message);
+    } 
+    else if (count === 0) {
+      console.warn("⚠️ ZERO items deleted. This is a PERMISSION issue.");
+      console.warn("Check: Does the row's user_id match YOUR user_id?");
+      alert("Permission Denied: You don't own this item.");
+    } 
+    else {
+      console.log("✅ SUCCESS! Item deleted from DB.");
 
-      // 3. Remove from screen
+      // Update the UI
       setProducts((prev) => prev.filter((p) => p.id !== productId));
     }
   };
