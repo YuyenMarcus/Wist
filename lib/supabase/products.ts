@@ -18,8 +18,6 @@ export interface SupabaseProduct {
   // Visibility fields
   is_public: boolean;
   share_token: string | null;
-  // Image source
-  image_source?: 'url' | 'storage';
 }
 
 /**
