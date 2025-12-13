@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { Auth } from '@supabase/auth-ui-react'
 import { ThemeSupa } from '@supabase/auth-ui-shared'
 import { supabase } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [message, setMessage] = useState<string | null>(null)
@@ -43,6 +43,43 @@ export default function LoginPage() {
   }, [router, searchParams])
 
   return (
+    <>
+      {message && (
+        <div className={`mb-4 rounded-md p-4 ${
+          messageType === 'success' 
+            ? 'bg-green-50 text-green-800' 
+            : 'bg-red-50 text-red-800'
+        }`}>
+          <p className="text-sm font-medium">{message}</p>
+        </div>
+      )}
+
+      <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+        <Auth
+          supabaseClient={supabase}
+          appearance={{ theme: ThemeSupa }}
+          providers={[]}
+          redirectTo="https://wishlist.nuvio.cloud/auth/callback?next=/dashboard"
+          magicLink={false}
+          onlyThirdPartyProviders={false}
+          view="sign_in"
+        />
+      </div>
+
+      <div className="mt-4 text-center">
+        <p className="text-sm text-gray-600">
+          Don't have an account?{' '}
+          <Link href="https://wishlist.nuvio.cloud/signup" className="text-blue-600 hover:underline">
+            Sign up
+          </Link>
+        </p>
+      </div>
+    </>
+  )
+}
+
+export default function LoginPage() {
+  return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
@@ -51,36 +88,9 @@ export default function LoginPage() {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        {message && (
-          <div className={`mb-4 rounded-md p-4 ${
-            messageType === 'success' 
-              ? 'bg-green-50 text-green-800' 
-              : 'bg-red-50 text-red-800'
-          }`}>
-            <p className="text-sm font-medium">{message}</p>
-          </div>
-        )}
-
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          <Auth
-            supabaseClient={supabase}
-            appearance={{ theme: ThemeSupa }}
-            providers={[]}
-            redirectTo="https://wishlist.nuvio.cloud/auth/callback?next=/dashboard"
-            magicLink={false}
-            onlyThirdPartyProviders={false}
-            view="sign_in"
-          />
-        </div>
-
-        <div className="mt-4 text-center">
-          <p className="text-sm text-gray-600">
-            Don't have an account?{' '}
-            <Link href="https://wishlist.nuvio.cloud/signup" className="text-blue-600 hover:underline">
-              Sign up
-            </Link>
-          </p>
-        </div>
+        <Suspense fallback={<div className="text-center">Loading...</div>}>
+          <LoginForm />
+        </Suspense>
       </div>
     </div>
   )
