@@ -16,6 +16,18 @@ function LoginForm() {
   useEffect(() => {
     if (!searchParams) return
 
+    // Ensure we're signed out when landing on login page
+    // This clears any stale session data
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        // If there's a session, sign out to ensure clean state
+        supabase.auth.signOut().then(() => {
+          // Clear any cached data
+          window.location.reload();
+        });
+      }
+    });
+
     // Check for email confirmation message
     const confirmed = searchParams.get('confirmed')
     if (confirmed === 'true') {
@@ -30,10 +42,21 @@ function LoginForm() {
       setMessageType('success')
     }
 
+    // Check for error message
+    const error = searchParams.get('error')
+    if (error) {
+      setMessage(decodeURIComponent(error))
+      setMessageType('error')
+    }
+
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
         router.push('https://wishlist.nuvio.cloud/dashboard')
+      } else if (event === 'SIGNED_OUT') {
+        // Clear any cached state on sign out
+        setMessage(null)
+        setMessageType(null)
       } else if (event === 'TOKEN_REFRESHED' && session) {
         router.push('https://wishlist.nuvio.cloud/dashboard')
       }

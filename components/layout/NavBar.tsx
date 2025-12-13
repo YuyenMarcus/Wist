@@ -31,9 +31,23 @@ export default function NavBar() {
   }, []);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/');
-    window.location.reload();
+    try {
+      // Sign out and wait for it to complete
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Logout error:', error);
+      }
+      
+      // Clear any cached session data
+      await supabase.auth.getSession();
+      
+      // Redirect to login page and force a full page reload to clear all state
+      window.location.href = 'https://wishlist.nuvio.cloud/login';
+    } catch (err) {
+      console.error('Logout failed:', err);
+      // Force redirect even if there's an error
+      window.location.href = 'https://wishlist.nuvio.cloud/login';
+    }
   };
 
   return (
