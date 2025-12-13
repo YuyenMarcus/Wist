@@ -35,9 +35,11 @@ export default function LandingPage() {
       {/* --- 1. FIXED NAV BAR (Restores Sign In) --- */}
       <nav className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-6 md:px-12">
         <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-violet-500 flex items-center justify-center text-white font-bold text-xl">
-            W
-          </div>
+          <img 
+            src="/logo.svg" 
+            alt="Wist Logo" 
+            className="h-8 w-8"
+          />
           <span className="font-bold text-xl tracking-tight text-zinc-900">wist.</span>
         </div>
 
