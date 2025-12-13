@@ -8,6 +8,7 @@ export interface Profile {
   email: string;
   full_name: string | null;
   avatar_url: string | null;
+  bio: string | null; // User bio with 150 character limit
   updated_at: string; // timestamp
   username: string | null; // NEW: for public sharing
   username_set_at: string | null; // NEW: when username was set
@@ -94,6 +95,7 @@ export async function updateProfile(
     full_name?: string | null;
     avatar_url?: string | null;
     username?: string | null;
+    bio?: string | null;
   }
 ): Promise<{
   data: Profile | null;

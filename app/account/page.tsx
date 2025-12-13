@@ -21,8 +21,11 @@ export default function AccountPage() {
   
   // Form state
   const [fullName, setFullName] = useState('')
+  const [bio, setBio] = useState('')
   const [currentUsername, setCurrentUsername] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  
+  const BIO_MAX_LENGTH = 150
   
   // Username validation hook
   const { 
@@ -60,6 +63,7 @@ export default function AccountPage() {
         
         setProfile(profileData)
         setFullName(profileData?.full_name || '')
+        setBio(profileData?.bio || '')
         setAvatarUrl(profileData?.avatar_url || null)
         const existingUsername = profileData?.username || ''
         setCurrentUsername(existingUsername)
@@ -167,6 +171,7 @@ export default function AccountPage() {
       const { data, error: updateError } = await updateProfile(user.id, {
         full_name: fullName.trim() || null,
         username: username.trim() || null,
+        bio: bio.trim() || null,
       })
 
       if (updateError) {
