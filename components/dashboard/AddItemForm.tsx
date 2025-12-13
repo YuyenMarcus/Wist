@@ -123,8 +123,8 @@ export default function AddItemForm() {
           description: preview.description || null,
           domain: new URL(preview.url).hostname.replace('www.', ''),
           user_id: user.id,
-          is_public: false,
-          share_token: shareToken,
+          // Note: is_public and share_token columns need to be added to Supabase first
+          // For now, we'll omit them to avoid errors
           meta: { priority },
         })
 

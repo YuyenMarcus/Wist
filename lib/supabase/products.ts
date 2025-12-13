@@ -15,9 +15,9 @@ export interface SupabaseProduct {
   // Reservation fields
   reserved_by: string | null;
   reserved_at: string | null;
-  // Visibility fields
-  is_public: boolean;
-  share_token: string | null;
+  // Visibility fields (optional - may not exist in DB yet)
+  is_public?: boolean;
+  share_token?: string | null;
 }
 
 /**
@@ -64,12 +64,11 @@ export async function getPublicProducts(usernameOrToken: string): Promise<{
     .single();
 
   if (profile) {
-    // Found by username, get public products
+    // Found by username, get all products (is_public filtering can be added later)
     const { data, error } = await supabase
       .from('products')
       .select('*')
       .eq('user_id', profile.id)
-      .eq('is_public', true)
       .order('created_at', { ascending: false });
 
     return { data, error };
@@ -152,6 +151,8 @@ export async function updateProductVisibility(
   isPublic: boolean,
   shareToken?: string
 ): Promise<{ error: any }> {
+  // Note: This function requires is_public and share_token columns in Supabase
+  // For now, we'll return an error if columns don't exist
   const updateData: any = { is_public: isPublic };
   
   if (isPublic && shareToken) {
