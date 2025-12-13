@@ -10,15 +10,13 @@ export async function GET(request: Request) {
   }
 
   try {
-    // 1. Fetch the HTML
-    // We add a User-Agent so sites don't block us thinking we are a bot
+    // 1. Fetch the HTML with headers to mimic a real browser
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5',
       },
-      // Add timeout to prevent hanging
       signal: AbortSignal.timeout(10000), // 10 second timeout
     })
 
@@ -27,11 +25,9 @@ export async function GET(request: Request) {
     }
 
     const html = await response.text()
-
-    // 2. Parse HTML with Cheerio
     const $ = cheerio.load(html)
 
-    // 3. Extract Metadata (Open Graph > Twitter > Standard Meta)
+    // 2. Extract Metadata Helper
     const getMeta = (name: string) => 
       $(`meta[property="${name}"]`).attr('content') || 
       $(`meta[name="${name}"]`).attr('content')
@@ -39,82 +35,83 @@ export async function GET(request: Request) {
     const title = getMeta('og:title') || getMeta('twitter:title') || $('title').text() || ''
     const description = getMeta('og:description') || getMeta('twitter:description') || $('meta[name="description"]').attr('content') || ''
     
-    // Images often need a fallback
-    let image = getMeta('og:image') || getMeta('twitter:image') || $('meta[property="og:image:secure_url"]').attr('content')
-    
-    // Fix relative image URLs
-    if (image && image.startsWith('/')) {
+    // --- IMPROVED IMAGE EXTRACTION ---
+    // We now check 6 different places for an image
+    let image = 
+      // 1. Standard Open Graph
+      getMeta('og:image') || 
+      // 2. Twitter Cards
+      getMeta('twitter:image') || 
+      getMeta('twitter:image:src') ||
+      // 3. Schema.org (Common on Google Shopping/Pinterest)
+      $('meta[itemprop="image"]').attr('content') ||
+      // 4. Secure URL fallback
+      $('meta[property="og:image:secure_url"]').attr('content') ||
+      // 5. Amazon Specific IDs (Amazon often blocks OG tags but leaves these)
+      $('#landingImage').attr('src') ||
+      $('#imgBlkFront').attr('src') ||
+      // 6. Generic Link fallback
+      $('link[rel="image_src"]').attr('href')
+
+    // Fix relative image URLs (e.g., "/images/logo.png" -> "https://site.com/images/logo.png")
+    if (image && (image.startsWith('/') || !image.startsWith('http'))) {
       try {
         const urlObj = new URL(url)
-        image = `${urlObj.protocol}//${urlObj.host}${image}`
+        // Handle protocol-relative URLs (//example.com/img.jpg)
+        if (image.startsWith('//')) {
+          image = `${urlObj.protocol}${image}`
+        } else if (image.startsWith('/')) {
+          image = `${urlObj.protocol}//${urlObj.host}${image}`
+        } else {
+          // If it's just a filename "image.jpg", append to base path
+          image = new URL(image, url).toString()
+        }
       } catch (e) {
-        // If URL parsing fails, skip image
-        image = ''
+        console.error('Error fixing relative image URL:', e)
+        // Keep original image string if parsing fails, might still work for some weird edge cases
       }
     }
 
-    // Fix protocol-relative URLs
-    if (image && image.startsWith('//')) {
-      try {
-        const urlObj = new URL(url)
-        image = `${urlObj.protocol}${image}`
-      } catch (e) {
-        image = ''
-      }
-    }
-
-    // Attempt to find Price (Tricky, but we can try common schema tags)
-    // Many e-commerce sites use Schema.org product data
+    // --- PRICE EXTRACTION (Unchanged but validated) ---
     let price = null
     let currency = '$'
 
-    // Try JSON-LD structured data first (most reliable)
+    // Try JSON-LD structured data
     try {
       const jsonLdScripts = $('script[type="application/ld+json"]')
       jsonLdScripts.each((_, el) => {
         try {
           const json = JSON.parse($(el).html() || '{}')
-          if (json['@type'] === 'Product' || json['@type'] === 'Offer') {
-            if (json.offers && json.offers.price) {
-              price = parseFloat(json.offers.price)
-              if (json.offers.priceCurrency) {
-                currency = json.offers.priceCurrency
-              }
-            } else if (json.price) {
-              price = parseFloat(json.price)
+          
+          // Helper to check object
+          const checkPrice = (obj: any) => {
+            if (obj.offers?.price) {
+              price = parseFloat(obj.offers.price)
+              if (obj.offers.priceCurrency) currency = obj.offers.priceCurrency
+            } else if (obj.price) {
+              price = parseFloat(obj.price)
             }
           }
-          if (json['@graph']) {
-            // Handle @graph structure
-            const product = json['@graph'].find((item: any) => item['@type'] === 'Product')
-            if (product && product.offers && product.offers.price) {
-              price = parseFloat(product.offers.price)
-              if (product.offers.priceCurrency) {
-                currency = product.offers.priceCurrency
-              }
-            }
-          }
-        } catch (e) {
-          // Skip invalid JSON
-        }
-      })
-    } catch (e) {
-      // Continue if JSON-LD parsing fails
-    }
 
-    // Fallback to meta tags
+          if (json['@type'] === 'Product' || json['@type'] === 'Offer') {
+            checkPrice(json)
+          } else if (json['@graph']) {
+            const product = json['@graph'].find((item: any) => item['@type'] === 'Product')
+            if (product) checkPrice(product)
+          }
+        } catch (e) { /* skip invalid json */ }
+      })
+    } catch (e) { /* skip */ }
+
+    // Fallback to meta tags for price
     if (!price) {
       const priceMeta = $('meta[property="product:price:amount"]').attr('content') ||
-                       $('meta[name="twitter:data1"]').attr('content')
-      if (priceMeta) {
-        price = parseFloat(priceMeta)
-      }
+                        $('meta[name="twitter:data1"]').attr('content')
+      if (priceMeta) price = parseFloat(priceMeta)
     }
 
     const currencyMeta = $('meta[property="product:price:currency"]').attr('content')
-    if (currencyMeta) {
-      currency = currencyMeta
-    }
+    if (currencyMeta) currency = currencyMeta
 
     // Format price string
     let priceString = null
@@ -127,22 +124,18 @@ export async function GET(request: Request) {
     return NextResponse.json({
       title: title.trim(),
       description: description.trim(),
-      imageUrl: image || '',
+      imageUrl: image || '', // Returns empty string if still nothing found
       price: priceString,
     })
 
   } catch (error: any) {
     console.error('Metadata fetch error:', error)
     
-    // Provide helpful error message
-    if (error.name === 'AbortError' || error.message?.includes('timeout')) {
-      return NextResponse.json({ error: 'Request timeout - the website took too long to respond' }, { status: 408 })
+    // Handle specific error cases
+    if (error.name === 'AbortError') {
+      return NextResponse.json({ error: 'Request timeout' }, { status: 408 })
     }
     
-    if (error.message?.includes('Failed to fetch') || error.message?.includes('ECONNREFUSED')) {
-      return NextResponse.json({ error: 'Could not connect to the website' }, { status: 503 })
-    }
-
     return NextResponse.json({ 
       error: error.message || 'Failed to fetch metadata' 
     }, { status: 500 })
