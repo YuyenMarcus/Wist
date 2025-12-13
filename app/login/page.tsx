@@ -16,18 +16,6 @@ function LoginForm() {
   useEffect(() => {
     if (!searchParams) return
 
-    // Ensure we're signed out when landing on login page
-    // This clears any stale session data
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        // If there's a session, sign out to ensure clean state
-        supabase.auth.signOut().then(() => {
-          // Clear any cached data
-          window.location.reload();
-        });
-      }
-    });
-
     // Check for email confirmation message
     const confirmed = searchParams.get('confirmed')
     if (confirmed === 'true') {
