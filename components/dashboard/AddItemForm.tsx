@@ -194,7 +194,11 @@ export default function AddItemForm() {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2 }}
+              transition={{
+                type: 'spring',
+                stiffness: 300,
+                damping: 30,
+              }}
               className="mt-3 overflow-hidden"
             >
               <div className="bg-white rounded-xl border border-zinc-200 shadow-sm p-4">

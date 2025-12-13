@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
 import { getUserProducts, reserveProduct, unreserveProduct, SupabaseProduct } from '@/lib/supabase/products'
 
@@ -172,8 +173,12 @@ export default function WishlistGrid({ userId, isOwner = true }: WishlistGridPro
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-12">
-      {products.map((product) => {
+    <motion.div
+      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-12"
+      layout
+    >
+      <AnimatePresence mode="popLayout">
+        {products.map((product, index) => {
         const isReserved = !!product.reserved_by
         const isReservedByMe = product.reserved_by === currentUserId
         const priority = (product as any).meta?.priority || 'medium'
@@ -182,9 +187,22 @@ export default function WishlistGrid({ userId, isOwner = true }: WishlistGridPro
         const gradient = getGradientFromText(title)
 
         return (
-          <div
+          <motion.div
             key={product.id}
             className="group relative"
+            layout
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{
+              duration: 0.3,
+              delay: index * 0.05,
+              layout: { duration: 0.3 },
+            }}
+            whileHover={{
+              scale: 1.02,
+              transition: { duration: 0.2 },
+            }}
           >
             {/* Image Container */}
             <div className="relative aspect-[4/5] rounded-xl overflow-hidden mb-3 transition-transform duration-300 group-hover:-translate-y-1">
@@ -267,9 +285,10 @@ export default function WishlistGrid({ userId, isOwner = true }: WishlistGridPro
                 </p>
               )}
             </div>
-          </div>
+          </motion.div>
         )
       })}
-    </div>
+      </AnimatePresence>
+    </motion.div>
   )
 }
