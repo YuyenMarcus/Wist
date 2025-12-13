@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
@@ -22,6 +23,7 @@ export default function AddItemForm() {
   const [priority, setPriority] = useState<Priority>('medium')
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false)
   const router = useRouter()
 
   // Fetch metadata when URL is pasted/changed
@@ -31,6 +33,7 @@ export default function AddItemForm() {
     setPreview(null)
 
     if (!newUrl.trim()) {
+      setIsExpanded(false)
       return
     }
 
@@ -39,9 +42,11 @@ export default function AddItemForm() {
       new URL(newUrl.trim())
     } catch {
       setError('Invalid URL')
+      setIsExpanded(false)
       return
     }
 
+    setIsExpanded(true)
     setLoading(true)
 
     try {
@@ -118,9 +123,8 @@ export default function AddItemForm() {
           description: preview.description || null,
           domain: new URL(preview.url).hostname.replace('www.', ''),
           user_id: user.id,
-          is_public: false, // Default to private
+          is_public: false,
           share_token: shareToken,
-          // Store priority in meta JSONB
           meta: { priority },
         })
 
@@ -130,6 +134,7 @@ export default function AddItemForm() {
       setUrl('')
       setPreview(null)
       setPriority('medium')
+      setIsExpanded(false)
       setSuccess(true)
       
       // Hide success message after 3 seconds
@@ -145,110 +150,118 @@ export default function AddItemForm() {
   }
 
   return (
-    <div className="space-y-4">
-      {/* URL Input */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Paste Product URL
-        </label>
-        <div className="relative">
-          <input
-            type="url"
-            value={url}
-            onChange={(e) => handleUrlChange(e.target.value)}
-            placeholder="https://amazon.com/product/..."
-            className="w-full rounded-md border border-gray-300 dark:border-gray-600 px-4 py-3 shadow-sm focus:border-[var(--color-brand-blue)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-blue)] bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-            disabled={loading || saving}
-          />
-          {loading && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-              <div className="w-5 h-5 border-2 border-[var(--color-brand-blue)] border-t-transparent rounded-full animate-spin"></div>
-            </div>
-          )}
-        </div>
-        {loading && (
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Fetching product data...</p>
-        )}
-      </div>
-
-      {/* Error Message */}
-      {error && (
-        <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-3 text-red-800 dark:text-red-200 text-sm">
-          {error}
-        </div>
-      )}
-
-      {/* Success Toast */}
-      {success && (
-        <div className="rounded-md bg-green-50 dark:bg-green-900/20 p-3 text-green-800 dark:text-green-200 text-sm">
-          ✓ Item added to wishlist successfully!
-        </div>
-      )}
-
-      {/* Preview Card */}
-      {preview && (
-        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800 shadow-sm">
-          <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-3">Preview</h3>
-          
-          <div className="flex gap-4">
-            {preview.image && (
-              <img
-                src={preview.image}
-                alt={preview.title}
-                className="w-24 h-24 object-cover rounded"
-              />
+    <div className="max-w-2xl mx-auto">
+      {/* Magic Input Bar */}
+      <div className="relative">
+        <div
+          className={`bg-white rounded-2xl border border-zinc-200 shadow-sm transition-all duration-300 ${
+            isExpanded ? 'shadow-xl border-zinc-300' : ''
+          }`}
+        >
+          <div className="flex items-center h-14 px-4">
+            <input
+              type="url"
+              value={url}
+              onChange={(e) => handleUrlChange(e.target.value)}
+              onFocus={() => {
+                if (url.trim()) setIsExpanded(true)
+              }}
+              placeholder="Paste a link to add to wishlist..."
+              className="flex-1 bg-transparent border-none outline-none text-zinc-900 placeholder-zinc-400 text-sm"
+              disabled={loading || saving}
+            />
+            {loading && (
+              <div className="ml-3">
+                <div className="w-5 h-5 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin"></div>
+              </div>
             )}
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-gray-900 dark:text-gray-100 truncate">{preview.title}</p>
-              {preview.price && (
-                <p className="text-lg font-bold text-[var(--color-brand-blue)] mt-1">
-                  ${typeof preview.price === 'number' ? preview.price.toFixed(2) : preview.price}
-                </p>
-              )}
-              {preview.description && (
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
-                  {preview.description}
-                </p>
-              )}
-            </div>
+            {isExpanded && !loading && preview && (
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="ml-3 h-8 px-4 bg-zinc-900 text-white rounded-full text-xs font-medium hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {saving ? 'Adding...' : 'Add'}
+              </button>
+            )}
           </div>
-
-          {/* Priority Selector */}
-          <div className="mt-4">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Priority
-            </label>
-            <select
-              value={priority}
-              onChange={(e) => setPriority(e.target.value as Priority)}
-              className="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:border-[var(--color-brand-blue)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-blue)]"
-            >
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
-            </select>
-          </div>
-
-          {/* Save Button */}
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="mt-4 w-full px-4 py-2 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-            style={{
-              backgroundColor: 'var(--color-brand-blue)',
-            }}
-            onMouseEnter={(e) => {
-              if (!saving) e.currentTarget.style.backgroundColor = '#a78bfa';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--color-brand-blue)';
-            }}
-          >
-            {saving ? 'Adding...' : 'Add to Wishlist'}
-          </button>
         </div>
-      )}
+
+        {/* Expanded Content */}
+        <AnimatePresence>
+          {isExpanded && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="mt-3 overflow-hidden"
+            >
+              <div className="bg-white rounded-xl border border-zinc-200 shadow-sm p-4">
+                {/* Error Message */}
+                {error && (
+                  <div className="mb-3 text-xs text-red-600">
+                    {error}
+                  </div>
+                )}
+
+                {/* Success Toast */}
+                {success && (
+                  <div className="mb-3 text-xs text-green-600">
+                    ✓ Item added to wishlist successfully!
+                  </div>
+                )}
+
+                {/* Preview Card */}
+                {preview && (
+                  <div className="mb-4">
+                    <div className="flex items-center gap-3">
+                      {preview.image && (
+                        <img
+                          src={preview.image}
+                          alt={preview.title}
+                          className="w-12 h-12 object-cover rounded"
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-zinc-900 truncate">
+                          {preview.title}
+                        </p>
+                        {preview.price && (
+                          <p className="text-xs text-zinc-500 mt-0.5">
+                            ${typeof preview.price === 'number' ? preview.price.toFixed(2) : preview.price}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Priority Selector */}
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-zinc-500">Priority:</label>
+                  <div className="flex gap-1">
+                    {(['high', 'medium', 'low'] as Priority[]).map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setPriority(p)}
+                        className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                          priority === p
+                            ? 'bg-zinc-900 text-white'
+                            : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                        }`}
+                      >
+                        {p.charAt(0).toUpperCase() + p.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   )
 }
-

@@ -69,35 +69,15 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg)] transition-colors duration-300">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-            My Wishlist
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Add items to your wishlist and share with friends
-          </p>
-        </div>
-
-        {/* Add Item Form */}
-        <div className="mb-12">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
-              Add New Item
-            </h2>
-            <AddItemForm />
-          </div>
+    <div className="min-h-screen bg-zinc-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        {/* Add Item Form - Hero Element */}
+        <div className="mb-16">
+          <AddItemForm />
         </div>
 
         {/* Wishlist Grid */}
-        <div>
-          <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-6">
-            Your Items
-          </h2>
-          <WishlistGrid userId={user.id} isOwner={true} />
-        </div>
+        <WishlistGrid userId={user.id} isOwner={true} />
       </div>
     </div>
   )
