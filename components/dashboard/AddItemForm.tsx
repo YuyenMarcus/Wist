@@ -260,16 +260,27 @@ export default function AddItemForm() {
                 {preview && (
                   <div className="mb-4">
                     <div className="flex items-center gap-3">
-                      {preview.image && (
+                      {preview.image ? (
                         <img
                           src={preview.image}
-                          alt={preview.title}
+                          alt={preview.title || 'Product preview'}
                           className="w-12 h-12 object-cover rounded"
+                          onError={(e) => {
+                            // Fallback if image fails to load
+                            console.warn('Image failed to load:', preview.image)
+                            e.currentTarget.style.display = 'none'
+                          }}
                         />
+                      ) : (
+                        <div className="w-12 h-12 bg-gradient-to-br from-violet-100 to-pink-100 rounded flex items-center justify-center">
+                          <span className="text-xs text-violet-600 font-medium">
+                            {(preview.title || '?').charAt(0).toUpperCase()}
+                          </span>
+                        </div>
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-zinc-900 truncate">
-                          {preview.title}
+                          {preview.title || 'Untitled Item'}
                         </p>
                         {preview.price && (
                           <p className="text-xs text-zinc-500 mt-0.5">
