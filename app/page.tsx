@@ -1,31 +1,33 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowRight, Sparkles, LayoutDashboard } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 
 export default function LandingPage() {
-  // Get user status
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [user, setUser] = useState<any>(null)
 
+  // Check authentication status on mount and listen for changes
   useEffect(() => {
-    // Check active session immediately
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      setIsLoggedIn(!!session?.user)
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
     }
 
-    checkUser()
+    getUser()
 
-    // Listen for auth changes (sign in/sign out)
+    // Listen for auth state changes (sign in/sign out)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsLoggedIn(!!session?.user)
+      setUser(session?.user || null)
     })
 
     return () => subscription.unsubscribe()
   }, [])
+
+  // Boolean helper for readability
+  const isLoggedIn = !!user
 
   return (
     <main className="relative min-h-screen w-full flex flex-col items-center overflow-hidden bg-white selection:bg-violet-100">
