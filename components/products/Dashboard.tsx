@@ -8,6 +8,7 @@ import NavBar from '@/components/layout/NavBar';
 import Container from '@/components/layout/Container';
 import Button from '@/components/ui/Button';
 import { Product, getSavedProducts, saveProduct, deleteProduct } from '@/lib/products';
+import { supabase } from '@/lib/supabase/client';
 
 interface PreviewData {
   title?: string;
@@ -26,9 +27,30 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [items, setItems] = useState<Product[]>([]);
-  // TODO: Replace this with your actual user object from auth
-  // Example: const { data: { user } } = await supabase.auth.getUser()
-  const [user, setUser] = useState<{ id?: string } | null>(null);
+  const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
+
+  // Get current user from Supabase auth
+  useEffect(() => {
+    async function loadUser() {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (currentUser) {
+        setUser({ id: currentUser.id, email: currentUser.email });
+      }
+    }
+
+    loadUser();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser({ id: session.user.id, email: session.user.email });
+      } else {
+        setUser(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Load saved items on mount
   useEffect(() => {
@@ -56,12 +78,12 @@ export default function Dashboard() {
     setPreview(null);
 
     try {
-      // TODO: Get user_id from your auth context
-      // Examples:
-      //   - Supabase Auth: const { data: { user } } = await supabase.auth.getUser()
-      //   - Clerk: const { user } = useUser()
-      //   - NextAuth: const { data: session } = useSession()
-      const user_id = 'temp-user-id';  // REPLACE THIS with actual user.id from your auth
+      // Get user_id from Supabase auth
+      if (!user?.id) {
+        setError('Please log in to fetch products');
+        setLoading(false);
+        return;
+      }
 
       const response = await fetch('/api/fetch-product', {
         method: 'POST',
@@ -71,7 +93,7 @@ export default function Dashboard() {
         body: JSON.stringify({ 
           url: url.trim(), 
           save: false,
-          user_id  // 👈 Include user_id so backend can save it
+          user_id: user.id  // Use actual user ID from auth
         }),
       });
 
@@ -197,10 +219,21 @@ export default function Dashboard() {
             Paste a product link and Wist will pull title, image and price. Save it to your collection.
           </p>
           
-          {/* TEMPORARY DEBUGGER */}
-          <div style={{ background: '#f0f0f0', padding: '10px', margin: '10px 0', border: '1px solid red' }}>
-            <p><strong>My Login ID:</strong> {user?.id || 'NOT SET - Replace user state with your auth'}</p>
-          </div>
+          {/* DEBUG: User ID Display */}
+          {user?.id && (
+            <div style={{ background: '#f0f0f0', padding: '10px', margin: '10px 0', border: '1px solid #ccc', borderRadius: '4px' }}>
+              <p className="text-xs text-gray-600">
+                <strong>Logged in as:</strong> {user.email || user.id}
+              </p>
+            </div>
+          )}
+          {!user && (
+            <div style={{ background: '#fff3cd', padding: '10px', margin: '10px 0', border: '1px solid #ffc107', borderRadius: '4px' }}>
+              <p className="text-xs text-yellow-800">
+                <strong>⚠️ Not logged in.</strong> Please <a href="/login" className="underline">log in</a> to save products.
+              </p>
+            </div>
+          )}
         </section>
 
         <section className="mb-8">
