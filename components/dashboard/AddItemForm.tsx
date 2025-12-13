@@ -181,10 +181,19 @@ export default function AddItemForm() {
 
       if (insertError) {
         console.error('Supabase Error:', insertError)
+        
+        // Handle unique constraint violation (duplicate URL)
+        if (insertError.code === '23505') {
+          setError("You've already saved this link!")
+          setSaving(false)
+          return // Stop here, don't crash
+        }
+        
         // Provide helpful error message for meta column issues
         if (insertError.message?.includes('meta') || insertError.code === '42703') {
           throw new Error('Database schema issue: meta column may not exist. Please check your Supabase table schema or reload the schema cache in Settings -> API.')
         }
+        
         throw insertError
       }
 
