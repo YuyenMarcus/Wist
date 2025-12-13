@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -25,6 +25,19 @@ export default function AddItemForm() {
   const [success, setSuccess] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
   const router = useRouter()
+
+  // Debug: Verify state connection - log when preview changes
+  useEffect(() => {
+    if (preview) {
+      console.log('🔄 Preview state updated:', {
+        hasImage: !!preview.image,
+        imageUrl: preview.image,
+        title: preview.title,
+      })
+    } else {
+      console.log('🔄 Preview state cleared')
+    }
+  }, [preview])
 
   // Fetch metadata when URL is pasted/changed
   const handleUrlChange = async (newUrl: string) => {
@@ -267,16 +280,19 @@ export default function AddItemForm() {
                   <div className="mb-4">
                     {/* Debug info (remove in production) */}
                     {process.env.NODE_ENV === 'development' && (
-                      <div className="mb-2 text-xs text-zinc-400">
-                        Preview image: {preview.image || 'No image'}
+                      <div className="mb-2 p-2 bg-zinc-50 rounded text-xs text-zinc-600 border border-zinc-200">
+                        <div><strong>State Check:</strong></div>
+                        <div>preview.image = {preview.image ? `"${preview.image}"` : 'null'}</div>
+                        <div>preview.image exists? {preview.image ? '✅ YES' : '❌ NO'}</div>
                       </div>
                     )}
                     <div className="flex items-center gap-3">
                       {preview.image ? (
                         <img
+                          key={preview.image} // Force re-render if image URL changes
                           src={preview.image}
                           alt={preview.title || 'Product preview'}
-                          className="w-12 h-12 object-cover rounded"
+                          className="w-12 h-12 object-cover rounded border border-zinc-200"
                           onLoad={() => {
                             console.log('✅ Image loaded successfully:', preview.image)
                           }}
@@ -287,7 +303,7 @@ export default function AddItemForm() {
                           }}
                         />
                       ) : (
-                        <div className="w-12 h-12 bg-gradient-to-br from-violet-100 to-pink-100 rounded flex items-center justify-center">
+                        <div className="w-12 h-12 bg-gradient-to-br from-violet-100 to-pink-100 rounded flex items-center justify-center border border-zinc-200">
                           <span className="text-xs text-violet-600 font-medium">
                             {(preview.title || '?').charAt(0).toUpperCase()}
                           </span>
