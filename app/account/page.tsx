@@ -1,10 +1,13 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
+import { motion } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
 import { getProfile, updateProfile, Profile } from '@/lib/supabase/profile'
 
 export default function AccountPage() {
+  const router = useRouter()
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
@@ -12,6 +15,7 @@ export default function AccountPage() {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   
   // Form state
   const [fullName, setFullName] = useState('')
@@ -43,6 +47,7 @@ export default function AccountPage() {
         
         setProfile(profileData)
         setFullName(profileData?.full_name || '')
+        setAvatarUrl(profileData?.avatar_url || null)
       } catch (err: any) {
         console.error('Error loading profile:', err)
         setError(err.message || 'Failed to load profile')
@@ -106,6 +111,7 @@ export default function AccountPage() {
       if (updateError) throw updateError
 
       setProfile(data)
+      setAvatarUrl(publicUrl)
       setSuccess(true)
       
       // Clear success message after 3 seconds
@@ -157,9 +163,10 @@ export default function AccountPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-zinc-50">
         <div className="text-center">
-          <p className="text-gray-600">Loading profile...</p>
+          <div className="inline-block w-8 h-8 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin"></div>
+          <p className="mt-4 text-sm text-zinc-500">Loading profile...</p>
         </div>
       </div>
     )
@@ -167,10 +174,10 @@ export default function AccountPage() {
 
   if (error && !user) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-zinc-50">
         <div className="text-center">
           <p className="text-red-600">{error}</p>
-          <a href="/login" className="mt-4 text-blue-600 hover:underline">
+          <a href="/login" className="mt-4 text-violet-600 hover:underline">
             Go to Login
           </a>
         </div>
@@ -179,46 +186,60 @@ export default function AccountPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-zinc-50 py-20 px-4 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-2xl">
-        <div className="bg-white shadow sm:rounded-lg">
-          <div className="px-4 py-5 sm:p-6">
-            <h1 className="text-2xl font-bold text-gray-900 mb-6">Account Settings</h1>
+        {/* Header */}
+        <motion.h1
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-4xl font-semibold text-zinc-900 mb-12 text-center"
+        >
+          Account Settings
+        </motion.h1>
 
-            {/* Success Message */}
-            {success && (
-              <div className="mb-4 rounded-md bg-green-50 p-4">
-                <p className="text-sm font-medium text-green-800">
-                  Profile updated successfully!
-                </p>
-              </div>
-            )}
+        <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm p-8">
+          {/* Success Message */}
+          {success && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 rounded-lg bg-green-50 p-4 border border-green-200"
+            >
+              <p className="text-sm font-medium text-green-800">
+                Profile updated successfully!
+              </p>
+            </motion.div>
+          )}
 
-            {/* Error Message */}
-            {error && (
-              <div className="mb-4 rounded-md bg-red-50 p-4">
-                <p className="text-sm font-medium text-red-800">{error}</p>
-              </div>
-            )}
+          {/* Error Message */}
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 rounded-lg bg-red-50 p-4 border border-red-200"
+            >
+              <p className="text-sm font-medium text-red-800">{error}</p>
+            </motion.div>
+          )}
 
-            {/* Avatar Upload Section */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Profile Picture
-              </label>
-              <div className="flex items-center gap-4">
-                {/* Avatar Display */}
-                <div className="relative">
-                  {profile?.avatar_url ? (
+          {/* Avatar Upload Section */}
+          <div className="mb-8">
+            <label className="block text-xs font-medium text-zinc-500 mb-4 text-center">
+              Profile Picture
+            </label>
+            <div className="flex justify-center">
+              <div className="relative group">
+                <div className="relative w-32 h-32 rounded-full overflow-hidden bg-zinc-100 border-4 border-white shadow-lg">
+                  {avatarUrl ? (
                     <img
-                      src={profile.avatar_url}
+                      src={avatarUrl}
                       alt="Profile avatar"
-                      className="h-20 w-20 rounded-full object-cover border-2 border-gray-300"
+                      className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="h-20 w-20 rounded-full bg-gray-200 border-2 border-gray-300 flex items-center justify-center">
+                    <div className="w-full h-full flex items-center justify-center">
                       <svg
-                        className="h-10 w-10 text-gray-400"
+                        className="w-16 h-16 text-zinc-400"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -232,87 +253,100 @@ export default function AccountPage() {
                       </svg>
                     </div>
                   )}
-                  {uploading && (
-                    <div className="absolute inset-0 rounded-full bg-black bg-opacity-50 flex items-center justify-center">
-                      <span className="text-white text-xs font-medium">Uploading...</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Upload Button */}
-                <div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleAvatarUpload}
-                    disabled={uploading}
-                    className="hidden"
-                    id="avatar-upload"
-                  />
-                  <label
-                    htmlFor="avatar-upload"
-                    className={`inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer ${
-                      uploading ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
-                  >
-                    {uploading ? 'Uploading...' : 'Upload Avatar'}
-                  </label>
-                  <p className="mt-1 text-xs text-gray-500">
-                    JPG, PNG or GIF. Max 5MB
-                  </p>
+                  
+                  {/* Hover Overlay */}
+                  <div className="absolute inset-0 bg-violet-500/0 group-hover:bg-violet-500/80 transition-colors duration-300 flex items-center justify-center cursor-pointer">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarUpload}
+                      disabled={uploading}
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                      id="avatar-upload"
+                    />
+                    {uploading ? (
+                      <div className="text-white text-sm font-medium">
+                        <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                        Uploading...
+                      </div>
+                    ) : (
+                      <svg
+                        className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                      </svg>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-
-            {/* Profile Info */}
-            <div className="mb-6">
-              <p className="text-sm text-gray-600">
-                <strong>Email:</strong> {profile?.email || user?.email || 'N/A'}
-              </p>
-              <p className="text-sm text-gray-600 mt-1">
-                <strong>User ID:</strong> {user?.id}
-              </p>
-            </div>
-
-            {/* Edit Form */}
-            <form onSubmit={handleSave}>
-              <div className="mb-4">
-                <label htmlFor="full_name" className="block text-sm font-medium text-gray-700 mb-2">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  id="full_name"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-                  placeholder="Enter your full name"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setFullName(profile?.full_name || '')}
-                  className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  disabled={saving}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {saving ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
-            </form>
           </div>
+
+          {/* Profile Info */}
+          <div className="mb-8 text-center">
+            <p className="text-sm text-zinc-500 mb-1">
+              <span className="font-medium">Email:</span> {profile?.email || user?.email || 'N/A'}
+            </p>
+          </div>
+
+          {/* Edit Form */}
+          <form onSubmit={handleSave}>
+            <div className="mb-6">
+              <label htmlFor="full_name" className="block text-xs font-medium text-zinc-500 mb-2">
+                Full Name
+              </label>
+              <input
+                type="text"
+                id="full_name"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-900 placeholder-zinc-400 shadow-sm focus:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-200 transition-colors"
+                placeholder="Enter your full name"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="px-6 py-2.5 text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors"
+                disabled={saving}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="px-6 py-2.5 bg-violet-500 text-white rounded-full text-sm font-medium hover:bg-violet-600 focus:outline-none focus:ring-2 focus:ring-violet-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              >
+                {saving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
   )
 }
-

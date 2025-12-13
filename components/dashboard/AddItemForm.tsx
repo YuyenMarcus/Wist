@@ -155,7 +155,7 @@ export default function AddItemForm() {
       <div className="relative">
         <div
           className={`bg-white rounded-2xl border border-zinc-200 shadow-sm transition-all duration-300 ${
-            isExpanded ? 'shadow-xl border-zinc-300' : ''
+            isExpanded ? 'shadow-xl border-violet-200 ring-2 ring-violet-200' : ''
           }`}
         >
           <div className="flex items-center h-14 px-4">
@@ -167,7 +167,7 @@ export default function AddItemForm() {
                 if (url.trim()) setIsExpanded(true)
               }}
               placeholder="Paste a link to add to wishlist..."
-              className="flex-1 bg-transparent border-none outline-none text-zinc-900 placeholder-zinc-400 text-sm"
+              className="flex-1 bg-transparent border-none outline-none text-zinc-900 placeholder-zinc-400 text-sm focus:ring-0"
               disabled={loading || saving}
             />
             {loading && (
@@ -179,7 +179,7 @@ export default function AddItemForm() {
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="ml-3 h-8 px-4 bg-zinc-900 text-white rounded-full text-xs font-medium hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="ml-3 h-8 px-4 bg-violet-500 text-white rounded-full text-xs font-medium hover:bg-violet-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:ring-2 focus:ring-violet-200"
               >
                 {saving ? 'Adding...' : 'Add'}
               </button>
