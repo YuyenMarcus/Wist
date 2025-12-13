@@ -61,13 +61,19 @@ export default function AddItemForm() {
 
       const metadata = await response.json()
 
-      setPreview({
+      // Debug: Log the fetched metadata to see what we're getting
+      console.log('🔍 Fetched metadata:', metadata)
+      
+      const previewData = {
         title: metadata.title || 'Unknown Item',
-        image: metadata.imageUrl || null,
+        image: metadata.imageUrl || null, // API returns imageUrl, we store it as image
         price: metadata.price || null,
         description: metadata.description || null,
         url: newUrl.trim(),
-      })
+      }
+      
+      console.log('📦 Setting preview with image:', previewData.image)
+      setPreview(previewData)
     } catch (err: any) {
       setError(err.message || 'Failed to fetch product data')
       setPreview(null)
@@ -259,15 +265,24 @@ export default function AddItemForm() {
                 {/* Preview Card */}
                 {preview && (
                   <div className="mb-4">
+                    {/* Debug info (remove in production) */}
+                    {process.env.NODE_ENV === 'development' && (
+                      <div className="mb-2 text-xs text-zinc-400">
+                        Preview image: {preview.image || 'No image'}
+                      </div>
+                    )}
                     <div className="flex items-center gap-3">
                       {preview.image ? (
                         <img
                           src={preview.image}
                           alt={preview.title || 'Product preview'}
                           className="w-12 h-12 object-cover rounded"
+                          onLoad={() => {
+                            console.log('✅ Image loaded successfully:', preview.image)
+                          }}
                           onError={(e) => {
                             // Fallback if image fails to load
-                            console.warn('Image failed to load:', preview.image)
+                            console.error('❌ Image failed to load:', preview.image)
                             e.currentTarget.style.display = 'none'
                           }}
                         />
