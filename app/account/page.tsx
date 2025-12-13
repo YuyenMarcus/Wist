@@ -3,10 +3,11 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { Check, X, Loader2 } from 'lucide-react'
+import { Check, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { getProfile, updateProfile, Profile } from '@/lib/supabase/profile'
 import { useUsername } from '@/hooks/useUsername'
+import LavenderLoader from '@/components/ui/LavenderLoader'
 
 export default function AccountPage() {
   const router = useRouter()
@@ -382,7 +383,7 @@ export default function AccountPage() {
                 {/* Status Indicator Icon */}
                 <div className="absolute right-3 top-3.5">
                   {checkingUsername ? (
-                    <Loader2 className="w-5 h-5 text-zinc-400 animate-spin" />
+                    <LavenderLoader size="sm" />
                   ) : username !== currentUsername && username.length > 0 ? (
                     isValid ? (
                       <Check className="w-5 h-5 text-green-500" />

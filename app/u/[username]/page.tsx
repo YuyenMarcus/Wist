@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase/client'
 import { getProfileByUsername, PublicProfile } from '@/lib/supabase/profile'
 import { getUserProducts, SupabaseProduct, reserveProduct, unreserveProduct } from '@/lib/supabase/products'
 import WishlistGrid from '@/components/wishlist/WishlistGrid'
+import LavenderLoader from '@/components/ui/LavenderLoader'
 
 export default function PublicProfilePage() {
   const params = useParams()
@@ -130,10 +131,7 @@ export default function PublicProfilePage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-zinc-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block w-8 h-8 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin"></div>
-          <p className="mt-4 text-sm text-zinc-500">Loading wishlist...</p>
-        </div>
+        <LavenderLoader size="lg" />
       </div>
     )
   }

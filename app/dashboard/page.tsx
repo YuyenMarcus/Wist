@@ -7,6 +7,7 @@ import ProfileHeader from '@/components/dashboard/ProfileHeader'
 import WishlistGrid from '@/components/wishlist/WishlistGrid'
 import { getUserProducts, SupabaseProduct, deleteUserProduct } from '@/lib/supabase/products'
 import { getProfile, Profile } from '@/lib/supabase/profile'
+import LavenderLoader from '@/components/ui/LavenderLoader'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -107,10 +108,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-50">
-        <div className="text-center">
-          <div className="inline-block w-8 h-8 border-4 border-zinc-400 border-t-transparent rounded-full animate-spin"></div>
-          <p className="mt-4 text-zinc-600">Loading...</p>
-        </div>
+        <LavenderLoader size="lg" />
       </div>
     )
   }
