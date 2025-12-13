@@ -24,12 +24,15 @@ export default function LandingPage() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-zinc-50 relative overflow-hidden">
-      {/* Lavender Gradient Orb */}
+    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-white selection:bg-violet-100">
+      {/* Background Texture - Adds depth without clutter */}
+      <div className="absolute inset-0 z-0 bg-grid-pattern pointer-events-none" />
+      
+      {/* Lavender Gradient Orb - Keep this */}
       <motion.div
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ 
-          opacity: 0.2, 
+          opacity: 0.3, 
           scale: 1,
           x: [0, 50, -30, 0],
           y: [0, -40, 30, 0],
@@ -39,17 +42,17 @@ export default function LandingPage() {
           repeat: Infinity,
           ease: 'easeInOut',
         }}
-        className="absolute top-1/4 left-1/4 w-96 h-96 bg-violet-400 rounded-full blur-3xl pointer-events-none"
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-violet-200/30 blur-[100px] rounded-full pointer-events-none z-0"
       />
 
       {/* Content */}
-      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 py-20">
+      <div className="relative z-10 flex flex-col items-center text-center max-w-2xl px-4">
         {/* Hero Section */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: 'easeOut' }}
-          className="text-center max-w-3xl mb-16"
+          className="mb-16"
         >
           {/* Headline */}
           <h1 className="text-6xl md:text-7xl font-bold text-zinc-900 mb-6 leading-tight">

@@ -1,21 +1,38 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
-import AddItemForm from '@/components/dashboard/AddItemForm'
+import ProfileHeader from '@/components/dashboard/ProfileHeader'
 import WishlistGrid from '@/components/wishlist/WishlistGrid'
-import ShareButton from '@/components/dashboard/ShareButton'
 import { getUserProducts, SupabaseProduct, deleteUserProduct } from '@/lib/supabase/products'
+import { getProfile, Profile } from '@/lib/supabase/profile'
 
 export default function DashboardPage() {
-  const [user, setUser] = useState<{ id: string } | null>(null)
+  const router = useRouter()
+  const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [products, setProducts] = useState<SupabaseProduct[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Load user, profile, and products
   useEffect(() => {
     async function loadUser() {
       const { data: { user: currentUser } } = await supabase.auth.getUser()
       if (currentUser) {
-        setUser({ id: currentUser.id })
+        setUser({ id: currentUser.id, email: currentUser.email })
+        
+        // Load profile
+        const { data: profileData } = await getProfile(currentUser.id)
+        if (profileData) {
+          setProfile(profileData)
+        }
+        
+        // Load products
+        const { data, error } = await getUserProducts(currentUser.id, currentUser.id)
+        if (!error && data) {
+          setProducts(data)
+        }
       }
       setLoading(false)
     }
@@ -25,68 +42,109 @@ export default function DashboardPage() {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        setUser({ id: session.user.id })
+        setUser({ id: session.user.id, email: session.user.email })
+        // Reload profile and products
+        getProfile(session.user.id).then(({ data }) => {
+          if (data) setProfile(data)
+        })
+        getUserProducts(session.user.id, session.user.id).then(({ data, error }) => {
+          if (!error && data) {
+            setProducts(data)
+          }
+        })
       } else {
         setUser(null)
+        setProfile(null)
+        setProducts([])
+        router.push('/login')
       }
     })
 
-    return () => subscription.unsubscribe()
-  }, [])
+    // Real-time subscription for product changes
+    const channel = supabase
+      .channel('products-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'products',
+        },
+        () => {
+          // Reload products on any change
+          if (user) {
+            getUserProducts(user.id, user.id).then(({ data, error }) => {
+              if (!error && data) {
+                setProducts(data)
+              }
+            })
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      subscription.unsubscribe()
+      supabase.removeChannel(channel)
+    }
+  }, [router, user])
+
+  const handleDelete = async (productId: string) => {
+    if (!user) return
+    
+    if (!confirm('Are you sure you want to delete this item?')) return
+
+    const { error } = await deleteUserProduct(user.id, productId)
+    if (error) {
+      alert('Failed to delete item: ' + error.message)
+      return
+    }
+
+    // Update UI
+    setProducts(prev => prev.filter(p => p.id !== productId))
+  }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-zinc-50">
         <div className="text-center">
-          <div className="inline-block w-8 h-8 border-4 border-[var(--color-brand-blue)] border-t-transparent rounded-full animate-spin"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
+          <div className="inline-block w-8 h-8 border-4 border-zinc-400 border-t-transparent rounded-full animate-spin"></div>
+          <p className="mt-4 text-zinc-600">Loading...</p>
         </div>
       </div>
     )
   }
 
   if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-900 dark:text-gray-100 mb-4">Please log in to view your dashboard</p>
-          <a
-            href="/login"
-            className="px-4 py-2 text-white rounded-md transition-colors text-sm font-medium inline-block"
-            style={{
-              backgroundColor: 'var(--color-brand-blue)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#a78bfa';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--color-brand-blue)';
-            }}
-          >
-            Go to Login
-          </a>
-        </div>
-      </div>
-    )
+    return null // Will redirect via useEffect
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        {/* Share Button - Top Right */}
-        <div className="flex justify-end mb-8">
-          <ShareButton />
-        </div>
+    <div className="min-h-screen bg-zinc-50/50 pb-32">
+      {/* Background grain or gradient for the dashboard too, but lighter */}
+      <div className="fixed inset-0 z-[-1] bg-grid-pattern opacity-30 pointer-events-none" />
 
-        {/* Add Item Form - Hero Element */}
-        <div className="mb-16">
-          <AddItemForm />
-        </div>
+      {/* The Profile Header contains the Add Form */}
+      <ProfileHeader 
+        user={user} 
+        profile={profile}
+        itemCount={products.length}
+      />
 
-        {/* Wishlist Grid */}
-        <WishlistGrid userId={user.id} isOwner={true} />
+      {/* The Content Grid */}
+      <div className="max-w-7xl mx-auto">
+        {products.length > 0 ? (
+          <WishlistGrid 
+            items={products}
+            isOwner={true}
+            onDelete={handleDelete}
+          />
+        ) : (
+          <div className="text-center text-zinc-400 text-sm mt-10">
+            Start adding links above to populate your stream.
+          </div>
+        )}
       </div>
     </div>
   )
 }
-
