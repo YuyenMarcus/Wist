@@ -34,10 +34,7 @@ export default function LoginPage() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
         router.push('https://wishlist.nuvio.cloud/dashboard')
-      } else if (event === 'SIGNED_UP') {
-        setMessage('Please check your email to confirm your account before signing in.')
-        setMessageType('success')
-      } else if (event === 'TOKEN_REFRESHED') {
+      } else if (event === 'TOKEN_REFRESHED' && session) {
         router.push('https://wishlist.nuvio.cloud/dashboard')
       }
     })
