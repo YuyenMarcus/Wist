@@ -3,27 +3,25 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ArrowRight, Sparkles } from 'lucide-react'
+import { ArrowRight, Sparkles, LayoutDashboard } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 
 export default function LandingPage() {
-  const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  // Get user status
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
 
   useEffect(() => {
     // Check active session immediately
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession()
-      setUser(session?.user || null)
-      setLoading(false)
+      setIsLoggedIn(!!session?.user)
     }
 
     checkUser()
 
     // Listen for auth changes (sign in/sign out)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null)
-      setLoading(false)
+      setIsLoggedIn(!!session?.user)
     })
 
     return () => subscription.unsubscribe()
@@ -41,18 +39,16 @@ export default function LandingPage() {
           <span className="font-bold text-xl tracking-tight text-zinc-900">wist.</span>
         </div>
 
+        {/* --- CONDITIONAL NAV LOGIC --- */}
         <div className="flex items-center gap-6">
-          {user ? (
-            /* STATE: LOGGED IN */
+          {isLoggedIn ? (
             <Link 
-              href="/dashboard"
-              className="group flex items-center gap-2 rounded-full bg-violet-500 px-5 py-2 text-sm font-medium text-white hover:bg-violet-600 transition-all"
+              href="/dashboard" 
+              className="rounded-full bg-zinc-900 px-5 py-2 text-sm font-medium text-white hover:bg-zinc-800 transition-all flex items-center gap-2"
             >
-              Open Dashboard
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              Dashboard <ArrowRight size={16} />
             </Link>
           ) : (
-            /* STATE: GUEST (NOT SIGNED IN) */
             <>
               <Link 
                 href="/login" 
@@ -124,43 +120,40 @@ export default function LandingPage() {
           Stop saving links in random notes. Collect, organize, and share your wishlist in a space designed for clarity.
         </motion.p>
 
-        {/* --- THE FIX: Centered Buttons --- */}
-        {!loading && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="mt-10 flex w-full items-center justify-center gap-4"
-          >
-            {user ? (
-              /* STATE: LOGGED IN - Show Dashboard CTA */
+        {/* --- CONDITIONAL BUTTON LOGIC --- */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+          className="mt-10 flex w-full items-center justify-center gap-4"
+        >
+          {isLoggedIn ? (
+            <Link
+              href="/dashboard"
+              className="group flex h-12 items-center gap-2 rounded-full bg-violet-500 px-8 text-sm font-semibold text-white transition-all hover:bg-violet-600 hover:pr-6"
+            >
+              <LayoutDashboard className="h-4 w-4" />
+              Go to Dashboard
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Link>
+          ) : (
+            <>
               <Link
-                href="/dashboard"
+                href="/signup"
                 className="group flex h-12 items-center gap-2 rounded-full bg-violet-500 px-8 text-sm font-semibold text-white transition-all hover:bg-violet-600 hover:pr-6"
               >
-                Go to Dashboard
+                Get Started
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </Link>
-            ) : (
-              /* STATE: GUEST - Show Sign Up/Login */
-              <>
-                <Link
-                  href="/signup"
-                  className="group flex h-12 items-center gap-2 rounded-full bg-violet-500 px-8 text-sm font-semibold text-white transition-all hover:bg-violet-600 hover:pr-6"
-                >
-                  Get Started
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </Link>
-                <Link
-                  href="/login"
-                  className="flex h-12 items-center rounded-full bg-white px-8 text-sm font-semibold text-zinc-900 shadow-sm ring-1 ring-zinc-200 transition-all hover:bg-zinc-50 hover:ring-zinc-300"
-                >
-                  Log in
-                </Link>
-              </>
-            )}
-          </motion.div>
-        )}
+              <Link
+                href="/login"
+                className="flex h-12 items-center rounded-full bg-white px-8 text-sm font-semibold text-zinc-900 shadow-sm ring-1 ring-zinc-200 transition-all hover:bg-zinc-50 hover:ring-zinc-300"
+              >
+                Log in
+              </Link>
+            </>
+          )}
+        </motion.div>
 
         {/* Floating Preview Card (Optional visual flare) */}
         <motion.div
