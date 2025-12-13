@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase/client'
 
 const navItems = [
   {
@@ -29,6 +30,23 @@ const navItems = [
 export default function FloatingNav() {
   const pathname = usePathname()
   const [isScrolled, setIsScrolled] = useState(false)
+  const [user, setUser] = useState<any>(null)
+
+  // Check auth state
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      setUser(session?.user || null)
+    }
+
+    checkUser()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -38,8 +56,13 @@ export default function FloatingNav() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // Don't show on login/signup pages
+  // Don't show on login/signup/auth pages
   if (pathname?.startsWith('/login') || pathname?.startsWith('/signup') || pathname?.startsWith('/auth')) {
+    return null
+  }
+
+  // Only show if user is logged in
+  if (!user) {
     return null
   }
 

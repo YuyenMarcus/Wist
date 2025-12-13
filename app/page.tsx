@@ -1,10 +1,34 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowRight, Sparkles } from 'lucide-react'
+import { supabase } from '@/lib/supabase/client'
 
 export default function LandingPage() {
+  const [user, setUser] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    // Check active session immediately
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      setUser(session?.user || null)
+      setLoading(false)
+    }
+
+    checkUser()
+
+    // Listen for auth changes (sign in/sign out)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null)
+      setLoading(false)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
   return (
     <main className="relative min-h-screen w-full flex flex-col items-center overflow-hidden bg-white selection:bg-violet-100">
       
@@ -18,18 +42,32 @@ export default function LandingPage() {
         </div>
 
         <div className="flex items-center gap-6">
-          <Link 
-            href="/login" 
-            className="text-sm font-medium text-zinc-500 hover:text-zinc-900 transition-colors"
-          >
-            Sign in
-          </Link>
-          <Link 
-            href="/signup" 
-            className="rounded-full bg-zinc-900 px-5 py-2 text-sm font-medium text-white hover:bg-zinc-800 transition-all"
-          >
-            Sign up
-          </Link>
+          {user ? (
+            /* STATE: LOGGED IN */
+            <Link 
+              href="/dashboard"
+              className="group flex items-center gap-2 rounded-full bg-violet-500 px-5 py-2 text-sm font-medium text-white hover:bg-violet-600 transition-all"
+            >
+              Open Dashboard
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Link>
+          ) : (
+            /* STATE: GUEST (NOT SIGNED IN) */
+            <>
+              <Link 
+                href="/login" 
+                className="text-sm font-medium text-zinc-500 hover:text-zinc-900 transition-colors"
+              >
+                Sign in
+              </Link>
+              <Link 
+                href="/signup" 
+                className="rounded-full bg-zinc-900 px-5 py-2 text-sm font-medium text-white hover:bg-zinc-800 transition-all"
+              >
+                Sign up
+              </Link>
+            </>
+          )}
         </div>
       </nav>
 
@@ -87,26 +125,42 @@ export default function LandingPage() {
         </motion.p>
 
         {/* --- THE FIX: Centered Buttons --- */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          className="mt-10 flex w-full items-center justify-center gap-4"
-        >
-          <Link
-            href="/signup"
-            className="group flex h-12 items-center gap-2 rounded-full bg-violet-500 px-8 text-sm font-semibold text-white transition-all hover:bg-violet-600 hover:pr-6"
+        {!loading && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="mt-10 flex w-full items-center justify-center gap-4"
           >
-            Get Started
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-          </Link>
-          <Link
-            href="/login"
-            className="flex h-12 items-center rounded-full bg-white px-8 text-sm font-semibold text-zinc-900 shadow-sm ring-1 ring-zinc-200 transition-all hover:bg-zinc-50 hover:ring-zinc-300"
-          >
-            Log in
-          </Link>
-        </motion.div>
+            {user ? (
+              /* STATE: LOGGED IN - Show Dashboard CTA */
+              <Link
+                href="/dashboard"
+                className="group flex h-12 items-center gap-2 rounded-full bg-violet-500 px-8 text-sm font-semibold text-white transition-all hover:bg-violet-600 hover:pr-6"
+              >
+                Go to Dashboard
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </Link>
+            ) : (
+              /* STATE: GUEST - Show Sign Up/Login */
+              <>
+                <Link
+                  href="/signup"
+                  className="group flex h-12 items-center gap-2 rounded-full bg-violet-500 px-8 text-sm font-semibold text-white transition-all hover:bg-violet-600 hover:pr-6"
+                >
+                  Get Started
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </Link>
+                <Link
+                  href="/login"
+                  className="flex h-12 items-center rounded-full bg-white px-8 text-sm font-semibold text-zinc-900 shadow-sm ring-1 ring-zinc-200 transition-all hover:bg-zinc-50 hover:ring-zinc-300"
+                >
+                  Log in
+                </Link>
+              </>
+            )}
+          </motion.div>
+        )}
 
         {/* Floating Preview Card (Optional visual flare) */}
         <motion.div
