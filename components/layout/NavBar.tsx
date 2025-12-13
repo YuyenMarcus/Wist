@@ -83,7 +83,7 @@ export default function NavBar() {
                         backgroundColor: 'var(--color-brand-blue)',
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = 'var(--color-brand-light)';
+                        e.currentTarget.style.backgroundColor = '#a78bfa';
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.backgroundColor = 'var(--color-brand-blue)';
@@ -101,7 +101,7 @@ export default function NavBar() {
                         backgroundColor: 'var(--color-brand-blue)',
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = 'var(--color-brand-light)';
+                        e.currentTarget.style.backgroundColor = '#a78bfa';
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.backgroundColor = 'var(--color-brand-blue)';
@@ -116,7 +116,7 @@ export default function NavBar() {
                         backgroundColor: 'var(--color-brand-blue)',
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = 'var(--color-brand-light)';
+                        e.currentTarget.style.backgroundColor = '#a78bfa';
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.backgroundColor = 'var(--color-brand-blue)';
