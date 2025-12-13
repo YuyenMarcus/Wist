@@ -104,7 +104,7 @@ export default function AddItemForm() {
         const metadataData = await metadataResponse.json()
         metadata = {
           title: metadataData.title || url.trim(),
-          image: metadataData.imageUrl || null,
+          image: metadataData.imageUrl || null, // API returns imageUrl, we map it to image
           price: metadataData.price || null,
           description: metadataData.description || null,
           url: url.trim(),
@@ -125,21 +125,47 @@ export default function AddItemForm() {
 
       // 3. Save to Supabase
       // Map API result (camelCase imageUrl) to DB columns (snake_case image)
-      const { error: insertError } = await supabase
-        .from('products')
-        .insert({
-          url: metadata.url,
-          title: metadata.title || url.trim(), // Fallback to URL if title is missing
-          image: metadata.image || null,       // Map imageUrl -> image
-          price: priceValue,
-          description: metadata.description || null,
-          domain: new URL(metadata.url).hostname.replace('www.', ''),
-          user_id: user.id,
-          meta: { priority },
-        })
+      const insertData: any = {
+        url: metadata.url,
+        title: metadata.title || url.trim(), // Fallback to URL if title is missing
+        image: metadata.image || null,       // Use metadata.image (from preview which has imageUrl mapped to image)
+        price: priceValue,
+        description: metadata.description || null,
+        domain: new URL(metadata.url).hostname.replace('www.', ''),
+        user_id: user.id,
+      }
+
+      // Only include meta if the column exists (handle gracefully if it doesn't)
+      // Try to insert with meta first, if it fails, retry without meta
+      let insertError: any = null
+      try {
+        const { error } = await supabase
+          .from('products')
+          .insert({
+            ...insertData,
+            meta: { priority },
+          })
+        
+        insertError = error
+        
+        // If error is about meta column not found, retry without it
+        if (error && (error.message?.includes('meta') || error.code === '42703')) {
+          console.warn('meta column not found, saving without meta field')
+          const { error: retryError } = await supabase
+            .from('products')
+            .insert(insertData)
+          insertError = retryError
+        }
+      } catch (err: any) {
+        insertError = err
+      }
 
       if (insertError) {
         console.error('Supabase Error:', insertError)
+        // Provide helpful error message for meta column issues
+        if (insertError.message?.includes('meta') || insertError.code === '42703') {
+          throw new Error('Database schema issue: meta column may not exist. Please check your Supabase table schema or reload the schema cache in Settings -> API.')
+        }
         throw insertError
       }
 
