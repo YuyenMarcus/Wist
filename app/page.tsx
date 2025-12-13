@@ -134,7 +134,7 @@ export default function LandingPage() {
           </Link>
         </motion.p>
       </div>
-    </div>
+    </main>
   )
 }
 
