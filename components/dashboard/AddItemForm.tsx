@@ -50,38 +50,22 @@ export default function AddItemForm() {
     setLoading(true)
 
     try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        throw new Error('Please log in to add items')
-      }
-
-      // Call your existing metadata fetcher
-      const response = await fetch('/api/fetch-product', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          url: newUrl.trim(), 
-          save: false,
-          user_id: user.id 
-        }),
-      })
+      // Fetch metadata from the new metadata API
+      const metadataUrl = `/api/metadata?url=${encodeURIComponent(newUrl.trim())}`
+      const response = await fetch(metadataUrl)
 
       if (!response.ok) {
-        throw new Error('Failed to fetch product data')
+        const errorData = await response.json().catch(() => ({ error: 'Failed to fetch metadata' }))
+        throw new Error(errorData.error || 'Failed to fetch product data')
       }
 
-      const data = await response.json()
-      
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to fetch product')
-      }
+      const metadata = await response.json()
 
       setPreview({
-        title: data.title || 'Unknown Item',
-        image: data.image || null,
-        price: data.price || null,
-        description: data.description || null,
+        title: metadata.title || 'Unknown Item',
+        image: metadata.imageUrl || null,
+        price: metadata.price || null,
+        description: metadata.description || null,
         url: newUrl.trim(),
       })
     } catch (err: any) {
