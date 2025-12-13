@@ -1,29 +1,22 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Auth } from '@supabase/auth-ui-react'
 import { ThemeSupa } from '@supabase/auth-ui-shared'
 import { supabase } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 export default function SignupPage() {
-  const router = useRouter()
   const [message, setMessage] = useState<string | null>(null)
 
-  useEffect(() => {
-    // Listen for signup events
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_UP') {
-        setMessage('Account created! Please check your email to confirm your account before signing in.')
-        // Redirect to login after 3 seconds
-        setTimeout(() => {
-          router.push('https://wishlist.nuvio.cloud/login?signedup=true')
-        }, 3000)
-      }
-    })
-
-    return () => subscription.unsubscribe()
-  }, [router])
+  // Handle signup success via Auth component's onSignup callback
+  const handleSignup = () => {
+    setMessage('Account created! Please check your email to confirm your account before signing in.')
+    // Redirect to login after 3 seconds
+    setTimeout(() => {
+      window.location.href = 'https://wishlist.nuvio.cloud/login?signedup=true'
+    }, 3000)
+  }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 py-12 sm:px-6 lg:px-8">
@@ -46,7 +39,7 @@ export default function SignupPage() {
             supabaseClient={supabase}
             appearance={{ theme: ThemeSupa }}
             providers={[]}
-            redirectTo="https://wishlist.nuvio.cloud/auth/callback?next=/dashboard"
+            redirectTo="https://wishlist.nuvio.cloud/login?signedup=true"
             magicLink={false}
             onlyThirdPartyProviders={false}
             view="sign_up"
