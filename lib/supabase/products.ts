@@ -40,17 +40,15 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
   if (error) return { data: null, error };
 
   // Hide reserved_by from owner (to avoid spoiling surprise)
-  if (data) {
-    data = data.map(product => {
-      if (product.user_id === viewerId) {
-        // Owner viewing their own list - hide who reserved it
-        return { ...product, reserved_by: null };
-      }
-      return product;
+  let processedData = data;
+  if (processedData && viewerId === userId) {
+    processedData = processedData.map(product => {
+      // Owner viewing their own list - hide who reserved it
+      return { ...product, reserved_by: null };
     });
   }
 
-  return { data, error };
+  return { data: processedData, error };
 }
 
 /**
