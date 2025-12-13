@@ -132,19 +132,13 @@ export default function DashboardPage() {
       />
 
       {/* The Content Grid */}
-      <div className="max-w-7xl mx-auto">
-        {products.length > 0 ? (
-          <WishlistGrid 
-            items={products}
-            isOwner={true}
-            onDelete={handleDelete}
-          />
-        ) : (
-          <div className="text-center text-zinc-400 text-sm mt-10">
-            Start adding links above to populate your stream.
-          </div>
-        )}
-      </div>
+      <main className="mt-8">
+        <WishlistGrid 
+          items={products}
+          isOwner={true}
+          onDelete={handleDelete}
+        />
+      </main>
     </div>
   )
 }
