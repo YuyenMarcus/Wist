@@ -105,6 +105,11 @@ export default function DashboardPage() {
     setProducts(prev => prev.filter(p => p.id !== productId))
   }
 
+  const handleUpdate = (productId: string, updatedItem: SupabaseProduct) => {
+    // Update the product in the local state
+    setProducts(prev => prev.map(p => p.id === productId ? updatedItem : p))
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-50">
@@ -131,11 +136,12 @@ export default function DashboardPage() {
 
       {/* The Content Grid */}
       <main className="mt-8">
-        <WishlistGrid 
-          items={products}
-          isOwner={true}
-          onDelete={handleDelete}
-        />
+              <WishlistGrid 
+                items={products}
+                isOwner={true}
+                onDelete={handleDelete}
+                onUpdate={handleUpdate}
+              />
       </main>
     </div>
   )

@@ -171,6 +171,23 @@ export async function updateProductVisibility(
 }
 
 /**
+ * Update product title
+ */
+export async function updateProductTitle(
+  userId: string,
+  productId: string,
+  newTitle: string
+): Promise<{ error: any }> {
+  const { error } = await supabase
+    .from('products')
+    .update({ title: newTitle.trim() || null })
+    .eq('id', productId)
+    .eq('user_id', userId); // Ensure user owns the item
+
+  return { error };
+}
+
+/**
  * Delete a product (with user verification)
  */
 export async function deleteUserProduct(

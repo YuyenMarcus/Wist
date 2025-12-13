@@ -10,9 +10,10 @@ interface WishlistGridProps {
   isOwner?: boolean
   onDelete?: (id: string) => void
   onReserve?: (id: string) => void
+  onUpdate?: (id: string, updatedItem: SupabaseProduct) => void
 }
 
-export default function WishlistGrid({ items, isOwner = true, onDelete, onReserve }: WishlistGridProps) {
+export default function WishlistGrid({ items, isOwner = true, onDelete, onReserve, onUpdate }: WishlistGridProps) {
   
   // Empty State
   if (!items || items.length === 0) {
@@ -49,6 +50,7 @@ export default function WishlistGrid({ items, isOwner = true, onDelete, onReserv
             isOwner={isOwner}
             onDelete={onDelete}
             onReserve={onReserve}
+            onUpdate={onUpdate}
           />
         ))}
       </AnimatePresence>

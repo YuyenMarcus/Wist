@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { ExternalLink, Trash2 } from 'lucide-react'
+import { ExternalLink, Trash2, Edit2, Check, X } from 'lucide-react'
 import { useState } from 'react'
 import { SupabaseProduct } from '@/lib/supabase/products'
 
@@ -18,11 +18,15 @@ interface ItemCardProps {
   isOwner?: boolean
   onDelete?: (id: string) => void
   onReserve?: (id: string) => void
+  onUpdate?: (id: string, updatedItem: SupabaseProduct) => void
 }
 
-export default function ItemCard({ item, isOwner = true, onDelete, onReserve }: ItemCardProps) {
+export default function ItemCard({ item, isOwner = true, onDelete, onReserve, onUpdate }: ItemCardProps) {
   const [isHovered, setIsHovered] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editedTitle, setEditedTitle] = useState(item.title || '')
+  const [isSaving, setIsSaving] = useState(false)
 
   const title = item.title || 'Untitled Item'
   const imageUrl = item.image || null
@@ -38,6 +42,65 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve }: 
       await onDelete(item.id)
     } finally {
       setIsDeleting(false)
+    }
+  }
+
+  const handleStartEdit = () => {
+    setEditedTitle(item.title || '')
+    setIsEditing(true)
+  }
+
+  const handleCancelEdit = () => {
+    setEditedTitle(item.title || '')
+    setIsEditing(false)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!onUpdate || !isOwner) return
+    
+    const trimmedTitle = editedTitle.trim()
+    if (trimmedTitle === (item.title || '')) {
+      setIsEditing(false)
+      return
+    }
+
+    setIsSaving(true)
+    try {
+      const { supabase } = await import('@/lib/supabase/client')
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) {
+        throw new Error('Not authenticated')
+      }
+
+      const { error } = await supabase
+        .from('products')
+        .update({ title: trimmedTitle || null })
+        .eq('id', item.id)
+        .eq('user_id', user.id)
+
+      if (error) throw error
+
+      // Update local state
+      if (onUpdate) {
+        onUpdate(item.id, { ...item, title: trimmedTitle || null })
+      }
+      
+      setIsEditing(false)
+    } catch (err: any) {
+      console.error('Error updating title:', err)
+      alert('Failed to update title: ' + (err.message || 'Unknown error'))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSaveEdit()
+    } else if (e.key === 'Escape') {
+      handleCancelEdit()
     }
   }
 
@@ -87,7 +150,7 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve }: 
           {/* Hover Actions Overlay */}
           {isOwner ? (
             <div className={`absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 transition-opacity duration-300 flex items-end justify-end p-4 gap-2 ${
-              isHovered ? 'opacity-100' : 'opacity-0'
+              isHovered && !isEditing ? 'opacity-100' : 'opacity-0'
             }`}>
               {/* Visit Link Button */}
               <a 
@@ -100,6 +163,18 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve }: 
               >
                 <ExternalLink size={16} strokeWidth={2} />
               </a>
+
+              {/* Edit Button */}
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleStartEdit()
+                }}
+                className="p-2.5 bg-white/90 backdrop-blur-md rounded-full text-zinc-700 hover:bg-violet-500 hover:text-white transition-colors shadow-sm"
+                title="Edit Title"
+              >
+                <Edit2 size={16} strokeWidth={2} />
+              </button>
 
               {/* Delete Button */}
               {onDelete && (
@@ -142,16 +217,64 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve }: 
 
         {/* Text Content */}
         <div className="p-5">
-          <h3 className="font-medium text-zinc-900 text-sm leading-snug line-clamp-2">
-            {title}
-          </h3>
-          
-          {price && (
-            <div className="mt-3 flex items-center">
-              <span className="inline-block bg-violet-50 text-violet-600 text-xs font-bold px-2.5 py-1 rounded-full">
-                {price}
-              </span>
+          {isEditing && isOwner ? (
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={editedTitle}
+                onChange={(e) => setEditedTitle(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onBlur={handleCancelEdit}
+                autoFocus
+                className="w-full px-3 py-2 text-sm font-medium text-zinc-900 bg-white border border-violet-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400"
+                disabled={isSaving}
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={isSaving}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-500 text-white text-xs font-medium rounded-lg hover:bg-violet-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSaving ? (
+                    <>
+                      <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Check size={14} />
+                      Save
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={handleCancelEdit}
+                  disabled={isSaving}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 text-zinc-600 text-xs font-medium rounded-lg hover:bg-zinc-200 transition-colors disabled:opacity-50"
+                >
+                  <X size={14} />
+                  Cancel
+                </button>
+              </div>
             </div>
+          ) : (
+            <>
+              <h3 
+                className="font-medium text-zinc-900 text-sm leading-snug line-clamp-2 cursor-text"
+                onDoubleClick={isOwner ? handleStartEdit : undefined}
+                title={isOwner ? 'Double-click to edit' : undefined}
+              >
+                {title}
+              </h3>
+              
+              {price && (
+                <div className="mt-3 flex items-center">
+                  <span className="inline-block bg-violet-50 text-violet-600 text-xs font-bold px-2.5 py-1 rounded-full">
+                    {price}
+                  </span>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
