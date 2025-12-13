@@ -202,10 +202,7 @@ export default function AccountPage() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-50">
-        <div className="text-center">
-          <div className="inline-block w-8 h-8 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin"></div>
-          <p className="mt-4 text-sm text-zinc-500">Loading profile...</p>
-        </div>
+        <LavenderLoader size="lg" />
       </div>
     )
   }
