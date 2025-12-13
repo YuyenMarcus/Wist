@@ -14,6 +14,8 @@ export default function LoginPage() {
   const [messageType, setMessageType] = useState<'success' | 'error' | null>(null)
 
   useEffect(() => {
+    if (!searchParams) return
+
     // Check for email confirmation message
     const confirmed = searchParams.get('confirmed')
     if (confirmed === 'true') {
