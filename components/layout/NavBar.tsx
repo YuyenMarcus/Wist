@@ -78,7 +78,16 @@ export default function NavBar() {
                     </Link>
                     <button
                       onClick={handleLogout}
-                      className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors text-sm font-medium"
+                      className="px-4 py-2 rounded-md text-white transition-colors text-sm font-medium"
+                      style={{
+                        backgroundColor: 'var(--color-brand-blue)',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--color-brand-light)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--color-brand-blue)';
+                      }}
                     >
                       Logout
                     </button>
@@ -87,13 +96,31 @@ export default function NavBar() {
                   <>
                     <Link 
                       href="https://wishlist.nuvio.cloud/login" 
-                      className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors text-sm font-medium"
+                      className="px-4 py-2 rounded-md text-white transition-colors text-sm font-medium"
+                      style={{
+                        backgroundColor: 'var(--color-brand-blue)',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--color-brand-light)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--color-brand-blue)';
+                      }}
                     >
                       Login
                     </Link>
                     <Link 
                       href="https://wishlist.nuvio.cloud/signup" 
-                      className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors text-sm font-medium"
+                      className="px-4 py-2 rounded-md text-white transition-colors text-sm font-medium"
+                      style={{
+                        backgroundColor: 'var(--color-brand-blue)',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--color-brand-light)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--color-brand-blue)';
+                      }}
                     >
                       Sign Up
                     </Link>

@@ -12,7 +12,14 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true, // Enable session persistence (cookies/localStorage)
+    autoRefreshToken: true, // Automatically refresh tokens
+    detectSessionInUrl: true, // Detect session from URL (for OAuth callbacks)
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined, // Use localStorage for session
+  },
+});
 
 // Server-side client with service role key (for admin operations)
 export function getSupabaseAdmin() {
