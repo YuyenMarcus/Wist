@@ -32,10 +32,20 @@ export async function getProfile(userId: string): Promise<{
 }
 
 /**
+ * Public profile interface (limited fields for sharing)
+ */
+export interface PublicProfile {
+  id: string;
+  username: string | null;
+  full_name: string | null;
+  avatar_url: string | null;
+}
+
+/**
  * Get profile by username (for public sharing)
  */
 export async function getProfileByUsername(username: string): Promise<{
-  data: Profile | null;
+  data: PublicProfile | null;
   error: any;
 }> {
   const { data, error } = await supabase
