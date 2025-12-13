@@ -218,22 +218,6 @@ export default function Dashboard() {
           <p className="mt-3 text-[var(--color-text-muted)]">
             Paste a product link and Wist will pull title, image and price. Save it to your collection.
           </p>
-          
-          {/* DEBUG: User ID Display */}
-          {user?.id && (
-            <div style={{ background: '#f0f0f0', padding: '10px', margin: '10px 0', border: '1px solid #ccc', borderRadius: '4px' }}>
-              <p className="text-xs text-gray-600">
-                <strong>Logged in as:</strong> {user.email || user.id}
-              </p>
-            </div>
-          )}
-          {!user && (
-            <div style={{ background: '#fff3cd', padding: '10px', margin: '10px 0', border: '1px solid #ffc107', borderRadius: '4px' }}>
-              <p className="text-xs text-yellow-800">
-                <strong>⚠️ Not logged in.</strong> Please <a href="/login" className="underline">log in</a> to save products.
-              </p>
-            </div>
-          )}
         </section>
 
         <section className="mb-8">
