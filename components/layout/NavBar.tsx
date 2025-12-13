@@ -70,12 +70,20 @@ export default function NavBar() {
                     </button>
                   </>
                 ) : (
-                  <Link 
-                    href="/login" 
-                    className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors text-sm font-medium"
-                  >
-                    Login
-                  </Link>
+                  <>
+                    <Link 
+                      href="https://wishlist.nuvio.cloud/login" 
+                      className="text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors"
+                    >
+                      Login
+                    </Link>
+                    <Link 
+                      href="https://wishlist.nuvio.cloud/signup" 
+                      className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors text-sm font-medium"
+                    >
+                      Sign Up
+                    </Link>
+                  </>
                 )}
               </>
             )}
