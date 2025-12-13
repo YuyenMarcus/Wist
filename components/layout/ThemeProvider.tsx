@@ -1,6 +1,8 @@
 /**
  * Theme provider wrapper for client-side theme initialization
  */
+'use client';
+
 import { useEffect } from 'react';
 import { initTheme } from '@/lib/theme';
 
