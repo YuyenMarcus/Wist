@@ -78,7 +78,7 @@ export default function AddItemForm() {
 
   // Save to wishlist
   const handleSave = async () => {
-    if (!preview) return
+    if (!url.trim()) return
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
@@ -91,30 +91,59 @@ export default function AddItemForm() {
     setSuccess(false)
 
     try {
-      // Generate share token for public sharing
-      const shareToken = Math.random().toString(36).substring(2, 15) + 
-                        Math.random().toString(36).substring(2, 15)
+      // 1. Fetch Metadata if we don't have preview yet
+      let metadata = preview
+      if (!metadata || !metadata.title) {
+        const metadataUrl = `/api/metadata?url=${encodeURIComponent(url.trim())}`
+        const metadataResponse = await fetch(metadataUrl)
+        
+        if (!metadataResponse.ok) {
+          throw new Error('Failed to fetch metadata')
+        }
+        
+        const metadataData = await metadataResponse.json()
+        metadata = {
+          title: metadataData.title || url.trim(),
+          image: metadataData.imageUrl || null,
+          price: metadataData.price || null,
+          description: metadataData.description || null,
+          url: url.trim(),
+        }
+      }
 
+      // 2. Parse price if it's a string (e.g., "$99.99" -> 99.99)
+      let priceValue: string | null = null
+      if (metadata.price) {
+        if (typeof metadata.price === 'string') {
+          // Extract number from price string (handles "$99.99", "99.99", etc.)
+          const priceMatch = metadata.price.replace(/[^0-9.]/g, '')
+          priceValue = priceMatch ? parseFloat(priceMatch).toString() : null
+        } else {
+          priceValue = metadata.price.toString()
+        }
+      }
+
+      // 3. Save to Supabase
+      // Map API result (camelCase imageUrl) to DB columns (snake_case image)
       const { error: insertError } = await supabase
         .from('products')
         .insert({
-          url: preview.url,
-          title: preview.title || null,
-          image: preview.image || null,
-          price: typeof preview.price === 'number' 
-            ? preview.price.toString() 
-            : preview.price || null,
-          description: preview.description || null,
-          domain: new URL(preview.url).hostname.replace('www.', ''),
+          url: metadata.url,
+          title: metadata.title || url.trim(), // Fallback to URL if title is missing
+          image: metadata.image || null,       // Map imageUrl -> image
+          price: priceValue,
+          description: metadata.description || null,
+          domain: new URL(metadata.url).hostname.replace('www.', ''),
           user_id: user.id,
-          // Note: is_public and share_token columns need to be added to Supabase first
-          // For now, we'll omit them to avoid errors
           meta: { priority },
         })
 
-      if (insertError) throw insertError
+      if (insertError) {
+        console.error('Supabase Error:', insertError)
+        throw insertError
+      }
 
-      // Reset form
+      // Success! Reset form
       setUrl('')
       setPreview(null)
       setPriority('medium')
@@ -127,6 +156,7 @@ export default function AddItemForm() {
       // Refresh the page or trigger real-time update
       router.refresh()
     } catch (err: any) {
+      console.error('Error saving item:', err)
       setError(err.message || 'Failed to save item')
     } finally {
       setSaving(false)
