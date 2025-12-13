@@ -110,7 +110,6 @@ export default function AddItemForm() {
           user_id: user.id,
           is_public: false, // Default to private
           share_token: shareToken,
-          image_source: 'url',
           // Store priority in meta JSONB
           meta: { priority },
         })
