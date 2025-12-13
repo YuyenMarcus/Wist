@@ -48,15 +48,14 @@ export default function FloatingNav() {
       initial={{ y: 100, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.5, ease: 'easeOut' }}
-      className="fixed bottom-8 left-1/2 z-50"
-      style={{ transform: 'translateX(-50%)' }}
+      className="fixed bottom-8 left-0 right-0 z-50 flex justify-center items-center"
     >
       <motion.div
         animate={{
           scale: isScrolled ? 0.95 : 1,
         }}
         transition={{ duration: 0.2 }}
-        className="flex items-center gap-2 px-4 py-3 bg-white/80 backdrop-blur-xl border border-zinc-200/50 rounded-full shadow-lg"
+        className="flex items-center justify-center gap-2 px-4 py-3 bg-white/80 backdrop-blur-xl border border-zinc-200/50 rounded-full shadow-lg"
       >
         {navItems.map((item) => {
           const isActive = pathname === item.href
