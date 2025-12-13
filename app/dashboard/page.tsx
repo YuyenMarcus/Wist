@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import AddItemForm from '@/components/dashboard/AddItemForm'
 import WishlistGrid from '@/components/dashboard/WishlistGrid'
+import ShareButton from '@/components/dashboard/ShareButton'
 
 export default function DashboardPage() {
   const [user, setUser] = useState<{ id: string } | null>(null)
@@ -71,6 +72,11 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-zinc-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        {/* Share Button - Top Right */}
+        <div className="flex justify-end mb-8">
+          <ShareButton />
+        </div>
+
         {/* Add Item Form - Hero Element */}
         <div className="mb-16">
           <AddItemForm />

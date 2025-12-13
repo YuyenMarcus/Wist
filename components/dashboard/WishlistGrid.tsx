@@ -205,7 +205,9 @@ export default function WishlistGrid({ userId, isOwner = true }: WishlistGridPro
             }}
           >
             {/* Image Container */}
-            <div className="relative aspect-[4/5] rounded-xl overflow-hidden mb-3 transition-transform duration-300 group-hover:-translate-y-1">
+            <div className={`relative aspect-[4/5] rounded-xl overflow-hidden mb-3 transition-transform duration-300 group-hover:-translate-y-1 ${
+              isReserved && !isOwner ? 'grayscale' : ''
+            }`}>
               {product.image ? (
                 <>
                   <img
@@ -215,6 +217,14 @@ export default function WishlistGrid({ userId, isOwner = true }: WishlistGridPro
                   />
                   {/* Hover Overlay */}
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
+                  {/* Reserved Overlay */}
+                  {isReserved && !isOwner && (
+                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                      <div className="px-4 py-2 bg-white/90 backdrop-blur-sm rounded-lg">
+                        <span className="text-xs font-medium text-zinc-900">Claimed</span>
+                      </div>
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className={`w-full h-full bg-gradient-to-br ${gradient} flex items-center justify-center`}>
