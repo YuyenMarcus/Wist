@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { getProfileByUsername, PublicProfile } from '@/lib/supabase/profile'
 import { getUserProducts, SupabaseProduct, reserveProduct, unreserveProduct } from '@/lib/supabase/products'
@@ -9,6 +9,7 @@ import WishlistGrid from '@/components/wishlist/WishlistGrid'
 
 export default function PublicProfilePage() {
   const params = useParams()
+  const router = useRouter()
   const username = params?.username as string
   const [profile, setProfile] = useState<PublicProfile | null>(null)
   const [products, setProducts] = useState<SupabaseProduct[]>([])
@@ -63,9 +64,40 @@ export default function PublicProfilePage() {
     loadProfile()
   }, [username, currentUserId])
 
+  // Real-time subscription for product changes
+  useEffect(() => {
+    if (!profile) return
+
+    const channel = supabase
+      .channel('products-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'products',
+          filter: `user_id=eq.${profile.id}`,
+        },
+        () => {
+          // Reload products on any change
+          getUserProducts(profile.id, currentUserId || undefined).then(({ data, error }) => {
+            if (!error && data) {
+              setProducts(data)
+            }
+          })
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [profile, currentUserId])
+
   const handleReserve = async (productId: string) => {
     if (!currentUserId) {
       alert('Please log in to reserve items')
+      router.push('/login')
       return
     }
 
@@ -164,4 +196,3 @@ export default function PublicProfilePage() {
     </div>
   )
 }
-
