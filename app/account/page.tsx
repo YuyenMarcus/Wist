@@ -3,8 +3,10 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
+import { Check, X, Loader2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { getProfile, updateProfile, Profile } from '@/lib/supabase/profile'
+import { useUsername } from '@/hooks/useUsername'
 
 export default function AccountPage() {
   const router = useRouter()
@@ -19,7 +21,18 @@ export default function AccountPage() {
   
   // Form state
   const [fullName, setFullName] = useState('')
+  const [currentUsername, setCurrentUsername] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  
+  // Username validation hook
+  const { 
+    username, 
+    setUsername, 
+    isAvailable, 
+    isValid, 
+    loading: checkingUsername, 
+    error: usernameError 
+  } = useUsername(currentUsername)
 
   // Fetch current user and profile
   useEffect(() => {
@@ -48,6 +61,9 @@ export default function AccountPage() {
         setProfile(profileData)
         setFullName(profileData?.full_name || '')
         setAvatarUrl(profileData?.avatar_url || null)
+        const existingUsername = profileData?.username || ''
+        setCurrentUsername(existingUsername)
+        setUsername(existingUsername)
       } catch (err: any) {
         console.error('Error loading profile:', err)
         setError(err.message || 'Failed to load profile')
@@ -142,13 +158,29 @@ export default function AccountPage() {
       setError(null)
       setSuccess(false)
 
+      // Final validation before submitting
+      if (username !== currentUsername && !isValid) {
+        setError('Please fix username errors before saving')
+        return
+      }
+
       const { data, error: updateError } = await updateProfile(user.id, {
         full_name: fullName.trim() || null,
+        username: username.trim() || null,
       })
 
-      if (updateError) throw updateError
+      if (updateError) {
+        // Check for unique constraint violation
+        if (updateError.code === '23505' || updateError.message.includes('unique')) {
+          setError('Username is already taken. Please choose another.')
+        } else {
+          throw updateError
+        }
+        return
+      }
 
       setProfile(data)
+      setCurrentUsername(username.trim())
       setSuccess(true)
       
       // Clear success message after 3 seconds
@@ -320,6 +352,60 @@ export default function AccountPage() {
               />
             </div>
 
+            {/* Username Input */}
+            <div className="mb-6">
+              <label htmlFor="username" className="block text-xs font-medium text-zinc-500 mb-2">
+                Username
+              </label>
+              <div className="relative">
+                <span className="absolute left-4 top-3.5 text-zinc-400 font-medium text-sm">@</span>
+                <input
+                  type="text"
+                  id="username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s/g, ''))}
+                  className={`w-full pl-9 pr-10 py-3 bg-zinc-50 border rounded-xl focus:outline-none focus:ring-2 transition-all text-sm text-zinc-900 placeholder-zinc-400 ${
+                    username !== currentUsername && username.length > 0
+                      ? isValid
+                        ? 'border-violet-300 focus:ring-violet-200 focus:border-violet-400'
+                        : 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30'
+                      : 'border-zinc-200 focus:ring-violet-200 focus:border-violet-300'
+                  }`}
+                  placeholder="marcus"
+                />
+                
+                {/* Status Indicator Icon */}
+                <div className="absolute right-3 top-3.5">
+                  {checkingUsername ? (
+                    <Loader2 className="w-5 h-5 text-zinc-400 animate-spin" />
+                  ) : username !== currentUsername && username.length > 0 ? (
+                    isValid ? (
+                      <Check className="w-5 h-5 text-green-500" />
+                    ) : (
+                      <X className="w-5 h-5 text-red-400" />
+                    )
+                  ) : null}
+                </div>
+              </div>
+              
+              {/* Validation Message */}
+              <div className="h-5 mt-1 ml-1">
+                {username !== currentUsername && username.length > 0 && (
+                  <>
+                    {checkingUsername && (
+                      <span className="text-xs text-zinc-400">Checking availability...</span>
+                    )}
+                    {!checkingUsername && usernameError && (
+                      <span className="text-xs text-red-500 font-medium">{usernameError}</span>
+                    )}
+                    {!checkingUsername && isValid && (
+                      <span className="text-xs text-green-600 font-medium">Username available</span>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+
             <div className="flex items-center justify-end gap-3">
               <button
                 type="button"
@@ -331,7 +417,7 @@ export default function AccountPage() {
               </button>
               <button
                 type="submit"
-                disabled={saving}
+                disabled={saving || (username !== currentUsername && !isValid)}
                 className="px-6 py-2.5 bg-violet-500 text-white rounded-full text-sm font-medium hover:bg-violet-600 focus:outline-none focus:ring-2 focus:ring-violet-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
               >
                 {saving ? (
