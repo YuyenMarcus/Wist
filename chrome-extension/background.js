@@ -31,9 +31,7 @@ async function handlePreviewLink(productUrl, sendResponse) {
     // CHANGE THIS to your production URL when you deploy
     // For development: http://localhost:3000
     // For production: https://wishlist.nuvio.cloud
-    const API_ENDPOINT = process.env.NODE_ENV === 'production' 
-      ? "https://wishlist.nuvio.cloud/api/preview-link"
-      : "http://localhost:3000/api/preview-link";
+    const API_ENDPOINT = "http://localhost:3000/api/preview-link";
 
     const response = await fetch(API_ENDPOINT, {
       method: "POST",
