@@ -1,74 +1,57 @@
-// background.js - The Watchtower
-// Monitors tab updates for purchase confirmation pages
+// background.js - The API Bridge
+// Handles network requests to Next.js API (bypasses CORS)
 
-const SUCCESS_PATTERNS = [
-  /amazon\.com\/gp\/buy\/thankyou/,
-  /amazon\.com\/.*\/order-confirmation/,
-  /target\.com\/co-cart\/order-confirmation/,
-  /etsy\.com\/your\/purchases\/.*\/confirmation/,
-  /shopify\.com\/.*\/thank_you/,
-  /bestbuy\.com\/.*\/order-confirmation/,
-  /bestbuy\.com\/checkout\/.*\/confirmation/,
-  /walmart\.com\/checkout\/.*\/confirm/,
-];
-
-// Track which tabs we've already triggered to avoid duplicates
-const triggeredTabs = new Set();
-
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.status === 'complete' && tab.url) {
-    const isPurchasePage = SUCCESS_PATTERNS.some(pattern => pattern.test(tab.url));
-    const tabKey = `${tabId}-${tab.url}`;
-
-    if (isPurchasePage && !triggeredTabs.has(tabKey)) {
-      console.log("🎉 Wist: Purchase detected on", tab.url);
-      triggeredTabs.add(tabKey);
-
-      // Inject the content script and trigger the popup
-      chrome.scripting.executeScript({
-        target: { tabId },
-        files: ['content.js']
-      }).then(() => {
-        // Send message to content script to trigger purchase popup
-        chrome.tabs.sendMessage(tabId, {
-          action: "TRIGGER_PURCHASE_POPUP",
-          url: tab.url
-        }).catch(err => {
-          console.error("Failed to send message to content script:", err);
-          // If message fails, try injecting again after a short delay
-          setTimeout(() => {
-            chrome.tabs.sendMessage(tabId, {
-              action: "TRIGGER_PURCHASE_POPUP",
-              url: tab.url
-            });
-          }, 1000);
-        });
-      }).catch(err => {
-        console.error("Failed to inject content script:", err);
-      });
-    }
-  }
-});
-
-// Clean up triggered tabs when they're closed
-chrome.tabs.onRemoved.addListener((tabId) => {
-  const keysToDelete = [];
-  triggeredTabs.forEach(key => {
-    if (key.startsWith(`${tabId}-`)) {
-      keysToDelete.push(key);
-    }
-  });
-  keysToDelete.forEach(key => triggeredTabs.delete(key));
-});
-
-// Handle messages from content script
+// 1. Listen for messages from content script or popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "PREVIEW_LINK") {
+    handlePreviewLink(request.url, sendResponse);
+    return true; // Indicates we will respond asynchronously
+  }
+
+  if (request.action === "TRIGGER_PURCHASE_POPUP") {
+    // Trigger purchase popup logic (from previous implementation)
+    chrome.tabs.sendMessage(sender.tab.id, {
+      action: "TRIGGER_PURCHASE_POPUP",
+      url: request.url
+    }).catch(err => console.error("Failed to trigger purchase popup:", err));
+  }
+
   if (request.action === "GET_USER_TOKEN") {
-    // Get auth token from storage (set by popup/login flow)
+    // Get auth token from storage
     chrome.storage.local.get(['wist_auth_token'], (result) => {
       sendResponse({ token: result.wist_auth_token });
     });
-    return true; // Keep channel open for async response
+    return true;
   }
 });
 
+// 2. Function to call your Next.js API
+async function handlePreviewLink(productUrl, sendResponse) {
+  try {
+    // CHANGE THIS to your production URL when you deploy
+    // For development: http://localhost:3000
+    // For production: https://wishlist.nuvio.cloud
+    const API_ENDPOINT = process.env.NODE_ENV === 'production' 
+      ? "https://wishlist.nuvio.cloud/api/preview-link"
+      : "http://localhost:3000/api/preview-link";
+
+    const response = await fetch(API_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ url: productUrl }),
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      sendResponse({ success: true, data: data.data });
+    } else {
+      sendResponse({ success: false, error: data.error });
+    }
+  } catch (error) {
+    console.error("Wist API Error:", error);
+    sendResponse({ success: false, error: "Network error connecting to Wist." });
+  }
+}
