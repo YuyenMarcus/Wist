@@ -1,0 +1,50 @@
+{
+  "manifest_version": 3,
+  "name": "Wist - Wishlist & Price Tracker",
+  "version": "0.1.0",
+  "description": "Track your wishlist items and celebrate your purchases with Wist",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "*://*.amazon.com/*",
+    "*://*.target.com/*",
+    "*://*.etsy.com/*",
+    "*://*.shopify.com/*",
+    "*://*.bestbuy.com/*",
+    "*://wishlist.nuvio.cloud/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["styles.css"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["modal.html"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
+
