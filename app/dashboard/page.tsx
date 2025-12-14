@@ -62,6 +62,7 @@ export default function DashboardPage() {
     })
 
     // Real-time subscription for product changes
+    // Filter by user_id to only listen to changes to this user's products
     const channel = supabase
       .channel('products-changes')
       .on(
@@ -70,9 +71,11 @@ export default function DashboardPage() {
           event: '*',
           schema: 'public',
           table: 'products',
+          filter: user ? `user_id=eq.${user.id}` : undefined,
         },
-        () => {
-          // Reload products on any change
+        (payload) => {
+          console.log('Real-time product update:', payload.eventType, payload.new)
+          // Reload products on any change (but our manual updates should already be reflected)
           if (user) {
             getUserProducts(user.id, user.id).then(({ data, error }) => {
               if (!error && data) {

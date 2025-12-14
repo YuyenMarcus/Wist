@@ -38,7 +38,7 @@ export default function LandingPage() {
           <img 
             src="/logo.svg" 
             alt="Wist Logo" 
-            className="h-8 w-8"
+            className="h-10 w-10"
           />
           <span className="font-bold text-xl tracking-tight text-zinc-900">wist.</span>
         </div>

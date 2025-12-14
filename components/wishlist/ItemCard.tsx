@@ -56,7 +56,7 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
   }
 
   const handleSaveEdit = async () => {
-    if (!onUpdate || !isOwner) return
+    if (!isOwner) return
     
     const trimmedTitle = editedTitle.trim()
     if (trimmedTitle === (item.title || '')) {
@@ -73,23 +73,37 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
         throw new Error('Not authenticated')
       }
 
-      const { error } = await supabase
+      // Update in database and get the updated row back
+      const { data: updatedData, error } = await supabase
         .from('products')
         .update({ title: trimmedTitle || null })
         .eq('id', item.id)
         .eq('user_id', user.id)
+        .select()
+        .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('Supabase update error:', error)
+        throw error
+      }
 
-      // Update local state
+      // Verify the update worked
+      if (!updatedData) {
+        throw new Error('Update failed: No data returned')
+      }
+
+      console.log('✅ Title updated successfully:', updatedData.title)
+
+      // Update local state immediately with the response from DB
       if (onUpdate) {
-        onUpdate(item.id, { ...item, title: trimmedTitle || null })
+        onUpdate(item.id, { ...item, title: updatedData.title })
       }
       
       setIsEditing(false)
     } catch (err: any) {
       console.error('Error updating title:', err)
       alert('Failed to update title: ' + (err.message || 'Unknown error'))
+      // Don't close edit mode on error so user can try again
     } finally {
       setIsSaving(false)
     }
