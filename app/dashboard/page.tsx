@@ -126,35 +126,38 @@ export default function DashboardPage() {
     setProducts(prev => prev.filter(p => p.id !== productId))
 
     try {
-      // 2. Get the current Session Token
+      // Get token
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
-
+      
       if (!token) {
-        alert("You appear to be logged out.");
+        alert("Please log in again.");
         return;
       }
 
-      // 3. Send request with the Token explicitly attached
-      const res = await fetch(`/api/delete-item?id=${productId}`, {
+      // 2. LOG the URL we are about to hit
+      const url = `/api/delete-item?id=${productId}`;
+      console.log("🚀 Sending DELETE request to:", url);
+
+      // 3. Send request (ID is in the URL, not the body)
+      const res = await fetch(url, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`, // <--- The Golden Ticket
+          'Authorization': `Bearer ${token}`,
         },
       });
       
       const data = await res.json();
       
       if (!res.ok || !data.success) {
-        const errorMsg = data.message || data.error || 'Failed to delete';
-        console.error("❌ Delete failed:", errorMsg);
-        throw new Error(errorMsg);
+        console.error("❌ Server Response:", data);
+        throw new Error(data.message || 'Failed to delete');
       }
       
-      console.log("✅ Deleted successfully, count:", data.count);
+      console.log("✅ Deleted successfully!");
     } catch (error: any) {
-      console.error("Delete error:", error);
-      alert(`Could not delete item: ${error.message || 'Unknown error'}`);
+      console.error(error);
+      alert("Could not delete item. Reloading...");
       // Re-fetch to restore UI if delete failed
       if (user) {
         const { data, error: fetchError } = await getUserProducts(user.id, user.id);

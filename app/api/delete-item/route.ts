@@ -47,21 +47,23 @@ export async function DELETE(request: Request) {
       );
     }
 
-    // 2. Get Item ID
+    // 2. Get ID from URL
     const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-
-    if (!id) {
+    const rawId = searchParams.get('id');
+    
+    // 3. SANITY CHECK
+    if (!rawId || rawId === 'undefined' || rawId === 'null') {
+      console.error(`❌ BAD REQUEST: Received ID is "${rawId}"`);
       return NextResponse.json(
-        { error: 'Item ID is required' },
+        { success: false, message: "Invalid ID provided" },
         { status: 400, headers: corsHeaders(origin) }
       );
     }
 
-    // --- NEW DEBUG LOG ---
-    console.log(`🕵️ RECEIVED ID: "${id}" (User: ${user.email})`);
+    const id = rawId.trim(); // Remove any accidental spaces
+    console.log(`🗑️ Deleting Item ID: [${id}] for User: [${user.email}]`);
 
-    // 3. Try to delete
+    // 4. Delete
     const { data, error } = await supabase
       .from('items')
       .delete()
@@ -76,34 +78,19 @@ export async function DELETE(request: Request) {
         { status: 500, headers: corsHeaders(origin) }
       );
     }
-
-    // 4. If nothing deleted, verify if ID even exists
+    
+    // 5. Final Verification
     if (!data || data.length === 0) {
-      // Check if ID exists AT ALL (ignoring user)
-      const { data: ghostCheck } = await supabase
-        .from('items')
-        .select('id, user_id')
-        .eq('id', id)
-        .maybeSingle();
-      
-      if (ghostCheck) {
-        console.log(`⚠️ Item EXISTS but belongs to User ${ghostCheck.user_id} (Not you!)`);
-        return NextResponse.json(
-          { success: false, message: "Item not found or not owned by you" },
-          { status: 403, headers: corsHeaders(origin) }
-        );
-      } else {
-        console.log(`👻 GHOST ITEM: Database has NO record of ID "${id}"`);
-        return NextResponse.json(
-          { success: false, message: "Item not found" },
-          { status: 404, headers: corsHeaders(origin) }
-        );
-      }
+      console.log("⚠️ Delete count was 0. Item not found or not owned.");
+      return NextResponse.json(
+        { success: false, message: "Item not found" },
+        { status: 404, headers: corsHeaders(origin) }
+      );
     }
 
     console.log(`✅ Successfully deleted ${data.length} item(s).`);
     return NextResponse.json(
-      { success: true, count: data.length },
+      { success: true },
       { headers: corsHeaders(origin) }
     );
 
