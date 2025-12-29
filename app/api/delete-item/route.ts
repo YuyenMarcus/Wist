@@ -28,7 +28,7 @@ export async function DELETE(request: Request) {
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get User via Token
+    // 1. Get User
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) {
       return NextResponse.json(
@@ -47,7 +47,7 @@ export async function DELETE(request: Request) {
       );
     }
 
-    // Delete
+    // 2. Get Item ID
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -58,20 +58,54 @@ export async function DELETE(request: Request) {
       );
     }
 
-    const { error } = await supabase
+    console.log(`🕵️ DEBUG: User [${user.id}] trying to delete Item [${id}]`);
+
+    // 3. Perform Delete AND Count the results
+    const { data, error, count } = await supabase
       .from('items')
-      .delete()
+      .delete({ count: 'exact' }) // Ask for the count
       .eq('id', id)
-      .eq('user_id', user.id);
+      .eq('user_id', user.id)     // Strict check
+      .select();                  // Return the deleted item
 
     if (error) {
+      console.error("❌ DB Error:", error.message);
       return NextResponse.json(
         { error: error.message },
         { status: 500, headers: corsHeaders(origin) }
       );
     }
 
-    return NextResponse.json({ success: true }, { headers: corsHeaders(origin) });
+    // 4. Check if anything was actually deleted
+    if (!data || data.length === 0) {
+      console.log("⚠️ Zero items deleted! (Ownership mismatch or Wrong ID)");
+      // Try to find out WHY (Does the item even exist?)
+      const { data: checkItem } = await supabase
+        .from('items')
+        .select('user_id')
+        .eq('id', id)
+        .single();
+      
+      if (checkItem) {
+        console.log(`💡 Mystery Solved: Item exists but belongs to User [${checkItem.user_id}], not [${user.id}]`);
+        return NextResponse.json(
+          { success: false, message: "Item not found or not owned by you" },
+          { status: 403, headers: corsHeaders(origin) }
+        );
+      } else {
+        console.log("💡 Mystery Solved: Item ID does not exist in DB.");
+        return NextResponse.json(
+          { success: false, message: "Item not found" },
+          { status: 404, headers: corsHeaders(origin) }
+        );
+      }
+    }
+
+    console.log(`✅ Successfully deleted ${data.length} item(s).`);
+    return NextResponse.json(
+      { success: true, count: data.length },
+      { headers: corsHeaders(origin) }
+    );
 
   } catch (error: any) {
     console.error('❌ Server Error:', error);

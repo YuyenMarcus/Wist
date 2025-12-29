@@ -143,14 +143,18 @@ export default function DashboardPage() {
         },
       });
       
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to delete');
+      const data = await res.json();
+      
+      if (!res.ok || !data.success) {
+        const errorMsg = data.message || data.error || 'Failed to delete';
+        console.error("❌ Delete failed:", errorMsg);
+        throw new Error(errorMsg);
       }
-      console.log("✅ Deleted successfully");
+      
+      console.log("✅ Deleted successfully, count:", data.count);
     } catch (error: any) {
-      console.error(error);
-      alert("Could not delete item.");
+      console.error("Delete error:", error);
+      alert(`Could not delete item: ${error.message || 'Unknown error'}`);
       // Re-fetch to restore UI if delete failed
       if (user) {
         const { data, error: fetchError } = await getUserProducts(user.id, user.id);
