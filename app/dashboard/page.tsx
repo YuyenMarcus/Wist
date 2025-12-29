@@ -15,6 +15,7 @@ export default function DashboardPage() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [products, setProducts] = useState<SupabaseProduct[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
 
   // Load user, profile, and products
   useEffect(() => {
@@ -61,9 +62,9 @@ export default function DashboardPage() {
       }
     })
 
-    // Real-time subscription for product changes
-    // Filter by user_id to only listen to changes to this user's products
-    const channel = supabase
+    // Real-time subscription for product and item changes
+    // Listen to both tables
+    const productsChannel = supabase
       .channel('products-changes')
       .on(
         'postgres_changes',
@@ -75,7 +76,29 @@ export default function DashboardPage() {
         },
         (payload) => {
           console.log('Real-time product update:', payload.eventType, payload.new)
-          // Reload products on any change (but our manual updates should already be reflected)
+          if (user) {
+            getUserProducts(user.id, user.id).then(({ data, error }) => {
+              if (!error && data) {
+                setProducts(data)
+              }
+            })
+          }
+        }
+      )
+      .subscribe()
+
+    const itemsChannel = supabase
+      .channel('items-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'items',
+          filter: user ? `user_id=eq.${user.id}` : undefined,
+        },
+        (payload) => {
+          console.log('Real-time item update:', payload.eventType, payload.new)
           if (user) {
             getUserProducts(user.id, user.id).then(({ data, error }) => {
               if (!error && data) {
@@ -89,7 +112,8 @@ export default function DashboardPage() {
 
     return () => {
       subscription.unsubscribe()
-      supabase.removeChannel(channel)
+      supabase.removeChannel(productsChannel)
+      supabase.removeChannel(itemsChannel)
     }
   }, [router, user])
 
@@ -98,19 +122,76 @@ export default function DashboardPage() {
     
     if (!confirm('Are you sure you want to delete this item?')) return
 
-    const { error } = await deleteUserProduct(user.id, productId)
-    if (error) {
-      alert('Failed to delete item: ' + error.message)
-      return
-    }
-
-    // Update UI
+    // 1. Optimistic Update
     setProducts(prev => prev.filter(p => p.id !== productId))
+
+    try {
+      // 2. Get the current Session Token
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token) {
+        alert("You appear to be logged out.");
+        return;
+      }
+
+      // 3. Send request with the Token explicitly attached
+      const res = await fetch(`/api/items?id=${productId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`, // <--- The Golden Ticket
+        },
+      });
+      
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to delete');
+      }
+      console.log("✅ Deleted successfully");
+    } catch (error: any) {
+      console.error(error);
+      alert("Could not delete item.");
+      // Re-fetch to restore UI if delete failed
+      if (user) {
+        const { data, error: fetchError } = await getUserProducts(user.id, user.id);
+        if (!fetchError && data) {
+          setProducts(data);
+        }
+      }
+    }
   }
 
   const handleUpdate = (productId: string, updatedItem: SupabaseProduct) => {
     // Update the product in the local state
     setProducts(prev => prev.map(p => p.id === productId ? updatedItem : p))
+  }
+
+  // Function to fetch items (used by refresh)
+  const fetchItems = async () => {
+    if (!user) return
+    const { data, error } = await getUserProducts(user.id, user.id)
+    if (!error && data) {
+      setProducts(data)
+    }
+  }
+
+  async function handleRefreshPrices() {
+    setRefreshing(true)
+    try {
+      const res = await fetch('/api/cron/check-prices')
+      const result = await res.json()
+      if (result.success) {
+        alert(`Scanned ${result.checked} items. Updated ${result.updates} prices.`)
+      } else {
+        alert('Failed to refresh prices: ' + (result.error || 'Unknown error'))
+      }
+      fetchItems() // Reload the list to see changes
+    } catch (e: any) {
+      console.error(e)
+      alert('Failed to refresh prices: ' + (e.message || 'Network error'))
+    } finally {
+      setRefreshing(false)
+    }
   }
 
   if (loading) {
@@ -135,6 +216,8 @@ export default function DashboardPage() {
         user={user} 
         profile={profile}
         itemCount={products.length}
+        onRefreshPrices={handleRefreshPrices}
+        refreshing={refreshing}
       />
 
       {/* The Content Grid */}
