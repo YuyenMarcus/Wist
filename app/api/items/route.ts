@@ -121,20 +121,22 @@ export async function POST(request: Request) {
       // B. SCRAPE MODE (Dashboard only sent a URL, or price/title missing)
       console.log("🕵️ Scraping URL for missing data...");
       try {
-        const scrapedData = await scrapeProduct(url);
+        const scrapedResponse = await scrapeProduct(url);
         
-        if (!scrapedData) {
+        if (!scrapedResponse.ok || !scrapedResponse.data) {
           return NextResponse.json(
-            { error: 'Failed to scrape product. Please provide title and price.' },
+            { error: scrapedResponse.error || 'Failed to scrape product. Please provide title and price.' },
             { status: 400, headers: corsHeaders(origin) }
           );
         }
 
+        const scrapedData = scrapedResponse.data;
+
         // Use scraped data to fill in missing fields
         title = title || scrapedData.title;
-        currentPrice = price ? parseFloat(price.toString().replace(/[^0-9.]/g, '')) : (scrapedData.current_price || 0);
-        image_url = image_url || scrapedData.image_url;
-        retailer = retailer || scrapedData.retailer;
+        currentPrice = price ? parseFloat(price.toString().replace(/[^0-9.]/g, '')) : (scrapedData.price || 0);
+        image_url = image_url || scrapedData.image || null;
+        retailer = retailer || scrapedData.domain || 'Unknown';
         // If scraping, we assume status is active (wishlist) unless specified
         status = status || 'active';
         
