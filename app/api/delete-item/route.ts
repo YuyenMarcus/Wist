@@ -23,53 +23,63 @@ export async function DELETE(request: Request) {
   const origin = request.headers.get('origin');
 
   try {
-    // Initialize RAW Supabase Client (No Next.js magic, no scraper imports)
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // 1. Get User
+    // 1. Get the Auth Token from the request headers
     const authHeader = request.headers.get('Authorization');
+    
     if (!authHeader) {
       return NextResponse.json(
-        { error: 'No Token' },
+        { error: 'Missing Authorization Header' },
         { status: 401, headers: corsHeaders(origin) }
       );
     }
-    
+
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+    // 2. Create a Supabase Client that acts AS THE USER
+    // We pass the token in the 'global.headers' so every DB query carries their ID.
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      }
+    );
+
+    // 3. Verify the User (Double check)
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
+      console.error("❌ Auth Failed:", authError?.message);
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401, headers: corsHeaders(origin) }
       );
     }
 
-    // 2. Get ID from URL
+    // 4. Get the Item ID to delete
     const { searchParams } = new URL(request.url);
-    const rawId = searchParams.get('id');
-    
-    // 3. SANITY CHECK
-    if (!rawId || rawId === 'undefined' || rawId === 'null') {
-      console.error(`❌ BAD REQUEST: Received ID is "${rawId}"`);
+    const id = searchParams.get('id');
+
+    if (!id || id === 'undefined' || id === 'null') {
       return NextResponse.json(
-        { success: false, message: "Invalid ID provided" },
+        { error: 'Missing Item ID' },
         { status: 400, headers: corsHeaders(origin) }
       );
     }
 
-    const id = rawId.trim(); // Remove any accidental spaces
-    console.log(`🗑️ Deleting Item ID: [${id}] for User: [${user.email}]`);
+    const cleanId = id.trim();
+    console.log(`🕵️ DEBUG: User [${user.id}] deleting Item [${cleanId}]`);
 
-    // 4. Delete
-    const { data, error } = await supabase
+    // 5. Perform the Delete
+    // We don't need .eq('user_id', user.id) because RLS handles it, 
+    // but keeping it is a good safety double-check.
+    const { data, error, count } = await supabase
       .from('items')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', user.id)
-      .select();
+      .delete({ count: 'exact' })
+      .eq('id', cleanId)
+      .eq('user_id', user.id); 
 
     if (error) {
       console.error("❌ DB Error:", error.message);
@@ -78,19 +88,19 @@ export async function DELETE(request: Request) {
         { status: 500, headers: corsHeaders(origin) }
       );
     }
-    
-    // 5. Final Verification
-    if (!data || data.length === 0) {
-      console.log("⚠️ Delete count was 0. Item not found or not owned.");
+
+    // 6. Verify Success
+    if (!count || count === 0) {
+      console.error(`⚠️ FAILED: Item [${cleanId}] was not deleted. RLS or ID mismatch.`);
       return NextResponse.json(
-        { success: false, message: "Item not found" },
+        { success: false, message: "Item not found or RLS blocked delete" },
         { status: 404, headers: corsHeaders(origin) }
       );
     }
 
-    console.log(`✅ Successfully deleted ${data.length} item(s).`);
+    console.log(`✅ SUCCESS: Deleted item [${cleanId}]`);
     return NextResponse.json(
-      { success: true },
+      { success: true, count },
       { headers: corsHeaders(origin) }
     );
 
