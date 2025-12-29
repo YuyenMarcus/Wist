@@ -5,13 +5,19 @@
  * Includes platform-specific selectors for Amazon, eBay, BestBuy, Target, Walmart
  */
 import { chromium } from 'playwright-extra';
-import StealthPlugin from 'playwright-extra-plugin-stealth';
 import type { Browser, Page } from 'playwright';
 import { JSDOM } from 'jsdom';
 import { ScrapeResult } from './static-scraper';
 import { extractStructuredData } from './structured-data';
 
-chromium.use(StealthPlugin());
+// Try to use stealth plugin if available, but don't fail if it's not
+try {
+  // Dynamic import to avoid build-time errors
+  const StealthPlugin = require('playwright-extra-plugin-stealth');
+  chromium.use(StealthPlugin.default ? StealthPlugin.default() : StealthPlugin());
+} catch (error) {
+  console.warn('Stealth plugin not available, continuing without it:', error);
+}
 
 // Multiple user agents for rotation and mobile fallback
 const DESKTOP_USER_AGENT =
