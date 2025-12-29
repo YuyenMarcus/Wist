@@ -58,15 +58,16 @@ export async function DELETE(request: Request) {
       );
     }
 
-    console.log(`🕵️ DEBUG: User [${user.id}] trying to delete Item [${id}]`);
+    // --- NEW DEBUG LOG ---
+    console.log(`🕵️ RECEIVED ID: "${id}" (User: ${user.email})`);
 
-    // 3. Perform Delete AND Count the results
-    const { data, error, count } = await supabase
+    // 3. Try to delete
+    const { data, error } = await supabase
       .from('items')
-      .delete({ count: 'exact' }) // Ask for the count
+      .delete()
       .eq('id', id)
-      .eq('user_id', user.id)     // Strict check
-      .select();                  // Return the deleted item
+      .eq('user_id', user.id)
+      .select();
 
     if (error) {
       console.error("❌ DB Error:", error.message);
@@ -76,24 +77,23 @@ export async function DELETE(request: Request) {
       );
     }
 
-    // 4. Check if anything was actually deleted
+    // 4. If nothing deleted, verify if ID even exists
     if (!data || data.length === 0) {
-      console.log("⚠️ Zero items deleted! (Ownership mismatch or Wrong ID)");
-      // Try to find out WHY (Does the item even exist?)
-      const { data: checkItem } = await supabase
+      // Check if ID exists AT ALL (ignoring user)
+      const { data: ghostCheck } = await supabase
         .from('items')
-        .select('user_id')
+        .select('id, user_id')
         .eq('id', id)
-        .single();
+        .maybeSingle();
       
-      if (checkItem) {
-        console.log(`💡 Mystery Solved: Item exists but belongs to User [${checkItem.user_id}], not [${user.id}]`);
+      if (ghostCheck) {
+        console.log(`⚠️ Item EXISTS but belongs to User ${ghostCheck.user_id} (Not you!)`);
         return NextResponse.json(
           { success: false, message: "Item not found or not owned by you" },
           { status: 403, headers: corsHeaders(origin) }
         );
       } else {
-        console.log("💡 Mystery Solved: Item ID does not exist in DB.");
+        console.log(`👻 GHOST ITEM: Database has NO record of ID "${id}"`);
         return NextResponse.json(
           { success: false, message: "Item not found" },
           { status: 404, headers: corsHeaders(origin) }
