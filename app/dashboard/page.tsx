@@ -136,7 +136,7 @@ export default function DashboardPage() {
       }
 
       // 3. Send request with the Token explicitly attached
-      const res = await fetch(`/api/items?id=${productId}`, {
+      const res = await fetch(`/api/delete-item?id=${productId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`, // <--- The Golden Ticket
