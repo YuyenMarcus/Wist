@@ -5,7 +5,7 @@
  * Includes platform-specific selectors for Amazon, eBay, BestBuy, Target, Walmart
  */
 import { chromium } from 'playwright-extra';
-import StealthPlugin from 'playwright-extra-plugin-stealth';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import type { Browser, Page } from 'playwright';
 import { JSDOM } from 'jsdom';
 import { ScrapeResult } from './static-scraper';

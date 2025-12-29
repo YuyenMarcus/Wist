@@ -4,7 +4,7 @@
  * Automatically saves to Supabase wishlist_items
  */
 import { chromium } from 'playwright-extra';
-import StealthPlugin from 'playwright-extra-plugin-stealth';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { JSDOM } from 'jsdom';
 
 chromium.use(StealthPlugin());
