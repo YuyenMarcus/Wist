@@ -4,15 +4,10 @@
  * Automatically saves to Supabase wishlist_items
  */
 import { chromium } from 'playwright-extra';
+import StealthPlugin from 'playwright-extra-plugin-stealth';
 import { JSDOM } from 'jsdom';
 
-// Try to use stealth plugin if available, but don't fail if it's not
-try {
-  const StealthPlugin = require('playwright-extra-plugin-stealth');
-  chromium.use(StealthPlugin.default ? StealthPlugin.default() : StealthPlugin());
-} catch (error) {
-  console.warn('Stealth plugin not available, continuing without it:', error);
-}
+chromium.use(StealthPlugin());
 
 import { createClient } from '@supabase/supabase-js';
 import { playwrightScrape } from './playwright-scraper';
