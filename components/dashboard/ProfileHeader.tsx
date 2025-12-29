@@ -2,6 +2,8 @@
 
 import { motion } from 'framer-motion'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
+import { User } from 'lucide-react'
 import AddItemForm from '@/components/dashboard/AddItemForm'
 import ShareButton from '@/components/dashboard/ShareButton'
 import { Profile } from '@/lib/supabase/profile'
@@ -13,9 +15,12 @@ interface ProfileHeaderProps {
   }
   profile: Profile | null
   itemCount: number
+  onRefreshPrices: () => void | Promise<void>
+  refreshing: boolean
 }
 
-export default function ProfileHeader({ user, profile, itemCount }: ProfileHeaderProps) {
+export default function ProfileHeader({ user, profile, itemCount, onRefreshPrices, refreshing }: ProfileHeaderProps) {
+  const router = useRouter()
   const displayName = profile?.full_name || 'Curator'
   const username = profile?.username || 'username'
   const avatarUrl = profile?.avatar_url || `https://avatar.vercel.sh/${user.id}`
@@ -55,9 +60,28 @@ export default function ProfileHeader({ user, profile, itemCount }: ProfileHeade
         </div>
       </div>
 
-      {/* Share Button - Top Right */}
-      <div className="flex justify-end mb-6">
+      {/* Share Button and Refresh - Top Right */}
+      <div className="flex justify-end gap-3 mb-6">
+        <button 
+          onClick={onRefreshPrices}
+          disabled={refreshing}
+          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold shadow-sm transition-all
+            ${refreshing 
+              ? 'bg-zinc-100 text-zinc-400 cursor-not-allowed' 
+              : 'bg-white text-zinc-900 hover:bg-zinc-50 ring-1 ring-inset ring-zinc-200 hover:ring-zinc-300'
+            }`}
+        >
+          <span className={refreshing ? "animate-spin" : ""}>↻</span>
+          {refreshing ? 'Scanning...' : 'Check Prices'}
+        </button>
         <ShareButton />
+        <button
+          onClick={() => router.push('/account')}
+          className="rounded-full bg-white p-3 text-zinc-600 shadow-sm border border-zinc-200 hover:bg-zinc-50 hover:text-violet-600 transition-all"
+          title="Account Settings"
+        >
+          <User size={20} />
+        </button>
       </div>
 
       {/* 2. The "Compose" Area - Your AddItemForm lives here now */}
