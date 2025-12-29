@@ -23,13 +23,23 @@ export async function DELETE(request: Request) {
   const origin = request.headers.get('origin');
 
   try {
-    // 1. Authenticate the User (Standard Check)
-    // We still check the user exists so random people can't hit your API
-    const supabaseAuth = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
+    // --- DEBUGGING ENV VARS ---
+    const hasUrl = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const hasAnon = !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const hasService = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
     
+    console.log(`🔍 SERVER ENV CHECK: URL=${hasUrl}, ANON=${hasAnon}, SERVICE_ROLE=${hasService}`);
+    
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error("❌ CRITICAL: SUPABASE_SERVICE_ROLE_KEY is undefined on the server.");
+      return NextResponse.json(
+        { error: 'Server configuration error: Missing Service Key. Please add SUPABASE_SERVICE_ROLE_KEY to your environment variables.' },
+        { status: 500, headers: corsHeaders(origin) }
+      );
+    }
+    // ---------------------------
+
+    // 1. Get Auth Token and Verify User
     const authHeader = request.headers.get('Authorization');
     const token = authHeader?.replace('Bearer ', '');
     
@@ -40,7 +50,14 @@ export async function DELETE(request: Request) {
       );
     }
 
+    // Verify User (Security Check)
+    const supabaseAuth = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+    
     const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
+    
     if (authError || !user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -50,18 +67,9 @@ export async function DELETE(request: Request) {
 
     // 2. CREATE ADMIN CLIENT (The "Nuclear" Fix)
     // We use the Service Role Key here to BYPASS RLS entirely.
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!serviceRoleKey) {
-      console.error("❌ Missing SUPABASE_SERVICE_ROLE_KEY in environment variables");
-      return NextResponse.json(
-        { error: 'Server configuration error' },
-        { status: 500, headers: corsHeaders(origin) }
-      );
-    }
-
     const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      serviceRoleKey
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
     // 3. Get ID
