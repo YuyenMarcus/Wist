@@ -123,11 +123,7 @@ export async function POST(request: Request) {
       try {
         // Dynamic import to avoid webpack analyzing scraper dependencies during build
         const scraperModule = await import('@/lib/scraper');
-        const scrapedResponse = await scraperModule.scrapeProduct(url) as {
-          ok: boolean;
-          data?: { title: string; price: number | null; image: string | null; domain: string };
-          error?: string;
-        };
+        const scrapedResponse = await scraperModule.scrapeProduct(url) as any;
         
         if (!scrapedResponse || !scrapedResponse.ok || !scrapedResponse.data) {
           return NextResponse.json(
