@@ -4,7 +4,8 @@ import { createClient } from '@supabase/supabase-js';
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { scrapeProduct } from '@/lib/scraper';
+// Dynamic import to avoid webpack analyzing scraper dependencies during build
+// const { scrapeProduct } = await import('@/lib/scraper');
 
 // HELPER: Dynamic CORS Headers
 function corsHeaders(origin: string | null) {
@@ -121,6 +122,8 @@ export async function POST(request: Request) {
       // B. SCRAPE MODE (Dashboard only sent a URL, or price/title missing)
       console.log("🕵️ Scraping URL for missing data...");
       try {
+        // Dynamic import to avoid webpack analyzing scraper dependencies during build
+        const { scrapeProduct } = await import('@/lib/scraper');
         const scrapedResponse = await scrapeProduct(url);
         
         if (!scrapedResponse.ok || !scrapedResponse.data) {
