@@ -18,8 +18,6 @@ export interface ScrapeResponse {
   detail?: string;
 }
 
-export type { ScrapeResponse };
-
 export async function scrapeProduct(
   url: string,
   options: { useCache?: boolean } = {}
