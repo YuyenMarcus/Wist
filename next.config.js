@@ -71,13 +71,16 @@ const nextConfig = {
       });
     }
     
-    // Ignore problematic packages that use dynamic requires
-    config.plugins.push(
-      new webpack.IgnorePlugin({
-        resourceRegExp: /^clone-deep$/,
-        contextRegExp: /node_modules/,
-      })
-    );
+    // Only ignore clone-deep from client bundle, not server bundle
+    // Server-side code needs it for puppeteer-extra-plugin-stealth
+    if (!isServer) {
+      config.plugins.push(
+        new webpack.IgnorePlugin({
+          resourceRegExp: /^clone-deep$/,
+          contextRegExp: /node_modules/,
+        })
+      );
+    }
     
     // Also exclude from module resolution
     config.resolve = config.resolve || {};
