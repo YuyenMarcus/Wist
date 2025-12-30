@@ -23,54 +23,31 @@ export async function DELETE(request: Request) {
   const origin = request.headers.get('origin');
 
   try {
-    // --- DEBUGGING ENV VARS ---
-    const hasUrl = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const hasAnon = !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    const hasService = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
-    
-    console.log(`🔍 SERVER ENV CHECK: URL=${hasUrl}, ANON=${hasAnon}, SERVICE_ROLE=${hasService}`);
-    
-    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.error("❌ CRITICAL: SUPABASE_SERVICE_ROLE_KEY is undefined on the server.");
-      return NextResponse.json(
-        { error: 'Server configuration error: Missing Service Key. Please add SUPABASE_SERVICE_ROLE_KEY to your environment variables.' },
-        { status: 500, headers: corsHeaders(origin) }
-      );
-    }
-    // ---------------------------
-
-    // 1. Get Auth Token and Verify User
     const authHeader = request.headers.get('Authorization');
-    const token = authHeader?.replace('Bearer ', '');
-    
-    if (!token) {
+    if (!authHeader) {
       return NextResponse.json(
         { error: 'No Token' },
         { status: 401, headers: corsHeaders(origin) }
       );
     }
 
-    // Verify User (Security Check)
-    const supabaseAuth = createClient(
+    const token = authHeader.replace('Bearer ', '');
+
+    // 1. Create Client AS THE USER
+    const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { global: { headers: { Authorization: `Bearer ${token}` } } }
     );
-    
-    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
-    
+
+    // 2. Get User
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401, headers: corsHeaders(origin) }
       );
     }
-
-    // 2. CREATE ADMIN CLIENT (The "Nuclear" Fix)
-    // We use the Service Role Key here to BYPASS RLS entirely.
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
 
     // 3. Get ID
     const { searchParams } = new URL(request.url);
@@ -83,37 +60,13 @@ export async function DELETE(request: Request) {
       );
     }
 
-    const cleanId = id.trim();
-    console.log(`🕵️ ADMIN DEBUG: Force deleting Item [${cleanId}] for User [${user.id}]`);
+    console.log(`🗑️ DELETE ATTEMPT: User [${user.id}] deleting Item [${id}]`);
 
-    // 4. Debug: Check if item exists and who owns it BEFORE deleting
-    const { data: itemToCheck, error: checkError } = await supabaseAdmin
-      .from('items')
-      .select('user_id')
-      .eq('id', cleanId)
-      .single();
-
-    if (checkError || !itemToCheck) {
-      console.error("❌ ADMIN CHECK: Item ID does not exist in DB at all.", checkError?.message);
-      return NextResponse.json(
-        { error: 'Item not found in DB' },
-        { status: 404, headers: corsHeaders(origin) }
-      );
-    }
-
-    if (itemToCheck.user_id !== user.id) {
-      console.error(`⚠️ OWNERSHIP MISMATCH: Item belongs to [${itemToCheck.user_id}], but User [${user.id}] is trying to delete it.`);
-      return NextResponse.json(
-        { error: 'You do not own this item' },
-        { status: 403, headers: corsHeaders(origin) }
-      );
-    }
-
-    // 5. Force Delete
-    const { error, count } = await supabaseAdmin
+    // 4. Delete
+    const { error, count } = await supabase
       .from('items')
       .delete({ count: 'exact' })
-      .eq('id', cleanId);
+      .eq('id', id);
 
     if (error) {
       console.error("❌ DB Error:", error.message);
@@ -123,15 +76,17 @@ export async function DELETE(request: Request) {
       );
     }
 
+    // 5. Verify
     if (!count || count === 0) {
-      console.error("⚠️ ADMIN DELETE: Count was 0, but item exists. This should not happen.");
+      // If this hits, it means the SQL Policy blocked it OR the ID is wrong
+      console.log("⚠️ Delete count 0. RLS blocked or ID not found.");
       return NextResponse.json(
-        { error: 'Delete operation returned 0 rows' },
-        { status: 500, headers: corsHeaders(origin) }
+        { success: false, message: "Item not found" },
+        { status: 404, headers: corsHeaders(origin) }
       );
     }
 
-    console.log(`✅ SUCCESS: Admin deleted item [${cleanId}]. Count: ${count}`);
+    console.log("✅ SUCCESS: Deleted item.");
     return NextResponse.json(
       { success: true, count },
       { headers: corsHeaders(origin) }
