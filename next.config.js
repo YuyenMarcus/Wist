@@ -71,6 +71,15 @@ const nextConfig = {
       });
     }
     
+    // Configure webpack to handle dynamic requires in problematic packages
+    // This allows webpack to bundle these packages without trying to statically analyze them
+    config.module.rules.push({
+      test: /node_modules[\\/](clone-deep|merge-deep)[\\/]/,
+      parser: {
+        requireEnsure: false,
+      },
+    });
+    
     // Only ignore clone-deep from client bundle, not server bundle
     // Server-side code needs it for puppeteer-extra-plugin-stealth
     if (!isServer) {
