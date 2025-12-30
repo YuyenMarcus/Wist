@@ -21,32 +21,81 @@ export interface SupabaseProduct {
 }
 
 /**
- * Get all products for a specific user
- * For owners: shows all fields including reserved_by
- * For guests: reserved_by is hidden for owner's items
+ * Get items from the items table (used by Chrome extension)
  */
-export async function getUserProducts(userId: string, viewerId?: string): Promise<{
+async function getUserItems(userId: string): Promise<{
   data: SupabaseProduct[] | null;
   error: any;
 }> {
   const { data, error } = await supabase
-    .from('products')
+    .from('items')
     .select('*')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
   if (error) return { data: null, error };
 
-  // Hide reserved_by from owner (to avoid spoiling surprise)
-  let processedData = data;
-  if (processedData && viewerId === userId) {
-    processedData = processedData.map(product => {
-      // Owner viewing their own list - hide who reserved it
-      return { ...product, reserved_by: null };
-    });
+  // Convert items table format to SupabaseProduct format
+  const converted = (data || []).map((item: any) => ({
+    id: item.id,
+    title: item.title,
+    price: item.current_price ? parseFloat(item.current_price.toString()) : null,
+    image: item.image_url,
+    url: item.url,
+    user_id: item.user_id,
+    created_at: item.created_at,
+    last_scraped: item.created_at,
+    reserved_by: null,
+    reserved_at: null,
+    is_public: false,
+    share_token: null,
+    // Map retailer to domain for compatibility
+    domain: item.retailer?.toLowerCase() || null,
+    description: item.note || null,
+  }));
+
+  return { data: converted, error: null };
+}
+
+/**
+ * Get all items for a specific user from the items table (Your Personal List)
+ * Dashboard should ONLY show items from the items table, not products table
+ */
+export async function getUserProducts(userId: string, viewerId?: string): Promise<{
+  data: SupabaseProduct[] | null;
+  error: any;
+}> {
+  // ✅ CORRECT: Only fetch from items table (Your Personal List)
+  const { data, error } = await supabase
+    .from('items')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    return { data: null, error };
   }
 
-  return { data: processedData, error };
+  // Convert items table format to SupabaseProduct format
+  const converted = (data || []).map((item: any) => ({
+    id: item.id,
+    title: item.title,
+    price: item.current_price ? parseFloat(item.current_price.toString()) : null,
+    image: item.image_url,
+    url: item.url,
+    user_id: item.user_id,
+    created_at: item.created_at,
+    last_scraped: item.created_at,
+    reserved_by: null,
+    reserved_at: null,
+    is_public: false,
+    share_token: null,
+    // Map retailer to domain for compatibility
+    domain: item.retailer?.toLowerCase() || null,
+    description: item.note || null,
+  }));
+
+  return { data: converted, error: null };
 }
 
 /**
@@ -189,18 +238,31 @@ export async function updateProductTitle(
 
 /**
  * Delete a product (with user verification)
+ * Handles both products and items tables
  */
 export async function deleteUserProduct(
   userId: string,
   productId: string
 ): Promise<{ error: any }> {
-  const { error } = await supabase
+  // Try products table first
+  const { error: productsError } = await supabase
     .from('products')
     .delete()
     .eq('id', productId)
     .eq('user_id', userId);
 
-  return { error };
+  // If not found in products, try items table
+  if (productsError) {
+    const { error: itemsError } = await supabase
+      .from('items')
+      .delete()
+      .eq('id', productId)
+      .eq('user_id', userId);
+
+    return { error: itemsError };
+  }
+
+  return { error: productsError };
 }
 
 /**
