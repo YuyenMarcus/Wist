@@ -50,27 +50,34 @@ const nextConfig = {
       // Ignore native modules and server-only packages in client bundle
       config.plugins.push(
         new webpack.IgnorePlugin({
-          resourceRegExp: /^(playwright|playwright-extra|playwright-extra-plugin-stealth|re2)$/,
+          resourceRegExp: /^(playwright|playwright-extra|puppeteer-extra-plugin-stealth|clone-deep|re2)$/,
         })
       );
     }
     
-    // Exclude .node files (native modules) from webpack processing
-    // These are binary files that should only be loaded at runtime
+    // Handle dynamic requires in clone-deep and other packages
     config.module = config.module || {};
     config.module.rules = config.module.rules || [];
     
     // Add rule to ignore .node files
-    const existingRules = config.module.rules.filter(
+    const existingNodeRules = config.module.rules.filter(
       rule => rule && rule.test && rule.test.toString().includes('.node')
     );
     
-    if (existingRules.length === 0) {
+    if (existingNodeRules.length === 0) {
       config.module.rules.push({
         test: /\.node$/,
         use: 'ignore-loader',
       });
     }
+    
+    // Ignore problematic packages that use dynamic requires
+    config.plugins.push(
+      new webpack.IgnorePlugin({
+        resourceRegExp: /^clone-deep$/,
+        contextRegExp: /node_modules/,
+      })
+    );
     
     // Also exclude from module resolution
     config.resolve = config.resolve || {};
