@@ -4,8 +4,8 @@ import { createClient } from '@supabase/supabase-js';
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import type { ScrapeResponse } from '@/lib/scraper';
 // Dynamic import to avoid webpack analyzing scraper dependencies during build
-// const { scrapeProduct } = await import('@/lib/scraper');
 
 // HELPER: Dynamic CORS Headers
 function corsHeaders(origin: string | null) {
@@ -124,11 +124,11 @@ export async function POST(request: Request) {
       try {
         // Dynamic import to avoid webpack analyzing scraper dependencies during build
         const scraperModule = await import('@/lib/scraper');
-        const scrapedResponse = await scraperModule.scrapeProduct(url);
+        const scrapedResponse: ScrapeResponse = await scraperModule.scrapeProduct(url);
         
-        if (!scrapedResponse.ok || !scrapedResponse.data) {
+        if (!scrapedResponse || !scrapedResponse.ok || !scrapedResponse.data) {
           return NextResponse.json(
-            { error: scrapedResponse.error || 'Failed to scrape product. Please provide title and price.' },
+            { error: scrapedResponse?.error || 'Failed to scrape product. Please provide title and price.' },
             { status: 400, headers: corsHeaders(origin) }
           );
         }
