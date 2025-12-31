@@ -99,7 +99,9 @@ export async function DELETE(request: Request) {
         .maybeSingle();
       
       if (productCheck) {
-        // Legacy item in products table - check ownership
+        console.log(`⚠️ Item found in products table (legacy). ID=${id}, Owner=${productCheck.user_id}, Requesting User=${user.id}`);
+        
+        // Check ownership for legacy items
         if (productCheck.user_id !== user.id) {
           console.log(`❌ Ownership mismatch in products table: Item belongs to ${productCheck.user_id}, but ${user.id} is trying to delete it`);
           return NextResponse.json(
@@ -108,7 +110,9 @@ export async function DELETE(request: Request) {
           );
         }
         
-        // Legacy item owned by user - delete it from products table (cleanup)
+        // Legacy item owned by user - delete it from products table
+        // Note: This is safe because items with user_id in products table are user-specific entries
+        // The global catalog products (without user_id) should never be deleted
         console.log(`🗑️ Deleting legacy item from products table: ID=${id}`);
         const { error: productError, count: productCount } = await supabaseAdmin
           .from('products')
