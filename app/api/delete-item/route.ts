@@ -74,7 +74,46 @@ export async function DELETE(request: Request) {
 
     console.log(`🗑️ DELETE: User [${user.id}] deleting Item [${id}]`);
 
-    // 4. Delete ONLY from items table (user's personal wishlist link)
+    // 4. First, check if item exists and who owns it (for debugging)
+    const { data: itemCheck } = await supabaseAdmin
+      .from('items')
+      .select('id, user_id, title, url')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (itemCheck) {
+      console.log(`🔍 Item found: Title="${itemCheck.title}", Owner=${itemCheck.user_id}, Requesting User=${user.id}`);
+      if (itemCheck.user_id !== user.id) {
+        console.log(`❌ Ownership mismatch: Item belongs to ${itemCheck.user_id}, but ${user.id} is trying to delete it`);
+        return NextResponse.json(
+          { success: false, message: "You don't own this item" },
+          { status: 403, headers: corsHeaders(origin) }
+        );
+      }
+    } else {
+      // Item doesn't exist in items table - check if it's in products table (legacy)
+      const { data: productCheck } = await supabaseAdmin
+        .from('products')
+        .select('id, user_id, title, url')
+        .eq('id', id)
+        .maybeSingle();
+      
+      if (productCheck) {
+        console.log(`⚠️ Item found in products table (legacy), not items table. ID=${id}`);
+        return NextResponse.json(
+          { success: false, message: "This item is in the legacy products table. Please refresh your dashboard." },
+          { status: 404, headers: corsHeaders(origin) }
+        );
+      } else {
+        console.log(`❌ Item [${id}] does not exist in either items or products table`);
+        return NextResponse.json(
+          { success: false, message: "Item not found" },
+          { status: 404, headers: corsHeaders(origin) }
+        );
+      }
+    }
+
+    // 5. Delete ONLY from items table (user's personal wishlist link)
     // This follows the "Unlink" strategy:
     // - We delete the user's link to the product (items table)
     // - We NEVER delete from products table (global catalog stays intact)
@@ -93,12 +132,12 @@ export async function DELETE(request: Request) {
       );
     }
 
-    // 5. Verify deletion succeeded
+    // 6. Verify deletion succeeded
     if (!count || count === 0) {
-      console.log(`⚠️ Delete count 0. Item [${id}] not found in items table or not owned by user [${user.id}]`);
+      console.log(`⚠️ Delete count 0. Item [${id}] deletion failed unexpectedly`);
       return NextResponse.json(
-        { success: false, message: "Item not found in your wishlist" },
-        { status: 404, headers: corsHeaders(origin) }
+        { success: false, message: "Failed to delete item" },
+        { status: 500, headers: corsHeaders(origin) }
       );
     }
 
