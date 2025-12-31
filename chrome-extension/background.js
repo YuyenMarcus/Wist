@@ -21,6 +21,30 @@ console.log("📍 Preview endpoint:", `${API_BASE_URL}/api/preview-link`);
 console.log("📍 Save endpoint:", `${API_BASE_URL}/api/items`);
 console.log("═══════════════════════════════════════");
 
+// TEST FUNCTION: Run testAPI() in console to diagnose connection issues
+window.testAPI = async function() {
+  console.log("🔍 Testing API connection...");
+  console.log("📍 Target URL:", `${API_BASE_URL}/api/preview-link`);
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/preview-link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: 'https://amazon.com/dp/B08N5WRWNW' })
+    });
+    console.log("✅ SUCCESS! Status:", response.status);
+    const data = await response.json();
+    console.log("✅ Response:", data);
+    return { success: true, data };
+  } catch (error) {
+    console.error("❌ FAILED!");
+    console.error("   Error Name:", error.name);
+    console.error("   Error Message:", error.message);
+    console.error("   Full Error:", error);
+    return { success: false, error: error.message };
+  }
+};
+
 // 1. Listen for messages from content script, popup, or external website
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "PREVIEW_LINK") {
