@@ -1,196 +1,89 @@
-'use client'
+import { notFound } from 'next/navigation';
+import { Metadata } from 'next';
+import { getPublicProfile } from '@/lib/supabase/public-profile';
+import PublicProfileView from '@/components/public/PublicProfileView';
 
-import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase/client'
-import { getProfileByUsername, PublicProfile } from '@/lib/supabase/profile'
-import { getUserProducts, SupabaseProduct, reserveProduct, unreserveProduct } from '@/lib/supabase/products'
-import WishlistGrid from '@/components/wishlist/WishlistGrid'
-import LavenderLoader from '@/components/ui/LavenderLoader'
+interface PageProps {
+  params: {
+    username: string;
+  };
+}
 
-export default function PublicProfilePage() {
-  const params = useParams()
-  const router = useRouter()
-  const username = params?.username as string
-  const [profile, setProfile] = useState<PublicProfile | null>(null)
-  const [products, setProducts] = useState<SupabaseProduct[]>([])
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+/**
+ * Generate metadata for SEO and social sharing
+ * 
+ * This runs server-side before the page renders to populate
+ * Open Graph tags for Twitter, iMessage, etc.
+ */
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const username = params.username;
 
-  // Get current user
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setCurrentUserId(user?.id || null)
-    })
-  }, [])
+  try {
+    // Fetch only profile data (not items) for metadata
+    const { profile } = await getPublicProfile(username);
 
-  useEffect(() => {
-    async function loadProfile() {
-      if (!username) return
-
-      try {
-        setLoading(true)
-        setError(null)
-
-        // Fetch profile by username
-        const { data: profileData, error: profileError } = await getProfileByUsername(username)
-
-        if (profileError || !profileData) {
-          setError('User not found')
-          return
-        }
-
-        setProfile(profileData)
-
-        // Load products for this user (public view)
-        const { data: productsData, error: productsError } = await getUserProducts(
-          profileData.id,
-          currentUserId || undefined
-        )
-
-        if (productsError) {
-          console.error('Error loading products:', productsError)
-        } else if (productsData) {
-          setProducts(productsData)
-        }
-      } catch (err: any) {
-        console.error('Error loading profile:', err)
-        setError(err.message || 'Failed to load profile')
-      } finally {
-        setLoading(false)
-      }
+    if (!profile) {
+      return {
+        title: 'User Not Found | Wist',
+        description: 'This wishlist doesn\'t exist or is private.',
+      };
     }
 
-    loadProfile()
-  }, [username, currentUserId])
+    const displayName = profile.full_name || `@${profile.username}`;
+    const title = `${displayName}'s Wishlist | Wist`;
+    const description = profile.bio 
+      ? `${displayName}'s wishlist on Wist. ${profile.bio}`
+      : `View ${displayName}'s wishlist on Wist`;
 
-  // Real-time subscription for product changes
-  useEffect(() => {
-    if (!profile) return
-
-    const channel = supabase
-      .channel('products-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'products',
-          filter: `user_id=eq.${profile.id}`,
-        },
-        () => {
-          // Reload products on any change
-          getUserProducts(profile.id, currentUserId || undefined).then(({ data, error }) => {
-            if (!error && data) {
-              setProducts(data)
-            }
-          })
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [profile, currentUserId])
-
-  const handleReserve = async (productId: string) => {
-    if (!currentUserId) {
-      alert('Please log in to reserve items')
-      router.push('/login')
-      return
-    }
-
-    const product = products.find(p => p.id === productId)
-    if (!product) return
-
-    const isReserved = product.reserved_by === currentUserId
-
-    try {
-      if (isReserved) {
-        const { error } = await unreserveProduct(productId, currentUserId)
-        if (error) throw error
-      } else {
-        const { error } = await reserveProduct(productId, currentUserId)
-        if (error) throw error
-      }
-      
-      // Reload products
-      if (profile) {
-        const { data } = await getUserProducts(profile.id, currentUserId || undefined)
-        if (data) {
-          setProducts(data)
-        }
-      }
-    } catch (err: any) {
-      alert(err.message || 'Failed to update reservation')
-    }
+    return {
+      title,
+      description,
+      openGraph: {
+        title,
+        description,
+        type: 'profile',
+        images: profile.avatar_url 
+          ? [{ url: profile.avatar_url, alt: displayName }]
+          : [],
+      },
+      twitter: {
+        card: 'summary',
+        title,
+        description,
+        images: profile.avatar_url ? [profile.avatar_url] : [],
+      },
+    };
+  } catch (error) {
+    console.error('Error generating metadata:', error);
+    return {
+      title: 'Wishlist | Wist',
+      description: 'View wishlist on Wist',
+    };
   }
+}
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-zinc-50 flex items-center justify-center">
-        <LavenderLoader size="lg" />
-      </div>
-    )
-  }
+/**
+ * Public Profile Page
+ * 
+ * Server-side rendered page that displays a user's public wishlist.
+ * 
+ * Routing Strategy:
+ * - Captures username from URL: /u/[username]
+ * - URL-decodes the username before querying database
+ * - Returns 404 if user not found
+ */
+export default async function PublicProfilePage({ params }: PageProps) {
+  // Extract and decode username from URL
+  const username = decodeURIComponent(params.username);
 
+  // Fetch public profile data (server-side)
+  const { profile, items, error } = await getPublicProfile(username);
+
+  // If user not found or error, return 404
   if (error || !profile) {
-    return (
-      <div className="min-h-screen bg-zinc-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-lg font-medium text-zinc-900 mb-2">User not found</p>
-          <p className="text-sm text-zinc-500 mb-6">This wishlist doesn't exist or is private.</p>
-          <a
-            href="/"
-            className="px-4 py-2 bg-zinc-900 text-white rounded-full text-sm font-medium hover:bg-zinc-800 transition-colors inline-block"
-          >
-            Go Home
-          </a>
-        </div>
-      </div>
-    )
+    notFound();
   }
 
-  return (
-    <div className="min-h-screen bg-zinc-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        {/* Header */}
-        <div className="text-center mb-16">
-          <div className="flex flex-col items-center gap-4">
-            {/* Avatar */}
-            {profile.avatar_url ? (
-              <img
-                src={profile.avatar_url}
-                alt={profile.full_name || username}
-                className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
-              />
-            ) : (
-              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center border-4 border-white shadow-lg">
-                <span className="text-3xl font-medium text-white">
-                  {profile.full_name?.[0]?.toUpperCase() || username[0]?.toUpperCase() || '?'}
-                </span>
-              </div>
-            )}
-
-            {/* Name */}
-            <div>
-              <h1 className="text-3xl font-semibold text-zinc-900 mb-1">
-                {profile.full_name || username}'s Wishlist
-              </h1>
-              <p className="text-sm text-zinc-500">@{username}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Wishlist Grid (Guest View) - Masonry Layout */}
-        <WishlistGrid 
-          items={products}
-          isOwner={false}
-          onReserve={handleReserve}
-        />
-      </div>
-    </div>
-  )
+  // Render the public profile view
+  return <PublicProfileView profile={profile} items={items} />;
 }

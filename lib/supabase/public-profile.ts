@@ -1,111 +1,260 @@
-// lib/supabase/public-profile.ts
-import { createClient } from '@/utils/supabase/server'; 
+/**
+ * Public Profile Data Access Layer
+ * 
+ * This module handles fetching public profile data following the "Two-Table" architecture:
+ * - items table: User's personal wishlist links
+ * - products table: Global catalog (used to hydrate missing data)
+ * 
+ * Security: Only returns items with status='active' to prevent exposing purchase history
+ */
 
-export type PublicProfile = {
+import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from './client';
+
+export interface PublicProfileData {
+  id: string;
   username: string;
   full_name: string | null;
   avatar_url: string | null;
   bio: string | null;
-};
+}
 
-export type PublicItem = {
+export interface PublicItem {
   id: string;
   title: string;
-  current_price: number | null;
-  image_url: string | null;
-  retailer: string | null;
   url: string;
-  created_at: string;
-};
+  price: number | null;
+  image: string | null;
+  retailer: string | null;
+}
 
-export async function getPublicProfileData(username: string) {
-  const supabase = await createClient();
+/**
+ * Step A: Resolve Username to User ID
+ * 
+ * @param username - The username from URL (should be URL-decoded)
+ * @returns User ID or null if not found
+ */
+async function resolveUsernameToUserId(username: string): Promise<{
+  userId: string | null;
+  profile: PublicProfileData | null;
+  error: any;
+}> {
+  // Use admin client to bypass RLS for public profile lookup
+  const supabase = getSupabaseAdmin();
 
-  // 1. Get the User ID from the username
-  const { data: profile, error: profileError } = await supabase
+  // URL decode the username (handles %20, etc.)
+  const decodedUsername = decodeURIComponent(username).toLowerCase().trim();
+
+  const { data, error } = await supabase
     .from('profiles')
     .select('id, username, full_name, avatar_url, bio')
-    .eq('username', username)
-    .single();
+    .eq('username', decodedUsername)
+    .maybeSingle();
 
-  if (profileError || !profile) {
-    console.error('Profile fetch error:', profileError);
-    return { profile: null, items: [] };
+  if (error) {
+    console.error('Error resolving username:', error);
+    return { userId: null, profile: null, error };
   }
 
-  // 2. Fetch ITEMS (User's list)
-  const { data: userItems, error: itemsError } = await supabase
+  if (!data) {
+    return { userId: null, profile: null, error: null };
+  }
+
+  return {
+    userId: data.id,
+    profile: {
+      id: data.id,
+      username: data.username!,
+      full_name: data.full_name,
+      avatar_url: data.avatar_url,
+      bio: data.bio,
+    },
+    error: null,
+  };
+}
+
+/**
+ * Step B: Fetch User's Active Items
+ * 
+ * Only fetches items with status='active' to prevent exposing purchase history
+ * 
+ * @param userId - The user's UUID
+ * @returns Array of items with only public-safe fields
+ */
+async function fetchActiveItems(userId: string): Promise<{
+  items: any[];
+  error: any;
+}> {
+  const supabase = getSupabaseAdmin();
+
+  // Explicitly select only public-safe columns
+  // DO NOT select: note, price_alerts, tracking_enabled, or any private fields
+  const { data, error } = await supabase
     .from('items')
-    .select('id, title, current_price, image_url, retailer, url, created_at')
-    .eq('user_id', profile.id)
-    .eq('status', 'active') // Only show active items
+    .select('id, title, url, current_price, image_url, retailer')
+    .eq('user_id', userId)
+    .eq('status', 'active') // CRITICAL: Only active items (wishlist), not purchased
     .order('created_at', { ascending: false });
 
-  if (itemsError) {
-    console.error('Items fetch error:', itemsError);
-    return { profile, items: [] };
+  if (error) {
+    console.error('Error fetching active items:', error);
+    return { items: [], error };
   }
 
-  if (!userItems || userItems.length === 0) {
-    return { profile, items: [] };
+  return { items: data || [], error: null };
+}
+
+/**
+ * Step C: Hydrate Missing Data from Products Table
+ * 
+ * The "Two-Table" hydration: Some items might have null images/prices
+ * because that data lives in the products table (global catalog).
+ * 
+ * @param items - Items from items table
+ * @returns Items with hydrated data from products table
+ */
+async function hydrateFromProductsTable(items: any[]): Promise<any[]> {
+  if (items.length === 0) {
+    return [];
   }
 
-  // 3. Fetch PRODUCTS (Global catalog) to fill gaps
-  // We collect all URLs from the user's items to batch fetch product data
-  const urls = userItems.map(i => i.url).filter(Boolean);
-  
-  let productMap = new Map();
-  
-  if (urls.length > 0) {
-    const { data: productData } = await supabase
-      .from('products')
-      .select('url, image, price')
-      .in('url', urls);
+  const supabase = getSupabaseAdmin();
 
-    // Create a lookup map for faster access
-    productData?.forEach(p => {
-      productMap.set(p.url, { image: p.image, price: p.price });
-    });
+  // Collect all URLs from items
+  const urls = items
+    .map(item => item.url)
+    .filter((url): url is string => !!url);
+
+  if (urls.length === 0) {
+    return items;
   }
 
-  // 4. Merge and Sanitize Data
-  const sanitizedItems: PublicItem[] = userItems.map((item) => {
-    const catalogProduct = productMap.get(item.url);
-    
-    // Logic: Use Item data first -> Fallback to Catalog data -> Default to null
-    let finalImage = item.image_url || catalogProduct?.image || null;
-    let finalPrice = item.current_price;
+  // Query products table for matching URLs
+  const { data: products } = await supabase
+    .from('products')
+    .select('url, image, price')
+    .in('url', urls);
 
-    // Handle price string conversions if catalog price is needed
-    if ((finalPrice === null || finalPrice === 0) && catalogProduct?.price) {
-      const catalogPrice = typeof catalogProduct.price === 'string' 
-        ? parseFloat(catalogProduct.price.replace(/[^0-9.]/g, ''))
-        : Number(catalogProduct.price);
-      if (!isNaN(catalogPrice) && catalogPrice > 0) {
-        finalPrice = catalogPrice;
-      }
+  if (!products || products.length === 0) {
+    return items;
+  }
+
+  // Create a lookup map: url -> product data
+  const productMap = new Map<string, any>();
+  products.forEach(product => {
+    if (product.url) {
+      productMap.set(product.url, product);
+    }
+  });
+
+  // Merge: Fill in missing image/price from products table
+  return items.map(item => {
+    const productData = productMap.get(item.url);
+    
+    if (productData) {
+      // Only fill in if item is missing the data
+      return {
+        ...item,
+        image_url: item.image_url || productData.image || null,
+        current_price: item.current_price || productData.price || null,
+      };
     }
     
-    // Ensure numeric price type for the frontend
-    if (typeof finalPrice === 'string') {
-      finalPrice = parseFloat(finalPrice.toString().replace(/[^0-9.]/g, ''));
+    return item;
+  });
+}
+
+/**
+ * Step D: Data Sanitization
+ * 
+ * Ensures strict typing and removes null values that crash UI components
+ * 
+ * @param items - Raw items from database
+ * @returns Sanitized items ready for frontend
+ */
+function sanitizeItems(items: any[]): PublicItem[] {
+  return items.map(item => {
+    // Convert price to number (Postgres might return string)
+    let price: number | null = null;
+    if (item.current_price !== null && item.current_price !== undefined) {
+      const numPrice = typeof item.current_price === 'string'
+        ? parseFloat(item.current_price)
+        : Number(item.current_price);
+      price = isNaN(numPrice) || numPrice === 0 ? null : numPrice;
     }
-    
-    if (finalPrice !== null && (isNaN(finalPrice) || finalPrice === 0)) {
-      finalPrice = null;
-    }
+
+    // Set default fallback image if still missing
+    const image = item.image_url || null;
+
+    // Ensure title is never null (fallback to "Untitled Item")
+    const title = item.title || 'Untitled Item';
 
     return {
       id: item.id,
-      title: item.title || 'Untitled Item',
-      current_price: finalPrice,
-      image_url: finalImage,
-      retailer: item.retailer || 'Unknown Store',
-      url: item.url,
-      created_at: item.created_at
+      title: title.substring(0, 200), // Limit title length
+      url: item.url || '#',
+      price,
+      image,
+      retailer: item.retailer || null,
     };
   });
+}
 
-  return { profile, items: sanitizedItems };
+/**
+ * Main Public Profile Fetcher
+ * 
+ * Follows the complete blueprint:
+ * 1. Resolve username to user_id
+ * 2. Fetch active items only
+ * 3. Hydrate missing data from products table
+ * 4. Sanitize data for frontend
+ * 
+ * @param username - Username from URL (will be URL-decoded)
+ * @returns Public profile data with sanitized items
+ */
+export async function getPublicProfile(username: string): Promise<{
+  profile: PublicProfileData | null;
+  items: PublicItem[];
+  error: any;
+}> {
+  try {
+    // Step A: Resolve username to user_id
+    const { userId, profile, error: resolveError } = await resolveUsernameToUserId(username);
+
+    if (resolveError) {
+      return { profile: null, items: [], error: resolveError };
+    }
+
+    if (!userId || !profile) {
+      // User not found - return 404
+      return { profile: null, items: [], error: { message: 'User not found', code: 'NOT_FOUND' } };
+    }
+
+    // Step B: Fetch active items
+    const { items: rawItems, error: itemsError } = await fetchActiveItems(userId);
+
+    if (itemsError) {
+      return { profile, items: [], error: itemsError };
+    }
+
+    // Step C: Hydrate from products table
+    const hydratedItems = await hydrateFromProductsTable(rawItems);
+
+    // Step D: Sanitize data
+    const sanitizedItems = sanitizeItems(hydratedItems);
+
+    return {
+      profile,
+      items: sanitizedItems,
+      error: null,
+    };
+  } catch (error: any) {
+    console.error('Error in getPublicProfile:', error);
+    return {
+      profile: null,
+      items: [],
+      error: { message: error.message || 'Failed to load public profile' },
+    };
+  }
 }
 
