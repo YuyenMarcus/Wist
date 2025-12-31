@@ -17,6 +17,12 @@
     "*://*.target.com/*",
     "*://*.etsy.com/*"
   ],
+  "externally_connectable": {
+    "matches": [
+      "https://wishlist.nuvio.cloud/*",
+      "https://*.nuvio.cloud/*"
+    ]
+  },
   "background": {
     "service_worker": "background.js"
   },
