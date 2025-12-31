@@ -2,7 +2,12 @@
 // Handles network requests to Next.js API (bypasses CORS)
 
 // API Base URL - Auto-detect production vs development
+// Change this to "http://localhost:3000" for local development
 const API_BASE_URL = "https://wishlist.nuvio.cloud";
+
+// Diagnostic: Log the API URL being used
+console.log("🔧 Wist Extension: API Base URL =", API_BASE_URL);
+console.log("🔧 Wist Extension: Preview endpoint =", `${API_BASE_URL}/api/preview-link`);
 
 // 1. Listen for messages from content script, popup, or external website
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -59,11 +64,18 @@ chrome.runtime.onMessageExternal.addListener(
 
 // 2. Function to call your Next.js API for preview
 async function handlePreviewLink(productUrl, sendResponse) {
-  try {
-    const apiUrl = `${API_BASE_URL}/api/preview-link`;
-    console.log("🔗 Fetching preview from:", apiUrl);
-    console.log("📦 Product URL:", productUrl);
+  const apiUrl = `${API_BASE_URL}/api/preview-link`;
+  
+  console.log("═══════════════════════════════════════");
+  console.log("🔗 WIST EXTENSION: Starting Preview Request");
+  console.log("📍 API URL:", apiUrl);
+  console.log("📦 Product URL:", productUrl);
+  console.log("═══════════════════════════════════════");
 
+  try {
+    // First, test if the endpoint is reachable
+    console.log("🌐 Attempting fetch to:", apiUrl);
+    
     const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
@@ -72,16 +84,22 @@ async function handlePreviewLink(productUrl, sendResponse) {
       body: JSON.stringify({ url: productUrl }),
     });
 
-    console.log("📡 Response status:", response.status, response.statusText);
+    console.log("📡 Response received!");
+    console.log("   Status:", response.status);
+    console.log("   Status Text:", response.statusText);
+    console.log("   Headers:", Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("❌ API Error Response:", errorText);
+      console.error("❌ API returned error status");
+      console.error("   Error body:", errorText);
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
     const data = await response.json();
-    console.log("✅ API Response:", data);
+    console.log("✅ API Response parsed successfully");
+    console.log("   Success:", data.success);
+    console.log("   Data keys:", data.data ? Object.keys(data.data) : "No data");
 
     if (data.success) {
       sendResponse({ success: true, data: data.data });
@@ -89,17 +107,25 @@ async function handlePreviewLink(productUrl, sendResponse) {
       sendResponse({ success: false, error: data.error || "Failed to fetch product details" });
     }
   } catch (error) {
-    console.error("❌ Wist Preview API Error:", error);
-    console.error("Error details:", {
-      name: error.name,
-      message: error.message,
-      stack: error.stack
-    });
+    console.error("═══════════════════════════════════════");
+    console.error("❌ WIST EXTENSION: Fetch Failed");
+    console.error("   Error Name:", error.name);
+    console.error("   Error Message:", error.message);
+    console.error("   Error Type:", typeof error);
+    console.error("   Full Error:", error);
+    console.error("═══════════════════════════════════════");
     
-    // More specific error messages
+    // Decode common Chrome extension errors
     let errorMessage = "Network error connecting to Wist.";
-    if (error.message.includes("Failed to fetch") || error.message.includes("Both ports failed")) {
-      errorMessage = "Cannot connect to Wist API. Check your internet connection and make sure wishlist.nuvio.cloud is accessible.";
+    
+    if (error.message.includes("Failed to fetch") || 
+        error.message.includes("Both ports failed") ||
+        error.message.includes("ERR_CONNECTION_REFUSED")) {
+      errorMessage = `Cannot connect to ${API_BASE_URL}. Check:\n1. Is the server running?\n2. Is the URL correct?\n3. Check firewall/network settings.`;
+    } else if (error.message.includes("ERR_NAME_NOT_RESOLVED")) {
+      errorMessage = `DNS lookup failed for ${API_BASE_URL}. Check your internet connection.`;
+    } else if (error.message.includes("ERR_SSL")) {
+      errorMessage = `SSL error connecting to ${API_BASE_URL}. Certificate issue?`;
     } else if (error.message.includes("HTTP")) {
       errorMessage = `Server error: ${error.message}`;
     } else {
@@ -108,7 +134,12 @@ async function handlePreviewLink(productUrl, sendResponse) {
     
     sendResponse({ 
       success: false, 
-      error: errorMessage 
+      error: errorMessage,
+      debug: {
+        apiUrl,
+        errorName: error.name,
+        errorMessage: error.message
+      }
     });
   }
 }
