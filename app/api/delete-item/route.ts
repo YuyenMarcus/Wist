@@ -74,12 +74,28 @@ export async function DELETE(request: Request) {
 
     console.log(`🗑️ DELETE: User [${user.id}] deleting Item [${id}]`);
 
-    // 4. Delete with explicit user_id check (double safety)
-    const { error, count } = await supabaseAdmin
+    // 4. Try deleting from items table first
+    let { error, count } = await supabaseAdmin
       .from('items')
       .delete({ count: 'exact' })
       .eq('id', id)
-      .eq('user_id', user.id); // Explicit ownership check
+      .eq('user_id', user.id);
+
+    // 5. If not found in items, try products table
+    if (!count || count === 0) {
+      console.log(`⚠️ Item not found in items table, trying products table...`);
+      const productsResult = await supabaseAdmin
+        .from('products')
+        .delete({ count: 'exact' })
+        .eq('id', id)
+        .eq('user_id', user.id);
+      
+      if (productsResult.error) {
+        error = productsResult.error;
+      } else {
+        count = productsResult.count;
+      }
+    }
 
     if (error) {
       console.error("❌ DB Error:", error.message);
@@ -89,7 +105,7 @@ export async function DELETE(request: Request) {
       );
     }
 
-    // 5. Verify
+    // 6. Verify
     if (!count || count === 0) {
       console.log(`⚠️ Delete count 0. Item [${id}] not found or not owned by user [${user.id}]`);
       return NextResponse.json(

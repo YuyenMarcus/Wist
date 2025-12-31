@@ -69,73 +69,131 @@ async function getUserItems(userId: string): Promise<{
 }
 
 /**
- * Get all items for a specific user from the items table (Your Personal List)
- * Dashboard should ONLY show items from the items table, not products table
- * 
- * ✅ CORRECT: Queries items table with strict user_id filter
- * This ensures users only see their own wishlist items
- * The delete endpoint also uses items table, so IDs will match
+ * Get all items for a specific user from BOTH items and products tables
+ * Some components save to products table, some to items table
+ * We need to query BOTH to show all user's items
  */
 export async function getUserProducts(userId: string, viewerId?: string): Promise<{
   data: SupabaseProduct[] | null;
   error: any;
 }> {
-  // ✅ CORRECT: Only fetch from items table (Your Personal List)
-  // Explicitly select columns that exist in the flat schema (no joins needed)
-  // Strict ownership check: .eq('user_id', userId) ensures users only see their own items
-  const { data, error } = await supabase
-    .from('items')
-    .select(`
-      id,
-      user_id,
-      title,
-      current_price,
-      image_url,
-      url,
-      note,
-      status,
-      retailer,
-      created_at
-    `)
-    .eq('user_id', userId) // Strict ownership check - critical for security
-    .order('created_at', { ascending: false });
+  // Fetch from BOTH tables in parallel
+  const [itemsResult, productsResult] = await Promise.all([
+    // Query items table
+    supabase
+      .from('items')
+      .select(`
+        id,
+        user_id,
+        title,
+        current_price,
+        image_url,
+        url,
+        note,
+        status,
+        retailer,
+        created_at
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false }),
+    
+    // Query products table
+    supabase
+      .from('products')
+      .select(`
+        id,
+        user_id,
+        title,
+        price,
+        image,
+        url,
+        description,
+        created_at
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+  ]);
 
-  if (error) {
-    console.error('❌ Error fetching items:', error);
-    return { data: null, error };
+  if (itemsResult.error) {
+    console.error('❌ Error fetching items:', itemsResult.error);
+  }
+  if (productsResult.error) {
+    console.error('❌ Error fetching products:', productsResult.error);
   }
 
-  // Convert items table format to SupabaseProduct format
-  const converted = (data || []).map((item: any) => {
-    // Handle price conversion - current_price can be number, string, or null
-    let priceValue = null;
-    if (item.current_price !== null && item.current_price !== undefined && item.current_price !== '') {
-      const numPrice = typeof item.current_price === 'string' 
-        ? parseFloat(item.current_price) 
-        : Number(item.current_price);
-      priceValue = isNaN(numPrice) || numPrice === 0 ? null : numPrice;
-    }
-    
-    return {
-      id: item.id,
-      title: item.title || 'Untitled Item',
-      price: priceValue,
-      image: item.image_url || null,
-      url: item.url || '#',
-      user_id: item.user_id,
-      created_at: item.created_at,
-      last_scraped: item.created_at,
-      reserved_by: null,
-      reserved_at: null,
-      is_public: false,
-      share_token: null,
-      // Map retailer to domain for compatibility
-      domain: item.retailer?.toLowerCase() || null,
-      description: item.note || null,
-    };
+  // Combine both results
+  const allItems: any[] = [];
+  
+  // Convert items table format
+  if (itemsResult.data) {
+    itemsResult.data.forEach((item: any) => {
+      let priceValue = null;
+      if (item.current_price !== null && item.current_price !== undefined && item.current_price !== '') {
+        const numPrice = typeof item.current_price === 'string' 
+          ? parseFloat(item.current_price) 
+          : Number(item.current_price);
+        priceValue = isNaN(numPrice) || numPrice === 0 ? null : numPrice;
+      }
+      
+      allItems.push({
+        id: item.id,
+        title: item.title || 'Untitled Item',
+        price: priceValue,
+        image: item.image_url || null,
+        url: item.url || '#',
+        user_id: item.user_id,
+        created_at: item.created_at,
+        last_scraped: item.created_at,
+        reserved_by: null,
+        reserved_at: null,
+        is_public: false,
+        share_token: null,
+        domain: item.retailer?.toLowerCase() || null,
+        description: item.note || null,
+      });
+    });
+  }
+
+  // Convert products table format
+  if (productsResult.data) {
+    productsResult.data.forEach((product: any) => {
+      let priceValue = null;
+      if (product.price !== null && product.price !== undefined && product.price !== '') {
+        const numPrice = typeof product.price === 'string' 
+          ? parseFloat(product.price) 
+          : Number(product.price);
+        priceValue = isNaN(numPrice) || numPrice === 0 ? null : numPrice;
+      }
+      
+      allItems.push({
+        id: product.id,
+        title: product.title || 'Untitled Item',
+        price: priceValue,
+        image: product.image || null,
+        url: product.url || '#',
+        user_id: product.user_id,
+        created_at: product.created_at,
+        last_scraped: product.created_at,
+        reserved_by: null,
+        reserved_at: null,
+        is_public: product.is_public || false,
+        share_token: product.share_token || null,
+        domain: product.domain || null,
+        description: product.description || null,
+      });
+    });
+  }
+
+  // Sort by created_at descending (newest first)
+  allItems.sort((a, b) => {
+    const dateA = new Date(a.created_at).getTime();
+    const dateB = new Date(b.created_at).getTime();
+    return dateB - dateA;
   });
 
-  return { data: converted, error: null };
+  const error = itemsResult.error || productsResult.error;
+
+  return { data: allItems, error: error || null };
 }
 
 /**
