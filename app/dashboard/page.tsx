@@ -62,31 +62,8 @@ export default function DashboardPage() {
       }
     })
 
-    // Real-time subscription for product and item changes
-    // Listen to both tables
-    const productsChannel = supabase
-      .channel('products-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'products',
-          filter: user ? `user_id=eq.${user.id}` : undefined,
-        },
-        (payload) => {
-          console.log('Real-time product update:', payload.eventType, payload.new)
-          if (user) {
-            getUserProducts(user.id, user.id).then(({ data, error }) => {
-              if (!error && data) {
-                setProducts(data)
-              }
-            })
-          }
-        }
-      )
-      .subscribe()
-
+    // Real-time subscription for item changes
+    // Only listen to items table (Your Personal List)
     const itemsChannel = supabase
       .channel('items-changes')
       .on(
@@ -112,7 +89,6 @@ export default function DashboardPage() {
 
     return () => {
       subscription.unsubscribe()
-      supabase.removeChannel(productsChannel)
       supabase.removeChannel(itemsChannel)
     }
   }, [router, user])
