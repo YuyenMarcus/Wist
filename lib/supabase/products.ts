@@ -70,10 +70,22 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
   error: any;
 }> {
   // ✅ CORRECT: Only fetch from items table (Your Personal List)
+  // Explicitly select columns that exist in the flat schema (no joins needed)
   // Strict ownership check: .eq('user_id', userId) ensures users only see their own items
   const { data, error } = await supabase
     .from('items')
-    .select('*')
+    .select(`
+      id,
+      user_id,
+      title,
+      current_price,
+      image_url,
+      url,
+      note,
+      status,
+      retailer,
+      created_at
+    `)
     .eq('user_id', userId) // Strict ownership check - critical for security
     .order('created_at', { ascending: false });
 
