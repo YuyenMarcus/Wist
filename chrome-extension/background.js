@@ -60,7 +60,11 @@ chrome.runtime.onMessageExternal.addListener(
 // 2. Function to call your Next.js API for preview
 async function handlePreviewLink(productUrl, sendResponse) {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/preview-link`, {
+    const apiUrl = `${API_BASE_URL}/api/preview-link`;
+    console.log("🔗 Fetching preview from:", apiUrl);
+    console.log("📦 Product URL:", productUrl);
+
+    const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -68,11 +72,16 @@ async function handlePreviewLink(productUrl, sendResponse) {
       body: JSON.stringify({ url: productUrl }),
     });
 
+    console.log("📡 Response status:", response.status, response.statusText);
+
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorText = await response.text();
+      console.error("❌ API Error Response:", errorText);
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
     const data = await response.json();
+    console.log("✅ API Response:", data);
 
     if (data.success) {
       sendResponse({ success: true, data: data.data });
@@ -80,10 +89,26 @@ async function handlePreviewLink(productUrl, sendResponse) {
       sendResponse({ success: false, error: data.error || "Failed to fetch product details" });
     }
   } catch (error) {
-    console.error("Wist Preview API Error:", error);
+    console.error("❌ Wist Preview API Error:", error);
+    console.error("Error details:", {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+    
+    // More specific error messages
+    let errorMessage = "Network error connecting to Wist.";
+    if (error.message.includes("Failed to fetch") || error.message.includes("Both ports failed")) {
+      errorMessage = "Cannot connect to Wist API. Check your internet connection and make sure wishlist.nuvio.cloud is accessible.";
+    } else if (error.message.includes("HTTP")) {
+      errorMessage = `Server error: ${error.message}`;
+    } else {
+      errorMessage = `Error: ${error.message}`;
+    }
+    
     sendResponse({ 
       success: false, 
-      error: `Network error: ${error.message}. Make sure you're connected to the internet.` 
+      error: errorMessage 
     });
   }
 }
