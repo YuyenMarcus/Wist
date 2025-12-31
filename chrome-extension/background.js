@@ -1,47 +1,30 @@
 // background.js - The API Bridge
 // Handles network requests to Next.js API (bypasses CORS)
 
-// API Base URL - PRODUCTION
-// ⚠️ IMPORTANT: This MUST be https://wishlist.nuvio.cloud for production
-// Do NOT use localhost unless you're running the dev server locally
-const API_BASE_URL = "https://wishlist.nuvio.cloud";
+// ---------------------------------------------------------------------------
+// 🚨 CONFIGURATION: PRODUCTION ONLY
+// ---------------------------------------------------------------------------
+// DO NOT use localhost here. We are forcing production to prevent "Both ports failed" errors.
+const API_BASE_URL = "https://wishlist.nuvio.cloud"; 
 
-// CRITICAL: Verify we're not accidentally using localhost
-if (API_BASE_URL.includes('localhost') || API_BASE_URL.includes('127.0.0.1')) {
-  console.error("❌ ERROR: API_BASE_URL is set to localhost! This will fail in production.");
-  console.error("   Current value:", API_BASE_URL);
-  console.error("   Change to: https://wishlist.nuvio.cloud");
-}
+console.log("🔒 WIST: Forcing Production URL:", API_BASE_URL);
+// ---------------------------------------------------------------------------
 
-// Diagnostic: Log the API URL being used (check Service Worker console)
-console.log("═══════════════════════════════════════");
-console.log("🔧 WIST EXTENSION INITIALIZED");
-console.log("📍 API Base URL:", API_BASE_URL);
-console.log("📍 Preview endpoint:", `${API_BASE_URL}/api/preview-link`);
-console.log("📍 Save endpoint:", `${API_BASE_URL}/api/items`);
-console.log("═══════════════════════════════════════");
-
-// TEST FUNCTION: Run testAPI() in console to diagnose connection issues
-// Note: Service workers use 'self' or 'globalThis', not 'window'
+// TEST FUNCTION: Run testAPI() in Service Worker console to test connection
 self.testAPI = async function() {
-  console.log("🔍 Testing API connection...");
-  console.log("📍 Target URL:", `${API_BASE_URL}/api/preview-link`);
-  
+  console.log("🔍 Testing API connection to:", API_BASE_URL);
   try {
     const response = await fetch(`${API_BASE_URL}/api/preview-link`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url: 'https://amazon.com/dp/B08N5WRWNW' })
     });
-    console.log("✅ SUCCESS! Status:", response.status);
+    console.log("✅ Status:", response.status);
     const data = await response.json();
     console.log("✅ Response:", data);
     return { success: true, data };
   } catch (error) {
-    console.error("❌ FAILED!");
-    console.error("   Error Name:", error.name);
-    console.error("   Error Message:", error.message);
-    console.error("   Full Error:", error);
+    console.error("❌ Error:", error.name, error.message);
     return { success: false, error: error.message };
   }
 };
@@ -101,25 +84,10 @@ chrome.runtime.onMessageExternal.addListener(
 
 // 2. Function to call your Next.js API for preview
 async function handlePreviewLink(productUrl, sendResponse) {
-  // CRITICAL: Ensure we're using the production URL, not localhost
   const apiUrl = `${API_BASE_URL}/api/preview-link`;
   
-  // Safety check: Reject if somehow localhost got through
-  if (apiUrl.includes('localhost') || apiUrl.includes('127.0.0.1')) {
-    console.error("❌ BLOCKED: Attempted to use localhost URL:", apiUrl);
-    sendResponse({ 
-      success: false, 
-      error: "Extension misconfigured: Using localhost. Please reload the extension." 
-    });
-    return;
-  }
-  
-  console.log("═══════════════════════════════════════");
-  console.log("🔗 WIST EXTENSION: Starting Preview Request");
-  console.log("📍 API URL:", apiUrl);
-  console.log("📍 API_BASE_URL constant:", API_BASE_URL);
+  console.log("🔗 WIST: Preview Request to:", apiUrl);
   console.log("📦 Product URL:", productUrl);
-  console.log("═══════════════════════════════════════");
 
   try {
     // First, test if the endpoint is reachable
