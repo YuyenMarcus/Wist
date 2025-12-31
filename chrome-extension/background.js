@@ -4,7 +4,7 @@
 // API Base URL - Auto-detect production vs development
 const API_BASE_URL = "https://wishlist.nuvio.cloud";
 
-// 1. Listen for messages from content script or popup
+// 1. Listen for messages from content script, popup, or external website
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "PREVIEW_LINK") {
     handlePreviewLink(request.url, sendResponse);
@@ -14,6 +14,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "SAVE_ITEM") {
     handleSaveItem(request.data, sendResponse);
     return true; // Indicates we will respond asynchronously
+  }
+
+  if (request.action === "SYNC_TOKEN") {
+    // Handle token sync from website (ExtensionSync.tsx)
+    chrome.storage.local.set({ 'wist_auth_token': request.token }, () => {
+      console.log("✅ Wist: Auth token synced from website");
+      sendResponse({ success: true });
+    });
+    return true;
   }
 
   if (request.action === "TRIGGER_PURCHASE_POPUP") {
@@ -32,6 +41,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 });
+
+// Listen for external messages from website (ExtensionSync.tsx)
+chrome.runtime.onMessageExternal.addListener(
+  (request, sender, sendResponse) => {
+    if (request.action === "SYNC_TOKEN" && request.token) {
+      console.log("✅ Wist: Received Auth Token from website!");
+      
+      // Save it to internal extension storage
+      chrome.storage.local.set({ 'wist_auth_token': request.token }, () => {
+        sendResponse({ success: true });
+      });
+      return true; // Async response
+    }
+  }
+);
 
 // 2. Function to call your Next.js API for preview
 async function handlePreviewLink(productUrl, sendResponse) {
