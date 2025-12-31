@@ -99,10 +99,43 @@ export async function DELETE(request: Request) {
         .maybeSingle();
       
       if (productCheck) {
-        console.log(`⚠️ Item found in products table (legacy), not items table. ID=${id}`);
+        // Legacy item in products table - check ownership
+        if (productCheck.user_id !== user.id) {
+          console.log(`❌ Ownership mismatch in products table: Item belongs to ${productCheck.user_id}, but ${user.id} is trying to delete it`);
+          return NextResponse.json(
+            { success: false, message: "You don't own this item" },
+            { status: 403, headers: corsHeaders(origin) }
+          );
+        }
+        
+        // Legacy item owned by user - delete it from products table (cleanup)
+        console.log(`🗑️ Deleting legacy item from products table: ID=${id}`);
+        const { error: productError, count: productCount } = await supabaseAdmin
+          .from('products')
+          .delete({ count: 'exact' })
+          .eq('id', id)
+          .eq('user_id', user.id);
+        
+        if (productError) {
+          console.error("❌ DB Error deleting from products:", productError.message);
+          return NextResponse.json(
+            { error: productError.message },
+            { status: 500, headers: corsHeaders(origin) }
+          );
+        }
+        
+        if (!productCount || productCount === 0) {
+          console.log(`⚠️ Failed to delete legacy item from products table`);
+          return NextResponse.json(
+            { success: false, message: "Failed to delete legacy item" },
+            { status: 500, headers: corsHeaders(origin) }
+          );
+        }
+        
+        console.log(`✅ SUCCESS: Deleted legacy item [${id}] from products table`);
         return NextResponse.json(
-          { success: false, message: "This item is in the legacy products table. Please refresh your dashboard." },
-          { status: 404, headers: corsHeaders(origin) }
+          { success: true, count: productCount, legacy: true },
+          { headers: corsHeaders(origin) }
         );
       } else {
         console.log(`❌ Item [${id}] does not exist in either items or products table`);
