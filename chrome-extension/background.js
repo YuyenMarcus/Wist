@@ -1,13 +1,25 @@
 // background.js - The API Bridge
 // Handles network requests to Next.js API (bypasses CORS)
 
-// API Base URL - Auto-detect production vs development
-// Change this to "http://localhost:3000" for local development
+// API Base URL - PRODUCTION
+// ⚠️ IMPORTANT: This MUST be https://wishlist.nuvio.cloud for production
+// Do NOT use localhost unless you're running the dev server locally
 const API_BASE_URL = "https://wishlist.nuvio.cloud";
 
-// Diagnostic: Log the API URL being used
-console.log("🔧 Wist Extension: API Base URL =", API_BASE_URL);
-console.log("🔧 Wist Extension: Preview endpoint =", `${API_BASE_URL}/api/preview-link`);
+// CRITICAL: Verify we're not accidentally using localhost
+if (API_BASE_URL.includes('localhost') || API_BASE_URL.includes('127.0.0.1')) {
+  console.error("❌ ERROR: API_BASE_URL is set to localhost! This will fail in production.");
+  console.error("   Current value:", API_BASE_URL);
+  console.error("   Change to: https://wishlist.nuvio.cloud");
+}
+
+// Diagnostic: Log the API URL being used (check Service Worker console)
+console.log("═══════════════════════════════════════");
+console.log("🔧 WIST EXTENSION INITIALIZED");
+console.log("📍 API Base URL:", API_BASE_URL);
+console.log("📍 Preview endpoint:", `${API_BASE_URL}/api/preview-link`);
+console.log("📍 Save endpoint:", `${API_BASE_URL}/api/items`);
+console.log("═══════════════════════════════════════");
 
 // 1. Listen for messages from content script, popup, or external website
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -64,25 +76,43 @@ chrome.runtime.onMessageExternal.addListener(
 
 // 2. Function to call your Next.js API for preview
 async function handlePreviewLink(productUrl, sendResponse) {
+  // CRITICAL: Ensure we're using the production URL, not localhost
   const apiUrl = `${API_BASE_URL}/api/preview-link`;
+  
+  // Safety check: Reject if somehow localhost got through
+  if (apiUrl.includes('localhost') || apiUrl.includes('127.0.0.1')) {
+    console.error("❌ BLOCKED: Attempted to use localhost URL:", apiUrl);
+    sendResponse({ 
+      success: false, 
+      error: "Extension misconfigured: Using localhost. Please reload the extension." 
+    });
+    return;
+  }
   
   console.log("═══════════════════════════════════════");
   console.log("🔗 WIST EXTENSION: Starting Preview Request");
   console.log("📍 API URL:", apiUrl);
+  console.log("📍 API_BASE_URL constant:", API_BASE_URL);
   console.log("📦 Product URL:", productUrl);
   console.log("═══════════════════════════════════════");
 
   try {
     // First, test if the endpoint is reachable
     console.log("🌐 Attempting fetch to:", apiUrl);
+    console.log("🌐 Fetch method: POST");
+    console.log("🌐 Fetch headers: Content-Type: application/json");
     
-    const response = await fetch(apiUrl, {
+    const fetchOptions = {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ url: productUrl }),
-    });
+    };
+    
+    console.log("🌐 Fetch options:", JSON.stringify(fetchOptions, null, 2));
+    
+    const response = await fetch(apiUrl, fetchOptions);
 
     console.log("📡 Response received!");
     console.log("   Status:", response.status);
