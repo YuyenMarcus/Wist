@@ -62,9 +62,29 @@ export async function POST(req: Request) {
 
     // 4. Parse Data
     const body = await req.json();
-    const { url, title, price, image_url, retailer, description } = body;
+    let { url, title, price, image_url, retailer, description } = body;
 
-    // 5. Ensure Profile Exists (Safe Check)
+    // 5. CHECK: Does this URL already exist in products table?
+    let existingProduct = null;
+    if (url) {
+      const { data: productData } = await supabase
+        .from('products')
+        .select('*')
+        .eq('url', url)
+        .single();
+      
+      if (productData) {
+        existingProduct = productData;
+        console.log("[Wist API] Found existing product in catalog:", productData.title);
+        // Use existing product data to fill in missing fields
+        title = title || existingProduct.title || null;
+        price = price || existingProduct.price || null;
+        image_url = image_url || existingProduct.image || null;
+        retailer = retailer || existingProduct.domain || 'Amazon';
+      }
+    }
+
+    // 6. Ensure Profile Exists (Safe Check)
     // Now that 'supabase' is authenticated, RLS allows this query
     const { data: profile } = await supabase
       .from('profiles')
@@ -81,7 +101,7 @@ export async function POST(req: Request) {
       });
     }
 
-    // 6. Find or Create Wishlist
+    // 7. Find or Create Wishlist
     let { data: wishlists } = await supabase
       .from('wishlists')
       .select('id')
@@ -111,7 +131,9 @@ export async function POST(req: Request) {
       wishlistId = wishlists[0].id;
     }
 
-    // 7. Insert Item (Flat schema - all columns directly in items table)
+    // 8. Insert Item into items table (user's personal wishlist)
+    // This allows multiple users to have the same product in their wishlist
+    // Even if the product already exists in the products catalog
     const { data: newItem, error: itemError } = await supabase
       .from('items')
       .insert({
@@ -130,7 +152,7 @@ export async function POST(req: Request) {
 
     if (itemError) throw itemError;
 
-    // 8. Insert Price History
+    // 9. Insert Price History
     if (price) {
       await supabase.from('price_history').insert({
         item_id: newItem.id,

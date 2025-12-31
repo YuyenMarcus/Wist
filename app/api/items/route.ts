@@ -109,16 +109,40 @@ export async function POST(request: Request) {
       user = authUser;
     }
 
-    // 3. DECISION: Do we trust the input, or do we need to scrape?
+    // 3. CHECK: Does this URL already exist in products table?
+    let existingProduct = null;
+    if (url) {
+      const { data: productData } = await supabase
+        .from('products')
+        .select('*')
+        .eq('url', url)
+        .single();
+      
+      if (productData) {
+        existingProduct = productData;
+        console.log("✅ Found existing product in catalog:", productData.title);
+      }
+    }
+
+    // 4. DECISION: Use existing product data OR scrape/fill in missing data
     let currentPrice = 0;
 
-    if (title && price) {
-      // A. TRUST MODE (Extension sent the data)
+    if (existingProduct) {
+      // A. USE EXISTING PRODUCT DATA (from products table)
+      title = title || existingProduct.title || null;
+      currentPrice = price 
+        ? parseFloat(price.toString().replace(/[^0-9.]/g, '')) 
+        : (existingProduct.price ? parseFloat(existingProduct.price.toString().replace(/[^0-9.]/g, '')) : 0);
+      image_url = image_url || existingProduct.image || null;
+      retailer = retailer || existingProduct.domain || 'Unknown';
+      console.log("✅ Using existing product data from catalog");
+    } else if (title && price) {
+      // B. TRUST MODE (Extension sent the data, but product doesn't exist yet)
       // Clean the price string (e.g. "$29.99" -> 29.99)
       currentPrice = parseFloat(price.toString().replace(/[^0-9.]/g, '')) || 0;
       console.log("✅ Using provided data (Title & Price)");
     } else if (url && (!title || !price)) {
-      // B. SCRAPE MODE (Dashboard only sent a URL, or price/title missing)
+      // C. SCRAPE MODE (Dashboard only sent a URL, or price/title missing)
       console.log("🕵️ Scraping URL for missing data...");
       try {
         // Dynamic import to avoid webpack analyzing scraper dependencies during build
@@ -157,7 +181,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 4. Ensure Profile Exists
+    // 5. Ensure Profile Exists
     const { data: profile } = await supabase
       .from('profiles')
       .select('id')
@@ -173,7 +197,7 @@ export async function POST(request: Request) {
       });
     }
 
-    // 5. Find or Create Wishlist
+    // 6. Find or Create Wishlist
     let { data: wishlists } = await supabase
       .from('wishlists')
       .select('id')
@@ -198,7 +222,8 @@ export async function POST(request: Request) {
       wishlistId = wishlists[0].id;
     }
 
-    // 6. Insert Item with status field
+    // 7. Insert Item into items table (user's personal wishlist)
+    // This allows multiple users to have the same product in their wishlist
     const { data, error } = await supabase
       .from('items')
       .insert({
@@ -222,7 +247,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 7. Insert Price History (if price exists)
+    // 8. Insert Price History (if price exists)
     if (currentPrice > 0) {
       await supabase.from('price_history').insert({
         item_id: data.id,
