@@ -36,23 +36,34 @@ async function getUserItems(userId: string): Promise<{
   if (error) return { data: null, error };
 
   // Convert items table format to SupabaseProduct format
-  const converted = (data || []).map((item: any) => ({
-    id: item.id,
-    title: item.title,
-    price: item.current_price ? parseFloat(item.current_price.toString()) : null,
-    image: item.image_url,
-    url: item.url,
-    user_id: item.user_id,
-    created_at: item.created_at,
-    last_scraped: item.created_at,
-    reserved_by: null,
-    reserved_at: null,
-    is_public: false,
-    share_token: null,
-    // Map retailer to domain for compatibility
-    domain: item.retailer?.toLowerCase() || null,
-    description: item.note || null,
-  }));
+  const converted = (data || []).map((item: any) => {
+    // Handle price conversion - current_price can be number, string, or null
+    let priceValue = null;
+    if (item.current_price !== null && item.current_price !== undefined && item.current_price !== '') {
+      const numPrice = typeof item.current_price === 'string' 
+        ? parseFloat(item.current_price) 
+        : Number(item.current_price);
+      priceValue = isNaN(numPrice) || numPrice === 0 ? null : numPrice;
+    }
+    
+    return {
+      id: item.id,
+      title: item.title || 'Untitled Item',
+      price: priceValue,
+      image: item.image_url || null,
+      url: item.url || '#',
+      user_id: item.user_id,
+      created_at: item.created_at,
+      last_scraped: item.created_at,
+      reserved_by: null,
+      reserved_at: null,
+      is_public: false,
+      share_token: null,
+      // Map retailer to domain for compatibility
+      domain: item.retailer?.toLowerCase() || null,
+      description: item.note || null,
+    };
+  });
 
   return { data: converted, error: null };
 }
@@ -90,27 +101,39 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
     .order('created_at', { ascending: false });
 
   if (error) {
+    console.error('❌ Error fetching items:', error);
     return { data: null, error };
   }
 
   // Convert items table format to SupabaseProduct format
-  const converted = (data || []).map((item: any) => ({
-    id: item.id,
-    title: item.title,
-    price: item.current_price ? parseFloat(item.current_price.toString()) : null,
-    image: item.image_url,
-    url: item.url,
-    user_id: item.user_id,
-    created_at: item.created_at,
-    last_scraped: item.created_at,
-    reserved_by: null,
-    reserved_at: null,
-    is_public: false,
-    share_token: null,
-    // Map retailer to domain for compatibility
-    domain: item.retailer?.toLowerCase() || null,
-    description: item.note || null,
-  }));
+  const converted = (data || []).map((item: any) => {
+    // Handle price conversion - current_price can be number, string, or null
+    let priceValue = null;
+    if (item.current_price !== null && item.current_price !== undefined && item.current_price !== '') {
+      const numPrice = typeof item.current_price === 'string' 
+        ? parseFloat(item.current_price) 
+        : Number(item.current_price);
+      priceValue = isNaN(numPrice) || numPrice === 0 ? null : numPrice;
+    }
+    
+    return {
+      id: item.id,
+      title: item.title || 'Untitled Item',
+      price: priceValue,
+      image: item.image_url || null,
+      url: item.url || '#',
+      user_id: item.user_id,
+      created_at: item.created_at,
+      last_scraped: item.created_at,
+      reserved_by: null,
+      reserved_at: null,
+      is_public: false,
+      share_token: null,
+      // Map retailer to domain for compatibility
+      domain: item.retailer?.toLowerCase() || null,
+      description: item.note || null,
+    };
+  });
 
   return { data: converted, error: null };
 }

@@ -131,16 +131,13 @@ export default function DashboardPage() {
       }
       
       console.log("✅ Deleted successfully!");
+      // Refresh the list after successful delete
+      await fetchItems();
     } catch (error: any) {
       console.error(error);
       alert("Could not delete item. Reloading...");
       // Re-fetch to restore UI if delete failed
-      if (user) {
-        const { data, error: fetchError } = await getUserProducts(user.id, user.id);
-        if (!fetchError && data) {
-          setProducts(data);
-        }
-      }
+      await fetchItems();
     }
   }
 

@@ -33,15 +33,12 @@ export async function DELETE(request: Request) {
 
     const token = authHeader.replace('Bearer ', '');
 
-    // 1. Create Client AS THE USER
-    const supabase = createClient(
+    // 1. Verify User (Security Check)
+    const supabaseAuth = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { global: { headers: { Authorization: `Bearer ${token}` } } }
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
-
-    // 2. Get User
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
     if (authError || !user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -49,7 +46,7 @@ export async function DELETE(request: Request) {
       );
     }
 
-    // 3. Get ID
+    // 2. Get ID
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -60,13 +57,29 @@ export async function DELETE(request: Request) {
       );
     }
 
-    console.log(`🗑️ DELETE ATTEMPT: User [${user.id}] deleting Item [${id}]`);
+    // 3. Use Service Role Key to BYPASS RLS and force delete
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!serviceKey) {
+      console.error("❌ Missing SUPABASE_SERVICE_ROLE_KEY");
+      return NextResponse.json(
+        { error: 'Server configuration error' },
+        { status: 500, headers: corsHeaders(origin) }
+      );
+    }
 
-    // 4. Delete
-    const { error, count } = await supabase
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      serviceKey
+    );
+
+    console.log(`🗑️ DELETE: User [${user.id}] deleting Item [${id}]`);
+
+    // 4. Delete with explicit user_id check (double safety)
+    const { error, count } = await supabaseAdmin
       .from('items')
       .delete({ count: 'exact' })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('user_id', user.id); // Explicit ownership check
 
     if (error) {
       console.error("❌ DB Error:", error.message);
@@ -78,15 +91,14 @@ export async function DELETE(request: Request) {
 
     // 5. Verify
     if (!count || count === 0) {
-      // If this hits, it means the SQL Policy blocked it OR the ID is wrong
-      console.log("⚠️ Delete count 0. RLS blocked or ID not found.");
+      console.log(`⚠️ Delete count 0. Item [${id}] not found or not owned by user [${user.id}]`);
       return NextResponse.json(
-        { success: false, message: "Item not found" },
+        { success: false, message: "Item not found or not owned by you" },
         { status: 404, headers: corsHeaders(origin) }
       );
     }
 
-    console.log("✅ SUCCESS: Deleted item.");
+    console.log(`✅ SUCCESS: Deleted item [${id}]`);
     return NextResponse.json(
       { success: true, count },
       { headers: corsHeaders(origin) }
