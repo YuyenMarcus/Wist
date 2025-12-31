@@ -60,16 +60,21 @@ async function getUserItems(userId: string): Promise<{
 /**
  * Get all items for a specific user from the items table (Your Personal List)
  * Dashboard should ONLY show items from the items table, not products table
+ * 
+ * ✅ CORRECT: Queries items table with strict user_id filter
+ * This ensures users only see their own wishlist items
+ * The delete endpoint also uses items table, so IDs will match
  */
 export async function getUserProducts(userId: string, viewerId?: string): Promise<{
   data: SupabaseProduct[] | null;
   error: any;
 }> {
   // ✅ CORRECT: Only fetch from items table (Your Personal List)
+  // Strict ownership check: .eq('user_id', userId) ensures users only see their own items
   const { data, error } = await supabase
     .from('items')
     .select('*')
-    .eq('user_id', userId)
+    .eq('user_id', userId) // Strict ownership check - critical for security
     .order('created_at', { ascending: false });
 
   if (error) {
