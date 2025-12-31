@@ -74,28 +74,16 @@ export async function DELETE(request: Request) {
 
     console.log(`🗑️ DELETE: User [${user.id}] deleting Item [${id}]`);
 
-    // 4. Try deleting from items table first
-    let { error, count } = await supabaseAdmin
+    // 4. Delete ONLY from items table (user's personal wishlist link)
+    // This follows the "Unlink" strategy:
+    // - We delete the user's link to the product (items table)
+    // - We NEVER delete from products table (global catalog stays intact)
+    // - Other users can still have the same product in their wishlist
+    const { error, count } = await supabaseAdmin
       .from('items')
       .delete({ count: 'exact' })
       .eq('id', id)
-      .eq('user_id', user.id);
-
-    // 5. If not found in items, try products table
-    if (!count || count === 0) {
-      console.log(`⚠️ Item not found in items table, trying products table...`);
-      const productsResult = await supabaseAdmin
-        .from('products')
-        .delete({ count: 'exact' })
-        .eq('id', id)
-        .eq('user_id', user.id);
-      
-      if (productsResult.error) {
-        error = productsResult.error;
-      } else {
-        count = productsResult.count;
-      }
-    }
+      .eq('user_id', user.id); // Ensure user owns this item
 
     if (error) {
       console.error("❌ DB Error:", error.message);
@@ -105,16 +93,16 @@ export async function DELETE(request: Request) {
       );
     }
 
-    // 6. Verify
+    // 5. Verify deletion succeeded
     if (!count || count === 0) {
-      console.log(`⚠️ Delete count 0. Item [${id}] not found or not owned by user [${user.id}]`);
+      console.log(`⚠️ Delete count 0. Item [${id}] not found in items table or not owned by user [${user.id}]`);
       return NextResponse.json(
-        { success: false, message: "Item not found or not owned by you" },
+        { success: false, message: "Item not found in your wishlist" },
         { status: 404, headers: corsHeaders(origin) }
       );
     }
 
-    console.log(`✅ SUCCESS: Deleted item [${id}]`);
+    console.log(`✅ SUCCESS: Unlinked item [${id}] from user [${user.id}] (product remains in catalog)`);
     return NextResponse.json(
       { success: true, count },
       { headers: corsHeaders(origin) }
