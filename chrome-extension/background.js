@@ -22,7 +22,8 @@ console.log("📍 Save endpoint:", `${API_BASE_URL}/api/items`);
 console.log("═══════════════════════════════════════");
 
 // TEST FUNCTION: Run testAPI() in console to diagnose connection issues
-window.testAPI = async function() {
+// Note: Service workers use 'self' or 'globalThis', not 'window'
+self.testAPI = async function() {
   console.log("🔍 Testing API connection...");
   console.log("📍 Target URL:", `${API_BASE_URL}/api/preview-link`);
   
