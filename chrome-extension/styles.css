@@ -1,7 +1,0 @@
-/* Global styles for Wist Chrome Extension */
-/* These are injected into the page via content scripts */
-
-.wist-hidden {
-  display: none !important;
-}
-
