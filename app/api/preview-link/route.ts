@@ -1,94 +1,98 @@
 import { NextResponse } from 'next/server';
-import { scrapeProduct } from '@/lib/scraper';
+import * as cheerio from 'cheerio';
 
-// HELPER: Handle CORS
+// 1. Mimic a real browser to avoid instant blocking
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+// 2. Add CORS headers so the extension can read the response
 function corsHeaders() {
   return {
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': '*', 
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   };
 }
 
-// Handle OPTIONS request (Preflight check from browser)
 export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
-    const { url } = await req.json();
+    const { url } = await request.json();
 
     if (!url) {
-      return NextResponse.json(
-        { error: 'URL required' }, 
-        { status: 400, headers: corsHeaders() }
-      );
+      return NextResponse.json({ error: 'URL required' }, { status: 400, headers: corsHeaders() });
     }
 
-    console.log("🔍 Preview-link: Scraping URL:", url);
+    console.log(`🔍 [Preview] Scraping: ${url}`);
 
-    // Use the advanced scraper (Playwright/Stealth) instead of basic axios
-    // Dynamic import to avoid webpack analyzing scraper dependencies during build
-    const scraperModule = await import('@/lib/scraper');
-    const scrapeResult = await scraperModule.scrapeProduct(url) as any;
-
-    if (!scrapeResult || !scrapeResult.ok || !scrapeResult.data) {
-      console.error("❌ Preview-link: Scrape failed:", scrapeResult?.error);
-      return NextResponse.json(
-        { 
-          error: scrapeResult?.error || 'Could not connect to the website',
-          detail: scrapeResult?.detail 
-        },
-        { status: 503, headers: corsHeaders() }
-      );
-    }
-
-    const data = scrapeResult.data;
-
-    // Extract retailer from URL
-    const urlObj = new URL(url);
-    const retailer = urlObj.hostname.replace('www.', '').split('.')[0];
-
-    // Format price - handle both number and string formats
-    let priceValue = null;
-    if (data.price) {
-      if (typeof data.price === 'string') {
-        priceValue = parseFloat(data.price.replace(/[^0-9.]/g, '')) || null;
-      } else {
-        priceValue = typeof data.price === 'number' ? data.price : null;
-      }
-    }
-
-    console.log("✅ Preview-link: Scrape successful", {
-      title: data.title?.substring(0, 50),
-      hasPrice: !!priceValue,
-      hasImage: !!data.image
+    // 3. Lightweight Fetch (Fast & Safe for Vercel)
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': USER_AGENT,
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+      },
+      next: { revalidate: 3600 } // Cache results for 1 hour
     });
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        url,
-        title: (data.title || 'Untitled Item').substring(0, 200),
-        image_url: data.image || null,
-        price: priceValue,
-        retailer: retailer.charAt(0).toUpperCase() + retailer.slice(1),
-        description: data.description || ''
-      }
-    }, { headers: corsHeaders() });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch page: ${response.status}`);
+    }
+
+    const html = await response.text();
+    const $ = cheerio.load(html);
+
+    // 4. Robust Metadata Extraction (Works on Amazon & Generic Sites)
+    const title = 
+      $('meta[property="og:title"]').attr('content') || 
+      $('#productTitle').text().trim() || 
+      $('title').text().trim();
+
+    const image = 
+      $('meta[property="og:image"]').attr('content') || 
+      $('#landingImage').attr('src') || 
+      $('img[id="imgBlkFront"]').attr('src') || 
+      '';
+
+    // 5. Price Extraction (Best Effort)
+    let price = '0.00';
+    
+    // Amazon specific selectors
+    const amazonPrice = 
+      $('.a-price .a-offscreen').first().text() || 
+      $('#priceblock_ourprice').text() || 
+      $('#priceblock_dealprice').text();
+
+    if (amazonPrice) {
+      price = amazonPrice;
+    } else {
+      // Generic Open Graph Price
+      price = $('meta[property="product:price:amount"]').attr('content') || 
+              $('meta[property="og:price:amount"]').attr('content') || '0.00';
+    }
+
+    // Clean up the price string
+    const cleanPrice = price.replace(/[^0-9.]/g, '');
+
+    const data = {
+      url,
+      title: title || 'No Title Found',
+      image_url: image,
+      price: parseFloat(cleanPrice) || 0,
+      retailer: new URL(url).hostname.replace('www.', ''),
+      description: $('meta[name="description"]').attr('content') || ''
+    };
+
+    console.log("✅ [Preview] Success:", data.title);
+
+    return NextResponse.json({ success: true, data }, { headers: corsHeaders() });
 
   } catch (error: any) {
-    console.error('❌ Preview-link: Scraper Error:', error);
-    console.error('   Error name:', error?.name);
-    console.error('   Error message:', error?.message);
-    console.error('   Error stack:', error?.stack);
+    console.error('❌ [Preview] Error:', error);
     return NextResponse.json(
-      { 
-        error: 'Failed to scrape link.',
-        detail: error?.message || 'Unknown error',
-        type: error?.name || 'Error'
-      },
+      { success: false, error: error.message || 'Failed to parse link' },
       { status: 500, headers: corsHeaders() }
     );
   }
