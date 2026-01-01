@@ -79,9 +79,16 @@ export async function POST(req: Request) {
     }, { headers: corsHeaders() });
 
   } catch (error: any) {
-    console.error('Scraper Error:', error.message);
+    console.error('❌ Preview-link: Scraper Error:', error);
+    console.error('   Error name:', error?.name);
+    console.error('   Error message:', error?.message);
+    console.error('   Error stack:', error?.stack);
     return NextResponse.json(
-      { error: 'Failed to scrape link.' },
+      { 
+        error: 'Failed to scrape link.',
+        detail: error?.message || 'Unknown error',
+        type: error?.name || 'Error'
+      },
       { status: 500, headers: corsHeaders() }
     );
   }
