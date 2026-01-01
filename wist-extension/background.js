@@ -41,6 +41,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
+  // Handle SAVE_ITEM from popup.js (uses request.action and request.data)
+  if (request.action === "SAVE_ITEM") {
+    console.log("💾 WIST: Save Request", request.data);
+    handleSaveItem(request.data, sendResponse);
+    return true;
+  }
+
+  // Handle SAVE_ITEM from content.js (uses request.type and request.payload)
   if (request.type === 'SAVE_ITEM') {
     handleSaveItem(request.payload, sendResponse);
     return true;
@@ -72,33 +80,37 @@ async function handlePreviewLink(productUrl, sendResponse) {
 // Save item handler - PRODUCTION ONLY
 async function handleSaveItem(payload, sendResponse) {
   try {
-    chrome.storage.local.get(['wist_auth_token'], async (result) => {
-      const token = result.wist_auth_token;
+    // A. Get the Token from Chrome Storage
+    const storage = await chrome.storage.local.get("wist_auth_token");
+    const token = storage.wist_auth_token;
 
-      const headers = {
-        'Content-Type': 'application/json',
-      };
+    if (!token) {
+      throw new Error("Not logged in. Please visit Wist dashboard to sync.");
+    }
 
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      const response = await fetch(`${API_BASE_URL}/api/items`, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
-        throw new Error(errorData.error || `Server error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      sendResponse({ success: true, data: data });
+    // B. Make the API Call with Bearer Token
+    const response = await fetch(`${API_BASE_URL}/api/items`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}` // Critical for RLS
+      },
+      body: JSON.stringify(payload)
     });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({ error: `Server Error ${response.status}` }));
+      throw new Error(errData.error || `Server Error ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log("✅ WIST: Item Saved!", data);
+    
+    // C. Respond Success
+    sendResponse({ success: true, data });
+
   } catch (error) {
-    console.error("Wist Save Error:", error);
+    console.error("❌ WIST: Save Failed", error);
     sendResponse({ success: false, error: error.message });
   }
 }
