@@ -40,51 +40,86 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    // 2. Request Preview from Background Script
-    console.log("Requesting preview for:", tab.url);
+    // 2. Client-Side Scraping (Bypasses Amazon Bot Detection)
+    // Instead of asking the server (which gets blocked), we inject a script
+    // into the current page to grab the data directly from the DOM
+    console.log("Scraping page directly:", tab.url);
     
-    chrome.runtime.sendMessage(
-      { action: "PREVIEW_LINK", url: tab.url },
-      (response) => {
-        // Chrome Runtime Error Check
-        if (chrome.runtime.lastError) {
-          errorMsg.textContent = "Connection failed. Reload extension.";
-          console.error("Runtime Error:", chrome.runtime.lastError);
-          showState('error');
-          return;
-        }
+    try {
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+          // This runs INSIDE the Amazon/product page
+          const title = document.getElementById('productTitle')?.innerText.trim() 
+                     || document.querySelector('h1')?.innerText.trim()
+                     || document.title.replace('Amazon.com: ', '').replace(' : Amazon.com', '');
+          
+          // Amazon Price Selectors (try multiple)
+          let price = document.querySelector('.a-price .a-offscreen')?.innerText 
+                   || document.querySelector('#priceblock_ourprice')?.innerText 
+                   || document.querySelector('#priceblock_dealprice')?.innerText
+                   || document.querySelector('.a-color-price')?.innerText
+                   || "0.00";
+          
+          // Clean price (remove currency symbols, keep numbers and decimal)
+          const cleanPrice = price.replace(/[^0-9.]/g, '');
+          const priceValue = parseFloat(cleanPrice) || 0;
+          
+          const image = document.getElementById('landingImage')?.src 
+                     || document.querySelector('#imgBlkFront')?.src
+                     || document.querySelector('.a-dynamic-image')?.src
+                     || '';
 
-        // API Error Check
-        if (!response || !response.success) {
-          errorMsg.textContent = response?.error || "Failed to load product.";
-          showState('error');
-          return;
-        }
+          // Extract retailer from URL
+          const urlObj = new URL(window.location.href);
+          const retailer = urlObj.hostname.replace('www.', '').split('.')[0];
 
-        // 3. Render Preview
-        const item = response.data;
-        document.getElementById('item-title').textContent = item.title || 'Untitled Item';
-        
-        // Format price
-        const priceText = item.price ? `$${item.price}` : 'Price not found';
-        document.getElementById('item-price').textContent = priceText;
-        
-        const img = document.getElementById('item-image');
-        if (item.image_url) {
-          img.src = item.image_url;
-          img.onerror = function() {
-            this.style.display = 'none';
+          return { 
+            title, 
+            price: priceValue,
+            price_string: price, // Keep original for display
+            image_url: image, 
+            url: window.location.href,
+            retailer: retailer.charAt(0).toUpperCase() + retailer.slice(1)
           };
-        } else {
-          img.style.display = 'none';
         }
-        
-        // Store data for the save button
-        saveBtn.onclick = () => handleSave(item);
-        
-        showState('preview');
+      });
+
+      const data = results[0].result;
+      
+      // 3. Render Preview
+      document.getElementById('item-title').textContent = data.title || 'Untitled Item';
+      
+      // Format price for display
+      const priceText = data.price_string && data.price_string !== '0.00' 
+        ? data.price_string 
+        : (data.price > 0 ? `$${data.price.toFixed(2)}` : 'Price not found');
+      document.getElementById('item-price').textContent = priceText;
+      
+      const img = document.getElementById('item-image');
+      if (data.image_url) {
+        img.src = data.image_url;
+        img.onerror = function() {
+          this.style.display = 'none';
+        };
+      } else {
+        img.style.display = 'none';
       }
-    );
+      
+      // Store data for the save button
+      saveBtn.onclick = () => handleSave(data);
+      
+      showState('preview');
+
+    } catch (err) {
+      // Fallback to server if injection fails (e.g., restricted page)
+      console.error("Client scrape failed, using server fallback", err);
+      errorMsg.textContent = "Could not access page. Try a different page.";
+      showState('error');
+      
+      // Optional: Could fall back to server here if needed
+      // But Amazon blocks server scraping anyway, so better to show error
+    }
   } catch (error) {
     console.error("Popup Error:", error);
     errorMsg.textContent = `Error: ${error.message}`;
