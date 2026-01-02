@@ -14,38 +14,67 @@ const EXTENSION_ID = "hlgalligngcfiaibgkinhlkaniibjlmh"; // ✅ Current Extensio
 
 export default function ExtensionSync() {
   useEffect(() => {
-    const syncToken = async () => {
+    const syncToken = async (retryCount = 0) => {
       const { data: { session } } = await supabase.auth.getSession();
       
-      if (session?.access_token && EXTENSION_ID) {
-        console.log("🔄 Wist: Syncing token to extension...");
+      if (!session?.access_token) {
+        console.log("🔄 Wist: No session found, skipping sync.");
+        return;
+      }
+
+      if (!EXTENSION_ID) {
+        console.warn("⚠️ Wist: Extension ID not configured.");
+        return;
+      }
+
+      console.log("🔄 Wist: Syncing token to extension...");
+      
+      try {
+        // Check if Chrome extension API is available
+        if (typeof window === 'undefined' || !(window as any).chrome || !(window as any).chrome.runtime) {
+          console.log("🔄 Wist: Chrome extension API not available (not Chrome browser).");
+          return;
+        }
+
+        const chrome = (window as any).chrome;
         
-        try {
-          // Send the token to Chrome Extension
-          if (typeof window !== 'undefined' && (window as any).chrome && (window as any).chrome.runtime) {
-            const chrome = (window as any).chrome;
-            chrome.runtime.sendMessage(
-              EXTENSION_ID,
-              { action: "SYNC_TOKEN", token: session.access_token },
-              (response: any) => {
-                if (response?.success) {
-                  console.log("✅ Wist Extension Synced!");
-                } else if (chrome.runtime.lastError) {
-                  // Extension not installed or ID wrong, ignore silently
-                  console.log("Extension not reachable:", chrome.runtime.lastError.message);
-                }
+        // Send the token to Chrome Extension
+        chrome.runtime.sendMessage(
+          EXTENSION_ID,
+          { action: "SYNC_TOKEN", token: session.access_token },
+          (response: any) => {
+            if (chrome.runtime.lastError) {
+              const error = chrome.runtime.lastError.message;
+              console.log("⚠️ Wist: Extension not reachable:", error);
+              
+              // Retry up to 2 times with delay (extension might be starting up)
+              if (retryCount < 2 && error.includes("Could not establish connection")) {
+                console.log(`🔄 Wist: Retrying sync in 1 second... (attempt ${retryCount + 1}/2)`);
+                setTimeout(() => syncToken(retryCount + 1), 1000);
               }
-            );
+              return;
+            }
+
+            if (response?.success) {
+              console.log("✅ Wist Extension Synced!");
+            } else {
+              console.log("⚠️ Wist: Sync response:", response);
+            }
           }
-        } catch (e) {
-          // Extension not installed or ID wrong, ignore
-          console.log("Extension not reachable.");
+        );
+      } catch (e: any) {
+        console.log("⚠️ Wist: Sync error:", e.message);
+        // Retry once if it's a connection error
+        if (retryCount < 1 && e.message?.includes("connection")) {
+          setTimeout(() => syncToken(retryCount + 1), 1000);
         }
       }
     };
 
-    // Run immediately on mount
-    syncToken();
+    // Wait a bit for extension to be ready, then sync
+    const timeoutId = setTimeout(() => {
+      syncToken();
+    }, 500); // 500ms delay to ensure extension is ready
     
     // Also listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -54,7 +83,10 @@ export default function ExtensionSync() {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(timeoutId);
+      subscription.unsubscribe();
+    };
   }, []);
 
   return null; // This component renders nothing
