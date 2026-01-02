@@ -6,18 +6,30 @@ const API_BASE_URL = "https://wishlist.nuvio.cloud";
 // PROOF: If you see this log, the NEW code is running
 console.log("🔒🔒🔒 WIST v2.0 - PRODUCTION MODE - NO PORTS 🔒🔒🔒");
 
-// Listen for the "Handshake" from your website
-chrome.runtime.onMessageExternal.addListener(
-  (request, sender, sendResponse) => {
-    if (request.action === "SYNC_TOKEN" && request.token) {
-      console.log("✅ Wist: Received Auth Token from website!");
-      chrome.storage.local.set({ 'wist_auth_token': request.token }, () => {
-        sendResponse({ success: true });
+// ---------------------------------------------------------------------------
+// 📡 EXTERNAL LISTENER (Listens to the Website)
+// ---------------------------------------------------------------------------
+chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => {
+  console.log("📡 WIST: Received External Message:", request);
+
+  // Handle both the new "SYNC_TOKEN" action and legacy "WIST_AUTH_TOKEN" type
+  if (request.action === "SYNC_TOKEN" || request.type === "WIST_AUTH_TOKEN") {
+    const token = request.token;
+    
+    if (token) {
+      // Save it to storage
+      chrome.storage.local.set({ 'wist_auth_token': token }, () => {
+        console.log("✅ WIST: Auth Token Synced from Website!");
+        sendResponse({ success: true, message: "Token received" });
       });
-      return true;
+    } else {
+      console.warn("⚠️ WIST: Sync request received but token was empty.");
+      sendResponse({ success: false, error: "No token provided" });
     }
+    
+    return true; // Keep channel open for async response
   }
-);
+});
 
 // Message listener
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {

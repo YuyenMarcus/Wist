@@ -19,7 +19,8 @@
   "externally_connectable": {
     "matches": [
       "https://wishlist.nuvio.cloud/*",
-      "https://*.nuvio.cloud/*"
+      "https://*.nuvio.cloud/*",
+      "http://localhost:3000/*"
     ]
   },
   "background": {
