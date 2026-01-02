@@ -1,151 +1,143 @@
 document.addEventListener('DOMContentLoaded', async () => {
-  const loading = document.getElementById('loading');
-  const content = document.getElementById('content');
+  // UI Elements
+  const loadingDiv = document.getElementById('loading');
+  const previewDiv = document.getElementById('preview');
+  const errorDiv = document.getElementById('error');
+  const errorMsg = document.getElementById('error-msg');
   const saveBtn = document.getElementById('save-btn');
-  const errorDiv = document.getElementById('error');
 
-  // Safety check
-  if (!loading || !content || !saveBtn) {
-    console.error('Missing required elements in popup.html');
+  // Safety check - ensure all elements exist
+  if (!loadingDiv || !previewDiv || !errorDiv || !errorMsg || !saveBtn) {
+    console.error('Missing required UI elements');
     return;
   }
 
-  // 1. Get current active tab
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  
-  if (!tab || !tab.url) {
-    showError("No active tab found.");
-    return;
+  // Helper to show states
+  function showState(state) {
+    loadingDiv.classList.add('hidden');
+    previewDiv.classList.add('hidden');
+    errorDiv.classList.add('hidden');
+    
+    if (state === 'loading') loadingDiv.classList.remove('hidden');
+    if (state === 'preview') previewDiv.classList.remove('hidden');
+    if (state === 'error') errorDiv.classList.remove('hidden');
   }
 
-  // 2. Show loading
-  loading.style.display = 'block';
-
-  // 3. Get Preview
-  chrome.runtime.sendMessage(
-    { action: "PREVIEW_LINK", url: tab.url },
-    (response) => {
-      if (loading) loading.style.display = 'none';
-
-      // Check for Chrome extension errors
-      if (chrome.runtime.lastError) {
-        showError(chrome.runtime.lastError.message || "Extension error occurred.");
-        return;
-      }
-
-      if (!response || !response.success) {
-        showError(response?.error || "Failed to fetch product details.");
-        return;
-      }
-
-      const data = response.data;
-      
-      // Populate UI
-      const titleEl = document.getElementById('p-title');
-      const priceEl = document.getElementById('p-price');
-      const imageEl = document.getElementById('p-image');
-      
-      if (titleEl) titleEl.textContent = data.title || 'Untitled Item';
-      if (priceEl) priceEl.textContent = data.price ? `$${data.price}` : 'Price not found';
-      if (imageEl && data.image_url) {
-        imageEl.src = data.image_url;
-        imageEl.onerror = function() {
-          this.style.display = 'none';
-        };
-      }
-      if (content) content.style.display = 'block';
-
-      // 4. Handle Save Click
-      saveBtn.onclick = async () => {
-        saveBtn.disabled = true;
-        saveBtn.textContent = "Checking Auth...";
-
-        // Retrieve token from storage (Saved by ExtensionSync.tsx)
-        chrome.storage.local.get(['wist_auth_token'], async (result) => {
-          const token = result.wist_auth_token;
-
-          if (!token) {
-            saveBtn.disabled = false;
-            saveBtn.textContent = "Save to Wishlist";
-            showError("Please log in to Wist first.");
-            
-            // Helpful: Open Wist website for login
-            chrome.tabs.create({ url: 'https://wishlist.nuvio.cloud/login' });
-            return;
-          }
-
-          saveBtn.textContent = "Saving...";
-
-          // Send save request to background script (bypasses CORS)
-          chrome.runtime.sendMessage(
-            { 
-              action: "SAVE_ITEM", 
-              data: {
-                url: data.url,
-                title: data.title,
-                price: data.price,
-                image_url: data.image_url,
-                retailer: data.retailer,
-                description: data.description
-              }
-            },
-            (saveResponse) => {
-              if (chrome.runtime.lastError) {
-                showError(chrome.runtime.lastError.message || "Extension error occurred.");
-                saveBtn.disabled = false;
-                saveBtn.textContent = "Save to Wishlist";
-                return;
-              }
-
-              if (saveResponse && saveResponse.success) {
-                saveBtn.style.background = "#10b981";
-                saveBtn.textContent = "Saved!";
-                setTimeout(() => window.close(), 1500);
-              } else {
-                showError(saveResponse?.error || "Failed to save item.");
-                saveBtn.disabled = false;
-                saveBtn.textContent = "Save to Wishlist";
-              }
-            }
-          );
-
-            const result = await saveResponse.json();
-
-            if (saveResponse.ok && result.success) {
-              saveBtn.style.background = "#10b981";
-              saveBtn.textContent = "Saved!";
-              setTimeout(() => window.close(), 1500);
-            } else {
-              showError(result.error || "Server error.");
-              saveBtn.disabled = false;
-              saveBtn.textContent = "Save to Wishlist";
-            }
-          } catch (err) {
-            console.error(err);
-            showError("Network error. Is server running?");
-            saveBtn.disabled = false;
-            saveBtn.textContent = "Save to Wishlist";
-          }
-        });
-      };
+  try {
+    // 1. Get the Active Tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    if (!tab || !tab.url) {
+      errorMsg.textContent = "Cannot access this tab.";
+      showState('error');
+      return;
     }
-  );
+
+    // Skip chrome:// and extension pages
+    if (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) {
+      errorMsg.textContent = "Please navigate to a product page.";
+      showState('error');
+      return;
+    }
+
+    // 2. Request Preview from Background Script
+    console.log("Requesting preview for:", tab.url);
+    
+    chrome.runtime.sendMessage(
+      { action: "PREVIEW_LINK", url: tab.url },
+      (response) => {
+        // Chrome Runtime Error Check
+        if (chrome.runtime.lastError) {
+          errorMsg.textContent = "Connection failed. Reload extension.";
+          console.error("Runtime Error:", chrome.runtime.lastError);
+          showState('error');
+          return;
+        }
+
+        // API Error Check
+        if (!response || !response.success) {
+          errorMsg.textContent = response?.error || "Failed to load product.";
+          showState('error');
+          return;
+        }
+
+        // 3. Render Preview
+        const item = response.data;
+        document.getElementById('item-title').textContent = item.title || 'Untitled Item';
+        
+        // Format price
+        const priceText = item.price ? `$${item.price}` : 'Price not found';
+        document.getElementById('item-price').textContent = priceText;
+        
+        const img = document.getElementById('item-image');
+        if (item.image_url) {
+          img.src = item.image_url;
+          img.onerror = function() {
+            this.style.display = 'none';
+          };
+        } else {
+          img.style.display = 'none';
+        }
+        
+        // Store data for the save button
+        saveBtn.onclick = () => handleSave(item);
+        
+        showState('preview');
+      }
+    );
+  } catch (error) {
+    console.error("Popup Error:", error);
+    errorMsg.textContent = `Error: ${error.message}`;
+    showState('error');
+  }
+
+  // 4. Save Handler
+  async function handleSave(item) {
+    saveBtn.textContent = "Saving...";
+    saveBtn.disabled = true;
+
+    chrome.runtime.sendMessage(
+      { action: "SAVE_ITEM", data: item },
+      (response) => {
+        // Check for Chrome runtime errors
+        if (chrome.runtime.lastError) {
+          saveBtn.textContent = "Connection Error";
+          saveBtn.style.backgroundColor = "#EF4444";
+          console.error("Runtime Error:", chrome.runtime.lastError);
+          setTimeout(() => {
+            saveBtn.textContent = "Save to Wishlist";
+            saveBtn.disabled = false;
+            saveBtn.style.backgroundColor = "";
+          }, 2000);
+          return;
+        }
+
+        if (response && response.success) {
+          saveBtn.textContent = "Saved!";
+          saveBtn.style.backgroundColor = "#10B981"; // Green
+          setTimeout(() => window.close(), 1500);
+        } else {
+          saveBtn.textContent = "Error - Try Login";
+          saveBtn.style.backgroundColor = "#EF4444"; // Red
+          console.error("Save Error:", response?.error);
+          
+          // Show error message if auth required
+          if (response?.error && response.error.includes("logged in")) {
+            errorMsg.textContent = "Please log in to Wist first.";
+            showState('error');
+            setTimeout(() => {
+              chrome.tabs.create({ url: 'https://wishlist.nuvio.cloud/login' });
+            }, 1000);
+          }
+          
+          // Reset button
+          setTimeout(() => {
+            saveBtn.textContent = "Save to Wishlist";
+            saveBtn.disabled = false;
+            saveBtn.style.backgroundColor = ""; 
+          }, 2000);
+        }
+      }
+    );
+  }
 });
-
-
-function showError(msg) {
-  const errorDiv = document.getElementById('error');
-  const loading = document.getElementById('loading');
-  
-  if (loading) {
-    loading.style.display = 'none';
-  }
-  
-  if (errorDiv) {
-    errorDiv.textContent = msg;
-    errorDiv.style.display = 'block';
-  } else {
-    console.error('Error:', msg);
-    alert(msg); // Fallback if error div doesn't exist
-  }
-}
