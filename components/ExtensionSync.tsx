@@ -10,7 +10,7 @@ import { supabase } from '@/lib/supabase/client';
 // 3. Copy the ID shown under the extension name (looks like: abcdefghijklmnop...)
 // 4. Paste it below and save this file
 // 5. Refresh your Wist dashboard page to sync the token
-const EXTENSION_ID = "hlgalligngcfiaibgkinhlkaniibjlmh"; // ⬅️ UPDATE THIS AFTER RELOADING EXTENSION 
+const EXTENSION_ID = "hlgalligngcfiaibgkinhlkaniibjlmh"; // ✅ Current Extension ID 
 
 export default function ExtensionSync() {
   useEffect(() => {
