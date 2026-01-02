@@ -56,31 +56,49 @@ export async function POST(request: Request) {
       $('img[id="imgBlkFront"]').attr('src') || 
       '';
 
-    // 5. Price Extraction (Best Effort)
+    // 5. Price Extraction (Robust Amazon Logic)
     let price = '0.00';
     
-    // Amazon specific selectors
-    const amazonPrice = 
-      $('.a-price .a-offscreen').first().text() || 
-      $('#priceblock_ourprice').text() || 
-      $('#priceblock_dealprice').text();
+    // Priority list of selectors (Modern Amazon -> Legacy -> Mobile)
+    const priceSelectors = [
+      '.a-price .a-offscreen',                // Standard
+      '#corePrice_feature_div .a-offscreen',  // Feature div
+      '#corePriceDisplay_desktop_feature_div .a-offscreen', // Desktop specific
+      '#apex_desktop .a-offscreen',           // Apex layout
+      '#priceblock_ourprice',                 // Legacy
+      '#priceblock_dealprice',                // Deal
+      '.a-color-price',                       // Generic red price
+      'input#twister-plus-price-data-price'   // Hidden input data
+    ];
 
-    if (amazonPrice) {
-      price = amazonPrice;
-    } else {
-      // Generic Open Graph Price
+    // Try finding the price in the specific Amazon selectors first
+    for (const selector of priceSelectors) {
+      const found = $(selector).first().text().trim();
+      if (found) {
+        price = found;
+        break; 
+      }
+    }
+
+    // Fallback: If Amazon selectors fail, try generic Open Graph
+    if (!price || price === '0.00') {
       price = $('meta[property="product:price:amount"]').attr('content') || 
               $('meta[property="og:price:amount"]').attr('content') || '0.00';
     }
 
-    // Clean up the price string
+    // Clean it (remove currency symbols, commas, and text)
+    // Example: "$1,299.99" -> "1299.99"
     const cleanPrice = price.replace(/[^0-9.]/g, '');
+    
+    // Safety check: sometimes scraping grabs hidden text like "29.9929.99"
+    // If the price seems suspiciously huge for a decimal, take the first chunk
+    let finalPrice = parseFloat(cleanPrice) || 0;
 
     const data = {
       url,
       title: title || 'No Title Found',
       image_url: image,
-      price: parseFloat(cleanPrice) || 0,
+      price: finalPrice,
       retailer: new URL(url).hostname.replace('www.', ''),
       description: $('meta[name="description"]').attr('content') || ''
     };
