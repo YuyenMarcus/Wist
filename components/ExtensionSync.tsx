@@ -2,62 +2,86 @@
 
 import { useEffect, useState } from 'react';
 
-// ⚠️ Ensure this matches the ID from chrome://extensions
+// ⚠️ CONFIRM THIS ID MATCHES YOUR CHROME://EXTENSIONS
 const EXTENSION_ID = "hlgalligngcfiaibgkinhlkaniibjlmh"; 
 
 export default function ExtensionSync() {
-  useEffect(() => {
-    const syncToken = async () => {
-      // 1. DIRECT LOCAL STORAGE READ (Matches your working manual script)
-      // This bypasses network issues or Supabase SDK loading delays
-      let token = null;
-      
-      try {
-        const storageKeys = Object.keys(localStorage).filter(k => k.includes('auth-token'));
-        if (storageKeys.length > 0) {
-          const rawData = localStorage.getItem(storageKeys[0]);
-          if (rawData) {
-            const session = JSON.parse(rawData);
-            token = session.access_token || session?.currentSession?.access_token;
-          }
+  const [msg, setMsg] = useState("Initializing...");
+  const [color, setColor] = useState("bg-gray-800");
+
+  const runSync = () => {
+    setMsg("Syncing...");
+    setColor("bg-yellow-600");
+
+    // 1. Get Token directly from Storage (Bypass Supabase SDK)
+    let token = null;
+    try {
+      const storageKeys = Object.keys(localStorage).filter(k => k.includes('auth-token'));
+      if (storageKeys.length > 0) {
+        const rawData = localStorage.getItem(storageKeys[0]);
+        if (rawData) {
+          const session = JSON.parse(rawData);
+          token = session.access_token || session?.currentSession?.access_token;
         }
-      } catch (err) {
-        console.error("Storage Read Error:", err);
       }
+    } catch (e) { 
+      console.error("Storage Read Error:", e);
+      setMsg("Storage Error");
+      setColor("bg-red-600");
+      return;
+    }
 
-      if (!token) {
-        console.log("ℹ️ [AutoSync] No token found in LocalStorage.");
-        return;
+    if (!token) {
+      setMsg("No Token Found");
+      setColor("bg-red-600");
+      return;
+    }
+
+    // 2. Check if Chrome API exists
+    if (typeof window === 'undefined' || !(window as any).chrome || !(window as any).chrome.runtime) {
+      setMsg("Not Chrome?");
+      setColor("bg-red-600");
+      return;
+    }
+
+    const chrome = (window as any).chrome;
+
+    // 3. Send
+    console.log("🚀 [AutoSync] Sending token to", EXTENSION_ID);
+    chrome.runtime.sendMessage(
+      EXTENSION_ID, 
+      { action: "SYNC_TOKEN", token: token },
+      (response: any) => {
+        if (chrome.runtime.lastError) {
+          console.error("❌ Sync Error:", chrome.runtime.lastError.message);
+          setMsg("Error: " + chrome.runtime.lastError.message.substring(0, 20));
+          setColor("bg-red-600");
+        } else {
+          console.log("✅ Sync Success:", response);
+          setMsg("Synced Successfully!");
+          setColor("bg-green-600");
+          // Hide after 3 seconds on success
+          setTimeout(() => {
+            setColor("hidden");
+            setMsg("");
+          }, 3000);
+        }
       }
+    );
+  };
 
-      // 2. Send to Extension
-      if (typeof window !== 'undefined' && (window as any).chrome && (window as any).chrome.runtime) {
-        const chrome = (window as any).chrome;
-        console.log("🔄 [AutoSync] Found token, sending to extension...");
-        
-        chrome.runtime.sendMessage(
-          EXTENSION_ID, 
-          { action: "SYNC_TOKEN", token: token },
-          (response: any) => {
-            if (chrome.runtime.lastError) {
-              console.warn("⚠️ [AutoSync] Extension not ready:", chrome.runtime.lastError.message);
-            } else {
-              console.log("✅ [AutoSync] SUCCESS! Extension Synced.", response);
-            }
-          }
-        );
-      }
-    };
-
-    // Run on mount
-    syncToken();
-
-    // Run again if the user clicks anywhere (just to be aggressive about syncing)
-    window.addEventListener('click', syncToken, { once: true });
-    
-    // Cleanup
-    return () => window.removeEventListener('click', syncToken);
+  // Run automatically on mount
+  useEffect(() => {
+    runSync();
   }, []);
 
-  return null;
+  // RENDER A VISIBLE DEBUG BUTTON
+  return (
+    <div 
+      onClick={runSync}
+      className={`fixed bottom-4 right-4 ${color} text-white px-4 py-2 rounded shadow-lg cursor-pointer z-[9999] text-xs font-mono transition-all`}
+    >
+      [Wist Sync] {msg}
+    </div>
+  );
 }
