@@ -31,13 +31,14 @@ export default function ExtensionSync() {
       }
 
       // 2. Send to Extension
-      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+      if (typeof window !== 'undefined' && (window as any).chrome && (window as any).chrome.runtime) {
+        const chrome = (window as any).chrome;
         console.log("🔄 [AutoSync] Found token, sending to extension...");
         
         chrome.runtime.sendMessage(
           EXTENSION_ID, 
           { action: "SYNC_TOKEN", token: token },
-          (response) => {
+          (response: any) => {
             if (chrome.runtime.lastError) {
               console.warn("⚠️ [AutoSync] Extension not ready:", chrome.runtime.lastError.message);
             } else {
