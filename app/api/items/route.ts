@@ -124,10 +124,19 @@ export async function POST(request: Request) {
       }
     }
 
-    // 4. DECISION: Use existing product data OR scrape/fill in missing data
+    // 4. CRITICAL FIX: Trust Extension Data (Prevent jsdom Crash)
+    // If extension sent title AND price, skip scraping entirely.
+    // This prevents jsdom dependency errors and makes saves instant.
     let currentPrice = 0;
+    const hasExtensionData = title && (price !== undefined && price !== null);
 
-    if (existingProduct) {
+    if (hasExtensionData) {
+      // ⚡ TRUST MODE: Extension already scraped the data
+      // Clean the price string (e.g. "$29.99" -> 29.99)
+      currentPrice = parseFloat(price.toString().replace(/[^0-9.]/g, '')) || 0;
+      retailer = retailer || new URL(url).hostname.replace('www.', '').split('.')[0];
+      console.log("⚡ [API] Using extension-provided data. Skipping server scrape.");
+    } else if (existingProduct) {
       // A. USE EXISTING PRODUCT DATA (from products table)
       title = title || existingProduct.title || null;
       currentPrice = price 
@@ -136,43 +145,33 @@ export async function POST(request: Request) {
       image_url = image_url || existingProduct.image || null;
       retailer = retailer || existingProduct.domain || 'Unknown';
       console.log("✅ Using existing product data from catalog");
-    } else if (title && price) {
-      // B. TRUST MODE (Extension sent the data, but product doesn't exist yet)
-      // Clean the price string (e.g. "$29.99" -> 29.99)
-      currentPrice = parseFloat(price.toString().replace(/[^0-9.]/g, '')) || 0;
-      console.log("✅ Using provided data (Title & Price)");
     } else if (url && (!title || !price)) {
-      // C. SCRAPE MODE (Dashboard only sent a URL, or price/title missing)
-      console.log("🕵️ Scraping URL for missing data...");
+      // C. SCRAPE MODE (Only for manual dashboard adds - no extension data)
+      console.log("🔍 [API] No extension data provided, attempting server-side scrape for:", url);
       try {
         // Dynamic import to avoid webpack analyzing scraper dependencies during build
         const scraperModule = await import('@/lib/scraper');
         const scrapedResponse = await scraperModule.scrapeProduct(url) as any;
         
         if (!scrapedResponse || !scrapedResponse.ok || !scrapedResponse.data) {
-          return NextResponse.json(
-            { error: scrapedResponse?.error || 'Failed to scrape product. Please provide title and price.' },
-            { status: 400, headers: corsHeaders(origin) }
-          );
+          console.warn("⚠️ [API] Server scrape failed (non-fatal):", scrapedResponse?.error);
+          // Fallback defaults if scrape fails entirely
+          title = title || 'New Item';
+          currentPrice = price ? parseFloat(price.toString().replace(/[^0-9.]/g, '')) : 0;
+        } else {
+          const scrapedData = scrapedResponse.data;
+          // Use scraped data to fill in missing fields
+          title = title || scrapedData.title || 'New Item';
+          currentPrice = price ? parseFloat(price.toString().replace(/[^0-9.]/g, '')) : (scrapedData.price || 0);
+          image_url = image_url || scrapedData.image || null;
+          retailer = retailer || scrapedData.domain || 'Unknown';
+          console.log("✅ [API] Scrape successful:", title, "Price:", currentPrice);
         }
-
-        const scrapedData = scrapedResponse.data;
-
-        // Use scraped data to fill in missing fields
-        title = title || scrapedData.title;
-        currentPrice = price ? parseFloat(price.toString().replace(/[^0-9.]/g, '')) : (scrapedData.price || 0);
-        image_url = image_url || scrapedData.image || null;
-        retailer = retailer || scrapedData.domain || 'Unknown';
-        // If scraping, we assume status is active (wishlist) unless specified
-        status = status || 'active';
-        
-        console.log("✅ Scrape Successful:", title, "Price:", currentPrice);
       } catch (err: any) {
-        console.error("Scraping Error:", err);
-        return NextResponse.json(
-          { error: `Scraping failed: ${err.message}` },
-          { status: 500, headers: corsHeaders(origin) }
-        );
+        console.warn("⚠️ [API] Server scrape failed (non-fatal):", err.message);
+        // Fallback defaults if scrape fails entirely
+        title = title || 'New Item';
+        currentPrice = price ? parseFloat(price.toString().replace(/[^0-9.]/g, '')) : 0;
       }
     } else {
       return NextResponse.json(
