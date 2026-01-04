@@ -208,7 +208,7 @@ export async function POST(request: Request) {
       try {
         // Dynamic import to avoid webpack analyzing scraper dependencies during build
         const scraperModule = await import('@/lib/scraper');
-        const scrapeResult = await scraperModule.scrapeProduct(url);
+        const scrapeResult = await scraperModule.scrapeProduct(url) as { ok: boolean; data?: { title?: string; price?: number; image?: string; domain?: string }; error?: string; detail?: string } | null;
         
         if (scrapeResult && scrapeResult.ok && scrapeResult.data) {
           title = scrapeResult.data.title || title || 'New Item';
@@ -217,7 +217,8 @@ export async function POST(request: Request) {
           retailer = retailer || scrapeResult.data.domain || 'Unknown';
           console.log("✅ [API] Scrape successful:", title, "Price:", currentPrice);
         } else {
-          console.warn("⚠️ [API] Server scrape failed (non-fatal):", scrapeResult.error || scrapeResult.detail);
+          const errorMsg = scrapeResult?.error || scrapeResult?.detail || 'Unknown error';
+          console.warn("⚠️ [API] Server scrape failed (non-fatal):", errorMsg);
           // Fallback defaults if scrape fails entirely
           title = title || 'New Item';
           currentPrice = price ? parseFloat(price.toString().replace(/[^0-9.]/g, '')) : 0;
