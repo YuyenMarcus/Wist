@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   try {
     // 1. Get the data sent from the extension or dashboard
     const body = await request.json();
-    let { title, price, url, image_url, status, retailer } = body;
+    let { title, price, url, image_url, status, retailer, note } = body;
 
     console.log("📥 [API] Incoming Item Request:", { url, hasTitle: !!title, hasPrice: !!price });
 
@@ -180,10 +180,7 @@ export async function POST(request: Request) {
     // -----------------------------------------------------------------------
     // 2. DATA HANDLING (Prevent Crash)
     // -----------------------------------------------------------------------
-    const body = await request.json();
     console.log("📦 [API] Request body:", JSON.stringify(body, null, 2));
-    
-    let { url, title, price, image_url, retailer, note } = body;
 
     // CRITICAL FIX: Trust Extension Data (Prevent jsdom Crash)
     // If extension sent title AND price, skip scraping entirely.
@@ -211,16 +208,16 @@ export async function POST(request: Request) {
       try {
         // Dynamic import to avoid webpack analyzing scraper dependencies during build
         const scraperModule = await import('@/lib/scraper');
-        const scrapeResult = await scraperModule.scrapeProduct(url);
+        const scrapeResult: { ok: boolean; data?: any; error?: string; detail?: string } = await scraperModule.scrapeProduct(url);
         
-        if (scrapeResult.success && scrapeResult.data) {
+        if (scrapeResult.ok && scrapeResult.data) {
           title = scrapeResult.data.title || title || 'New Item';
           currentPrice = price ? parseFloat(price.toString().replace(/[^0-9.]/g, '')) : (scrapeResult.data.price || 0);
           image_url = image_url || scrapeResult.data.image || null;
           retailer = retailer || scrapeResult.data.domain || 'Unknown';
           console.log("✅ [API] Scrape successful:", title, "Price:", currentPrice);
         } else {
-          console.warn("⚠️ [API] Server scrape failed (non-fatal):", scrapeResult.error);
+          console.warn("⚠️ [API] Server scrape failed (non-fatal):", scrapeResult.error || scrapeResult.detail);
           // Fallback defaults if scrape fails entirely
           title = title || 'New Item';
           currentPrice = price ? parseFloat(price.toString().replace(/[^0-9.]/g, '')) : 0;
