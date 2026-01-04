@@ -92,37 +92,60 @@ async function handlePreviewLink(productUrl, sendResponse) {
 // Save item handler - PRODUCTION ONLY
 async function handleSaveItem(payload, sendResponse) {
   try {
+    console.log("🔵 [Extension] Starting save process...");
+    
     // A. Get the Token from Chrome Storage
     const storage = await chrome.storage.local.get("wist_auth_token");
     const token = storage.wist_auth_token;
 
     if (!token) {
+      console.error("❌ [Extension] No auth token found in storage");
       throw new Error("Not logged in. Please visit Wist dashboard to sync.");
     }
 
-    // B. Make the API Call with Bearer Token
+    console.log("✅ [Extension] Token found, length:", token.length);
+    console.log("🔑 [Extension] Token preview:", token.substring(0, 20) + "...");
+
+    // B. Prepare payload
+    const apiPayload = {
+      url: payload.url,
+      title: payload.title,
+      price: payload.price,
+      image_url: payload.image_url,
+      retailer: payload.retailer || 'Amazon',
+      note: payload.note || ''
+    };
+
+    console.log("📦 [Extension] Payload:", JSON.stringify(apiPayload, null, 2));
+    console.log("🌐 [Extension] Sending to:", `${API_BASE_URL}/api/items`);
+
+    // C. Make the API Call with Bearer Token
     const response = await fetch(`${API_BASE_URL}/api/items`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${token}` // Critical for RLS
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(apiPayload)
     });
+
+    console.log("📡 [Extension] Response status:", response.status);
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({ error: `Server Error ${response.status}` }));
+      console.error("❌ [Extension] Server error:", errData);
       throw new Error(errData.error || `Server Error ${response.status}`);
     }
 
     const data = await response.json();
-    console.log("✅ WIST: Item Saved!", data);
+    console.log("✅ [Extension] Item saved successfully!", data);
     
-    // C. Respond Success
+    // D. Respond Success
     sendResponse({ success: true, data });
 
   } catch (error) {
-    console.error("❌ WIST: Save Failed", error);
+    console.error("❌ [Extension] Save Failed:", error.message);
+    console.error("❌ [Extension] Full error:", error);
     sendResponse({ success: false, error: error.message });
   }
 }

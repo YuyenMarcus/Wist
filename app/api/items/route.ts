@@ -30,16 +30,31 @@ export async function POST(request: Request) {
     const body = await request.json();
     let { title, price, url, image_url, status, retailer } = body;
 
-    console.log("📥 Incoming Item Request:", { url, hasTitle: !!title, hasPrice: !!price });
+    console.log("📥 [API] Incoming Item Request:", { url, hasTitle: !!title, hasPrice: !!price });
 
-    // 2. Check Auth - Try Authorization header first (for extensions), then cookies (for dashboard)
+    // -----------------------------------------------------------------------
+    // 1. AUTHENTICATION (Proper Token Verification)
+    // -----------------------------------------------------------------------
     const authHeader = request.headers.get('Authorization');
     let supabase;
     let user;
 
     if (authHeader) {
-      // Extension/API Key auth
-      const token = authHeader.replace('Bearer ', '');
+      // Extension/API Key auth - Bearer Token
+      const token = authHeader.replace('Bearer ', '').trim();
+      
+      if (!token || token === 'undefined' || token === 'null') {
+        console.error("❌ [API] Invalid token in Authorization header");
+        return NextResponse.json(
+          { error: 'Invalid token. Please log in to Wist.' },
+          { status: 401, headers: corsHeaders(origin) }
+        );
+      }
+
+      console.log("🔑 [API] Bearer token received, length:", token.length);
+      console.log("🔑 [API] Token preview:", token.substring(0, 20) + "...");
+
+      // Create Supabase client with the token
       supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -52,14 +67,31 @@ export async function POST(request: Request) {
         }
       );
       
+      // Verify the token and get user
+      console.log("🔍 [API] Verifying token...");
       const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-      if (authError || !authUser) {
+      
+      if (authError) {
+        console.error("❌ [API] Token verification failed:", authError.message);
         return NextResponse.json(
-          { error: 'Unauthorized. Please log in to Wist.' },
+          { 
+            error: 'Token verification failed. Please log in again.',
+            details: authError.message 
+          },
           { status: 401, headers: corsHeaders(origin) }
         );
       }
+
+      if (!authUser) {
+        console.error("❌ [API] Token verified but no user found");
+        return NextResponse.json(
+          { error: 'Invalid token. Please log in to Wist.' },
+          { status: 401, headers: corsHeaders(origin) }
+        );
+      }
+
       user = authUser;
+      console.log("✅ [API] User authenticated:", user.id, user.email);
     } else {
       // Cookie-based auth for dashboard requests
       // Read cookies directly from request headers (middleware should have refreshed them)
@@ -99,15 +131,36 @@ export async function POST(request: Request) {
       
       const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
       
-      if (authError || !authUser) {
-        console.log("❌ Auth Failed in POST:", authError);
+      if (authError) {
+        console.error("❌ [API] Cookie auth failed:", authError.message);
         return NextResponse.json(
           { error: 'Unauthorized. Please log in to Wist.' },
           { status: 401, headers: corsHeaders(origin) }
         );
       }
+
+      if (!authUser) {
+        console.error("❌ [API] Cookie auth succeeded but no user found");
+        return NextResponse.json(
+          { error: 'Unauthorized. Please log in to Wist.' },
+          { status: 401, headers: corsHeaders(origin) }
+        );
+      }
+
       user = authUser;
+      console.log("✅ [API] User authenticated via cookies:", user.id);
     }
+
+    // Final auth check
+    if (!user) {
+      console.error("❌ [API] Authentication failed - no user found");
+      return NextResponse.json({ 
+        error: 'Unauthorized. Please log in.',
+        details: 'No valid session or token found'
+      }, { status: 401, headers: corsHeaders(origin) });
+    }
+
+    console.log("👤 [API] User authenticated:", user.id);
 
     // 3. CHECK: Does this URL already exist in products table?
     let existingProduct = null;
@@ -124,9 +177,16 @@ export async function POST(request: Request) {
       }
     }
 
-    // 4. CRITICAL FIX: Trust Extension Data (Prevent jsdom Crash)
+    // -----------------------------------------------------------------------
+    // 2. DATA HANDLING (Prevent Crash)
+    // -----------------------------------------------------------------------
+    const body = await request.json();
+    console.log("📦 [API] Request body:", JSON.stringify(body, null, 2));
+    
+    let { url, title, price, image_url, retailer, note } = body;
+
+    // CRITICAL FIX: Trust Extension Data (Prevent jsdom Crash)
     // If extension sent title AND price, skip scraping entirely.
-    // This prevents jsdom dependency errors and makes saves instant.
     let currentPrice = 0;
     const hasExtensionData = title && (price !== undefined && price !== null);
 
@@ -151,21 +211,19 @@ export async function POST(request: Request) {
       try {
         // Dynamic import to avoid webpack analyzing scraper dependencies during build
         const scraperModule = await import('@/lib/scraper');
-        const scrapedResponse = await scraperModule.scrapeProduct(url) as any;
+        const scrapeResult = await scraperModule.scrapeProduct(url);
         
-        if (!scrapedResponse || !scrapedResponse.ok || !scrapedResponse.data) {
-          console.warn("⚠️ [API] Server scrape failed (non-fatal):", scrapedResponse?.error);
+        if (scrapeResult.success && scrapeResult.data) {
+          title = scrapeResult.data.title || title || 'New Item';
+          currentPrice = price ? parseFloat(price.toString().replace(/[^0-9.]/g, '')) : (scrapeResult.data.price || 0);
+          image_url = image_url || scrapeResult.data.image || null;
+          retailer = retailer || scrapeResult.data.domain || 'Unknown';
+          console.log("✅ [API] Scrape successful:", title, "Price:", currentPrice);
+        } else {
+          console.warn("⚠️ [API] Server scrape failed (non-fatal):", scrapeResult.error);
           // Fallback defaults if scrape fails entirely
           title = title || 'New Item';
           currentPrice = price ? parseFloat(price.toString().replace(/[^0-9.]/g, '')) : 0;
-        } else {
-          const scrapedData = scrapedResponse.data;
-          // Use scraped data to fill in missing fields
-          title = title || scrapedData.title || 'New Item';
-          currentPrice = price ? parseFloat(price.toString().replace(/[^0-9.]/g, '')) : (scrapedData.price || 0);
-          image_url = image_url || scrapedData.image || null;
-          retailer = retailer || scrapedData.domain || 'Unknown';
-          console.log("✅ [API] Scrape successful:", title, "Price:", currentPrice);
         }
       } catch (err: any) {
         console.warn("⚠️ [API] Server scrape failed (non-fatal):", err.message);
