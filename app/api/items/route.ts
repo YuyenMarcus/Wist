@@ -208,9 +208,9 @@ export async function POST(request: Request) {
       try {
         // Dynamic import to avoid webpack analyzing scraper dependencies during build
         const scraperModule = await import('@/lib/scraper');
-        const scrapeResult: { ok: boolean; data?: any; error?: string; detail?: string } = await scraperModule.scrapeProduct(url);
+        const scrapeResult = await scraperModule.scrapeProduct(url);
         
-        if (scrapeResult.ok && scrapeResult.data) {
+        if (scrapeResult && scrapeResult.ok && scrapeResult.data) {
           title = scrapeResult.data.title || title || 'New Item';
           currentPrice = price ? parseFloat(price.toString().replace(/[^0-9.]/g, '')) : (scrapeResult.data.price || 0);
           image_url = image_url || scrapeResult.data.image || null;
