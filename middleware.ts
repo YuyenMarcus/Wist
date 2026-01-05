@@ -1,4 +1,3 @@
-// middleware.ts
 import { type NextRequest } from 'next/server'
 import { updateSession } from '@/utils/supabase/middleware'
 
@@ -14,6 +13,7 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public (public files)
+     * - auth/callback (important to exclude callback from strict checks sometimes, but usually safe)
      */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],

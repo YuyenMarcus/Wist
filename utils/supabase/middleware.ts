@@ -1,8 +1,8 @@
-// utils/supabase/middleware.ts
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function updateSession(request: NextRequest) {
+  // Create an initial response
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -18,6 +18,7 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
+          // This is the magic: Sync cookies from Supabase to Next.js
           cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
           response = NextResponse.next({
             request,
@@ -30,7 +31,7 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // This refreshes the session if needed
+  // Refreshes the session if expired
   await supabase.auth.getUser()
 
   return response
