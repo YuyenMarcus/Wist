@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Folder, Plus, Grid, Gift, Settings, Trash2, Layers, LayoutGrid } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase/client';
 
 interface Collection {
@@ -15,10 +15,11 @@ interface Collection {
   created_at?: string;
 }
 
-export default function Sidebar({ initialCollections }: { initialCollections: Collection[] }) {
+export default function Sidebar({ initialCollections = [] }: { initialCollections?: Collection[] }) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
+  // Initialize with empty array if prop is missing, preventing crashes
   const [collections, setCollections] = useState<Collection[]>(initialCollections);
   const [isCreating, setIsCreating] = useState(false);
   const [isManaging, setIsManaging] = useState(false); // New Manager Mode
@@ -27,6 +28,28 @@ export default function Sidebar({ initialCollections }: { initialCollections: Co
 
   // Determine view mode from URL parameter
   const viewMode = searchParams?.get('view') === 'grouped' ? 'grouped' : 'timeline';
+
+  // NEW: Fetch collections directly on mount to ensure we have the latest data
+  // This bypasses any "stale" data coming from the Server Layout
+  useEffect(() => {
+    const fetchCollections = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        const { data } = await supabase
+          .from('collections')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: true });
+        
+        if (data) {
+          setCollections(data);
+        }
+      }
+    };
+    
+    fetchCollections();
+  }, []); // Runs once when component mounts
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,7 +79,7 @@ export default function Sidebar({ initialCollections }: { initialCollections: Co
     }
 
     if (data) {
-      setCollections([...collections, data]);
+      setCollections((prev) => [...prev, data]); // Add to local state immediately
       setNewCollectionName('');
       setIsCreating(false);
       router.refresh(); // Refresh server data
