@@ -64,6 +64,7 @@ async function getUserItems(userId: string): Promise<{
       // Map retailer to domain for compatibility
       domain: item.retailer?.toLowerCase() || null,
       description: item.note || null,
+      collection_id: item.collection_id || null, // Preserve collection_id
     };
   });
 
