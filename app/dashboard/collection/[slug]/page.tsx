@@ -1,4 +1,4 @@
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { redirect, notFound } from 'next/navigation';
 import ProductCard from '@/components/dashboard/ProductCard';
 import { FolderOpen } from 'lucide-react';
