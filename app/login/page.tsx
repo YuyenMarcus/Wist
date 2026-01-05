@@ -13,6 +13,8 @@ function LoginForm() {
   const [message, setMessage] = useState<string | null>(null)
   const [messageType, setMessageType] = useState<'success' | 'error' | null>(null)
 
+  const [checkingAuth, setCheckingAuth] = useState(true)
+
   useEffect(() => {
     if (!searchParams) return
 
@@ -37,33 +39,52 @@ function LoginForm() {
       setMessageType('error')
     }
 
-    // Check if user is already logged in
+    // Check if user is already logged in (only once on mount)
+    let isMounted = true
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        router.push('/dashboard')
-        router.refresh()
+      if (isMounted) {
+        setCheckingAuth(false)
+        if (session) {
+          // Use window.location to force full page reload and clear any state issues
+          window.location.href = '/dashboard'
+        }
       }
     })
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session) {
-        // Wait a bit for cookies to be set
-        await new Promise(resolve => setTimeout(resolve, 500))
-        router.push('/dashboard')
-        router.refresh()
+        // Wait for cookies to be set and use full page reload
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        window.location.href = '/dashboard'
       } else if (event === 'SIGNED_OUT') {
         // Clear any cached state on sign out
         setMessage(null)
         setMessageType(null)
+        setCheckingAuth(false)
       } else if (event === 'TOKEN_REFRESHED' && session) {
-        router.push('/dashboard')
-        router.refresh()
+        // Don't redirect on token refresh, just update state
+        setCheckingAuth(false)
       }
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      isMounted = false
+      subscription.unsubscribe()
+    }
   }, [router, searchParams])
+
+  // Show loading state while checking auth
+  if (checkingAuth) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="inline-block w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="mt-4 text-sm text-gray-600">Checking authentication...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <>
