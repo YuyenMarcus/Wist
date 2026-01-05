@@ -54,16 +54,99 @@ document.addEventListener('DOMContentLoaded', async () => {
                      || document.querySelector('h1')?.innerText.trim()
                      || document.title.replace('Amazon.com: ', '').replace(' : Amazon.com', '');
           
-          // Amazon Price Selectors (try multiple)
-          let price = document.querySelector('.a-price .a-offscreen')?.innerText 
-                   || document.querySelector('#priceblock_ourprice')?.innerText 
-                   || document.querySelector('#priceblock_dealprice')?.innerText
-                   || document.querySelector('.a-color-price')?.innerText
-                   || "0.00";
+          // COMPREHENSIVE Amazon Price Extraction (20+ selectors)
+          // Try JSON-LD structured data first (most reliable)
+          let price = null;
+          let priceString = null;
           
-          // Clean price (remove currency symbols, keep numbers and decimal)
-          const cleanPrice = price.replace(/[^0-9.]/g, '');
-          const priceValue = parseFloat(cleanPrice) || 0;
+          try {
+            const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
+            for (const script of jsonLdScripts) {
+              try {
+                const data = JSON.parse(script.textContent);
+                if (data.offers?.price || data.offers?.['@type'] === 'AggregateOffer' && data.offers.lowPrice) {
+                  price = parseFloat(data.offers.price || data.offers.lowPrice);
+                  priceString = `$${price.toFixed(2)}`;
+                  break;
+                }
+              } catch (e) {}
+            }
+          } catch (e) {}
+          
+          // If JSON-LD didn't work, try comprehensive CSS selectors
+          if (!price) {
+            const priceSelectors = [
+              // Modern Amazon layouts
+              '.a-price .a-offscreen',
+              '#corePrice_feature_div .a-offscreen',
+              '#corePriceDisplay_desktop_feature_div .a-offscreen',
+              '#apex_desktop .a-offscreen',
+              '.a-price-whole',
+              '.a-price .a-price-whole',
+              // Legacy selectors
+              '#priceblock_ourprice',
+              '#priceblock_dealprice',
+              '#priceblock_saleprice',
+              '#price',
+              // Generic price classes
+              '.a-color-price',
+              '.a-size-medium.a-color-price',
+              '.a-price-range .a-offscreen',
+              // Hidden input data
+              'input#twister-plus-price-data-price',
+              '#priceblock_usedprice',
+              '#priceblock_newprice',
+              // Mobile/tablet layouts
+              '.a-mobile .a-price .a-offscreen',
+              '#mobile-price .a-offscreen',
+              // Deal/Bundle prices
+              '.a-price.a-text-price .a-offscreen',
+              '.a-price.a-text-price.a-size-medium .a-offscreen',
+              // Price range (take first)
+              '.a-price-range .a-offscreen:first-child'
+            ];
+            
+            for (const selector of priceSelectors) {
+              const element = document.querySelector(selector);
+              if (element) {
+                priceString = element.innerText?.trim() || element.textContent?.trim() || element.getAttribute('value');
+                if (priceString && priceString !== '0.00' && priceString !== '$0.00') {
+                  break;
+                }
+              }
+            }
+            
+            // Try to extract from data attributes
+            if (!priceString) {
+              const priceData = document.querySelector('[data-asin-price]')?.getAttribute('data-asin-price');
+              if (priceData) priceString = priceData;
+            }
+          }
+          
+          // Fallback: Try meta tags
+          if (!priceString) {
+            const metaPrice = document.querySelector('meta[property="product:price:amount"]')?.getAttribute('content')
+                           || document.querySelector('meta[property="og:price:amount"]')?.getAttribute('content');
+            if (metaPrice) {
+              priceString = `$${metaPrice}`;
+            }
+          }
+          
+          // Clean and parse price
+          if (priceString) {
+            // Remove currency symbols, commas, and text, keep numbers and decimal
+            const cleanPrice = priceString.replace(/[^0-9.]/g, '');
+            price = parseFloat(cleanPrice) || 0;
+            
+            // Safety check: if price seems wrong (like "29.9929.99"), take first valid chunk
+            if (price > 1000000) {
+              const match = cleanPrice.match(/(\d+\.?\d*)/);
+              if (match) price = parseFloat(match[1]) || 0;
+            }
+          } else {
+            price = 0;
+            priceString = "0.00";
+          }
           
           const image = document.getElementById('landingImage')?.src 
                      || document.querySelector('#imgBlkFront')?.src
@@ -76,8 +159,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
           return { 
             title, 
-            price: priceValue,
-            price_string: price, // Keep original for display
+            price: price,
+            price_string: priceString || (price > 0 ? `$${price.toFixed(2)}` : "Price not found"), // Keep original for display
             image_url: image, 
             url: window.location.href,
             retailer: retailer.charAt(0).toUpperCase() + retailer.slice(1)

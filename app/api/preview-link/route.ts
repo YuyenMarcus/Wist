@@ -56,43 +56,121 @@ export async function POST(request: Request) {
       $('img[id="imgBlkFront"]').attr('src') || 
       '';
 
-    // 5. Price Extraction (Robust Amazon Logic)
+    // 5. COMPREHENSIVE Price Extraction (20+ selectors + JSON-LD)
     let price = '0.00';
+    let priceFound = false;
     
-    // Priority list of selectors (Modern Amazon -> Legacy -> Mobile)
-    const priceSelectors = [
-      '.a-price .a-offscreen',                // Standard
-      '#corePrice_feature_div .a-offscreen',  // Feature div
-      '#corePriceDisplay_desktop_feature_div .a-offscreen', // Desktop specific
-      '#apex_desktop .a-offscreen',           // Apex layout
-      '#priceblock_ourprice',                 // Legacy
-      '#priceblock_dealprice',                // Deal
-      '.a-color-price',                       // Generic red price
-      'input#twister-plus-price-data-price'   // Hidden input data
-    ];
+    // Strategy 1: Try JSON-LD structured data first (most reliable)
+    try {
+      const jsonLdScripts = $('script[type="application/ld+json"]');
+      for (let i = 0; i < jsonLdScripts.length; i++) {
+        try {
+          const jsonData = JSON.parse($(jsonLdScripts[i]).html() || '{}');
+          if (jsonData.offers?.price) {
+            price = String(jsonData.offers.price);
+            priceFound = true;
+            console.log("✅ [Preview] Found price in JSON-LD:", price);
+            break;
+          }
+          if (jsonData.offers?.['@type'] === 'AggregateOffer' && jsonData.offers.lowPrice) {
+            price = String(jsonData.offers.lowPrice);
+            priceFound = true;
+            console.log("✅ [Preview] Found price in JSON-LD AggregateOffer:", price);
+            break;
+          }
+        } catch (e) {
+          // Skip invalid JSON
+        }
+      }
+    } catch (e) {
+      console.warn("⚠️ [Preview] JSON-LD parse error:", e);
+    }
+    
+    // Strategy 2: Comprehensive CSS selectors (if JSON-LD failed)
+    if (!priceFound) {
+      const priceSelectors = [
+        // Modern Amazon layouts
+        '.a-price .a-offscreen',
+        '#corePrice_feature_div .a-offscreen',
+        '#corePriceDisplay_desktop_feature_div .a-offscreen',
+        '#apex_desktop .a-offscreen',
+        '.a-price-whole',
+        '.a-price .a-price-whole',
+        // Legacy selectors
+        '#priceblock_ourprice',
+        '#priceblock_dealprice',
+        '#priceblock_saleprice',
+        '#price',
+        // Generic price classes
+        '.a-color-price',
+        '.a-size-medium.a-color-price',
+        '.a-price-range .a-offscreen',
+        // Hidden input data
+        'input#twister-plus-price-data-price',
+        '#priceblock_usedprice',
+        '#priceblock_newprice',
+        // Mobile/tablet layouts
+        '.a-mobile .a-price .a-offscreen',
+        '#mobile-price .a-offscreen',
+        // Deal/Bundle prices
+        '.a-price.a-text-price .a-offscreen',
+        '.a-price.a-text-price.a-size-medium .a-offscreen',
+        // Price range (take first)
+        '.a-price-range .a-offscreen:first-child',
+        // Data attributes
+        '[data-asin-price]'
+      ];
 
-    // Try finding the price in the specific Amazon selectors first
-    for (const selector of priceSelectors) {
-      const found = $(selector).first().text().trim();
-      if (found) {
-        price = found;
-        break; 
+      for (const selector of priceSelectors) {
+        const found = $(selector).first();
+        if (found.length > 0) {
+          // Try text content first
+          let foundPrice = found.text().trim();
+          // If empty, try value attribute (for inputs)
+          if (!foundPrice) {
+            foundPrice = found.attr('value') || found.attr('data-asin-price') || '';
+          }
+          if (foundPrice && foundPrice !== '0.00' && foundPrice !== '$0.00') {
+            price = foundPrice;
+            priceFound = true;
+            console.log(`✅ [Preview] Found price with selector "${selector}":`, price);
+            break;
+          }
+        }
       }
     }
 
-    // Fallback: If Amazon selectors fail, try generic Open Graph
-    if (!price || price === '0.00') {
-      price = $('meta[property="product:price:amount"]').attr('content') || 
-              $('meta[property="og:price:amount"]').attr('content') || '0.00';
+    // Strategy 3: Meta tags fallback
+    if (!priceFound || price === '0.00') {
+      const metaPrice = $('meta[property="product:price:amount"]').attr('content') || 
+                        $('meta[property="og:price:amount"]').attr('content');
+      if (metaPrice) {
+        price = metaPrice;
+        priceFound = true;
+        console.log("✅ [Preview] Found price in meta tag:", price);
+      }
     }
 
-    // Clean it (remove currency symbols, commas, and text)
-    // Example: "$1,299.99" -> "1299.99"
+    // Clean and parse price
+    // Remove currency symbols, commas, and text, keep numbers and decimal
     const cleanPrice = price.replace(/[^0-9.]/g, '');
     
-    // Safety check: sometimes scraping grabs hidden text like "29.9929.99"
-    // If the price seems suspiciously huge for a decimal, take the first chunk
+    // Safety check: if price seems wrong (like "29.9929.99"), take first valid chunk
     let finalPrice = parseFloat(cleanPrice) || 0;
+    
+    if (finalPrice > 1000000) {
+      const match = cleanPrice.match(/(\d+\.?\d*)/);
+      if (match) {
+        finalPrice = parseFloat(match[1]) || 0;
+        console.log("⚠️ [Preview] Fixed suspicious price:", cleanPrice, "->", finalPrice);
+      }
+    }
+    
+    if (finalPrice > 0) {
+      console.log("✅ [Preview] Final price:", finalPrice);
+    } else {
+      console.warn("⚠️ [Preview] No valid price found, defaulting to 0");
+    }
 
     const data = {
       url,
