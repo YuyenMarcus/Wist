@@ -53,10 +53,10 @@ export default function Sidebar({ initialCollections }: { initialCollections: Co
   };
 
   return (
-    <aside className="w-64 border-r border-zinc-200 dark:border-zinc-800 h-[calc(100vh-4rem)] sticky top-16 hidden md:flex flex-col p-4 bg-white dark:bg-black">
+    <aside className="w-64 border-r border-zinc-200 dark:border-zinc-800 h-screen sticky top-0 hidden md:flex flex-col bg-white dark:bg-black">
       
-      {/* Logo */}
-      <Link href="/dashboard" className="flex items-center gap-2 mb-8 px-3 py-2 hover:opacity-80 transition-opacity">
+      {/* Logo - Top Corner */}
+      <Link href="/dashboard" className="flex items-center gap-2 px-4 pt-4 pb-6 hover:opacity-80 transition-opacity border-b border-zinc-200 dark:border-zinc-800">
         <Image 
           src="/logo.svg" 
           alt="Wist Logo" 
@@ -68,7 +68,7 @@ export default function Sidebar({ initialCollections }: { initialCollections: Co
       </Link>
       
       {/* Main Navigation */}
-      <div className="space-y-1 mb-8">
+      <div className="space-y-1 mb-8 px-4 pt-4">
         <Link 
           href="/dashboard" 
           className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -94,7 +94,7 @@ export default function Sidebar({ initialCollections }: { initialCollections: Co
       </div>
 
       {/* Collections Header */}
-      <div className="flex items-center justify-between mb-2 px-3">
+      <div className="flex items-center justify-between mb-2 px-4">
         <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Collections</h3>
         <button 
           onClick={() => setIsCreating(true)}
@@ -107,7 +107,7 @@ export default function Sidebar({ initialCollections }: { initialCollections: Co
 
       {/* Inline Create Form */}
       {isCreating && (
-        <form onSubmit={handleCreate} className="mb-2 px-3">
+        <form onSubmit={handleCreate} className="mb-2 px-4">
           <input 
             autoFocus
             type="text" 
@@ -131,7 +131,7 @@ export default function Sidebar({ initialCollections }: { initialCollections: Co
       )}
 
       {/* Collections List */}
-      <div className="space-y-1 overflow-y-auto flex-1">
+      <div className="space-y-1 overflow-y-auto flex-1 px-4 pb-4">
         {collections.length === 0 && !isCreating && (
           <p className="text-xs text-zinc-400 px-3 py-2">No collections yet</p>
         )}
