@@ -37,16 +37,28 @@ function LoginForm() {
       setMessageType('error')
     }
 
+    // Check if user is already logged in
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        router.push('/dashboard')
+        router.refresh()
+      }
+    })
+
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session) {
-        router.push('https://wishlist.nuvio.cloud/dashboard')
+        // Wait a bit for cookies to be set
+        await new Promise(resolve => setTimeout(resolve, 500))
+        router.push('/dashboard')
+        router.refresh()
       } else if (event === 'SIGNED_OUT') {
         // Clear any cached state on sign out
         setMessage(null)
         setMessageType(null)
       } else if (event === 'TOKEN_REFRESHED' && session) {
-        router.push('https://wishlist.nuvio.cloud/dashboard')
+        router.push('/dashboard')
+        router.refresh()
       }
     })
 
@@ -70,7 +82,7 @@ function LoginForm() {
           supabaseClient={supabase}
           appearance={{ theme: ThemeSupa }}
           providers={[]}
-          redirectTo="https://wishlist.nuvio.cloud/auth/callback?next=/dashboard"
+          redirectTo={`${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback?next=/dashboard`}
           magicLink={false}
           onlyThirdPartyProviders={false}
           view="sign_in"
@@ -80,7 +92,7 @@ function LoginForm() {
       <div className="mt-4 text-center">
         <p className="text-sm text-gray-600">
           Don't have an account?{' '}
-          <Link href="https://wishlist.nuvio.cloud/signup" className="text-blue-600 hover:underline">
+          <Link href="/signup" className="text-blue-600 hover:underline">
             Sign up
           </Link>
         </p>
