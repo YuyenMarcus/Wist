@@ -101,7 +101,9 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
       console.log('✅ Successfully moved item:', data[0]);
       setIsMenuOpen(false);
       setIsMoving(false);
-      router.refresh(); // Reloads page to show item moved
+      
+      // Force a page refresh to ensure collections and items are in sync
+      window.location.reload();
     } catch (err: any) {
       console.error('❌ Error moving item:', err);
       alert('Failed to move item: ' + (err.message || 'Unknown error'));
