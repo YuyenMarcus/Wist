@@ -32,6 +32,7 @@ interface Props {
 
 export default function ProductCard({ item, userCollections = [], onDelete }: Props) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMoving, setIsMoving] = useState(false); // Loading state for moving items
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   
@@ -63,6 +64,7 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
   }, [isMenuOpen]);
 
   const handleMoveToCollection = async (collectionId: string | null) => {
+    setIsMoving(true); // Show loading overlay
     try {
       const { error } = await supabase
         .from('items')
@@ -72,14 +74,17 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
       if (error) {
         console.error('Error moving item:', error);
         alert('Failed to move item: ' + error.message);
+        setIsMoving(false);
         return;
       }
       
       setIsMenuOpen(false);
+      setIsMoving(false);
       router.refresh(); // Reloads page to show item moved
     } catch (err: any) {
       console.error('Error moving item:', err);
       alert('Failed to move item');
+      setIsMoving(false);
     }
   };
 
@@ -111,6 +116,16 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
             <span className="text-2xl font-medium text-zinc-400">
               {title.substring(0, 2).toUpperCase()}
             </span>
+          </div>
+        )}
+
+        {/* Loading Overlay */}
+        {isMoving && (
+          <div className="absolute inset-0 bg-white/80 dark:bg-black/80 flex items-center justify-center z-20 backdrop-blur-sm">
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"/>
+              <span className="text-xs font-medium text-zinc-600 dark:text-zinc-300">Moving...</span>
+            </div>
           </div>
         )}
 
