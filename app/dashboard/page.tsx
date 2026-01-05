@@ -1,22 +1,37 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import ProfileHeader from '@/components/dashboard/ProfileHeader'
 import WishlistGrid from '@/components/wishlist/WishlistGrid'
+import ProductCard from '@/components/dashboard/ProductCard'
 import { getUserProducts, SupabaseProduct, deleteUserProduct } from '@/lib/supabase/products'
 import { getProfile, Profile } from '@/lib/supabase/profile'
 import LavenderLoader from '@/components/ui/LavenderLoader'
+import { Layers, LayoutGrid } from 'lucide-react'
+import Link from 'next/link'
 
 export default function DashboardPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [products, setProducts] = useState<SupabaseProduct[]>([])
   const [collections, setCollections] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+
+  // Determine view mode from URL parameter
+  const viewMode = searchParams.get('view') === 'grouped' ? 'grouped' : 'timeline'
+
+  // Group items by collection for the Categories view
+  const groupedItems = collections.map(col => ({
+    ...col,
+    items: products.filter((item: any) => item.collection_id === col.id) || []
+  })) || []
+
+  const uncategorizedItems = products.filter((item: any) => !item.collection_id) || []
 
   // Load user, profile, and products
   useEffect(() => {
@@ -135,7 +150,7 @@ export default function DashboardPage() {
         },
       });
       
-      const data = await res.json();
+        const data = await res.json();
       
       if (!res.ok || !data.success) {
         console.error("❌ Server Response:", data);
@@ -212,15 +227,113 @@ export default function DashboardPage() {
         refreshing={refreshing}
       />
 
+      {/* View Switcher */}
+      <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto mb-6">
+        <div className="flex justify-end">
+          <div className="flex p-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-sm">
+            <Link 
+              href="/dashboard" 
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                viewMode === 'timeline' 
+                  ? 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 shadow-sm' 
+                  : 'text-zinc-500 hover:text-violet-600 dark:hover:text-violet-400'
+              }`}
+            >
+              <LayoutGrid size={16} />
+              Timeline
+            </Link>
+            <Link 
+              href="/dashboard?view=grouped" 
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                viewMode === 'grouped' 
+                  ? 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 shadow-sm' 
+                  : 'text-zinc-500 hover:text-violet-600 dark:hover:text-violet-400'
+              }`}
+            >
+              <Layers size={16} />
+              Categories
+            </Link>
+          </div>
+        </div>
+      </div>
+
       {/* The Content Grid */}
-      <main className="mt-8">
-              <WishlistGrid 
-                items={products}
-                isOwner={true}
-                onDelete={handleDelete}
-                onUpdate={handleUpdate}
-                userCollections={collections}
-              />
+      <main className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        {/* Timeline View (Pinterest Grid) */}
+        {viewMode === 'timeline' && (
+          <WishlistGrid 
+            items={products}
+            isOwner={true}
+            onDelete={handleDelete}
+            onUpdate={handleUpdate}
+            userCollections={collections}
+          />
+        )}
+
+        {/* Categories View (Grouped by Collection) */}
+        {viewMode === 'grouped' && (
+          <div className="space-y-12">
+            {/* Uncategorized Section */}
+            {uncategorizedItems.length > 0 && (
+              <section>
+                <h2 className="text-lg font-bold text-zinc-900 dark:text-white mb-4 flex items-center gap-2 opacity-50">
+                  <span className="w-2 h-2 rounded-full bg-zinc-300"></span>
+                  Uncategorized
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {uncategorizedItems.map((item: any) => (
+                    <ProductCard 
+                      key={item.id} 
+                      item={item} 
+                      userCollections={collections} 
+                      onDelete={handleDelete}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Collection Sections */}
+            {groupedItems.map(group => (
+              group.items.length > 0 && (
+                <section key={group.id} className="pt-8 border-t border-zinc-200 dark:border-zinc-800">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                      {group.name}
+                      <span className="text-xs font-normal text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded-full">
+                        {group.items.length}
+                      </span>
+                    </h2>
+                    <Link 
+                      href={`/dashboard/collection/${group.slug}`} 
+                      className="text-sm text-violet-600 hover:text-violet-700 hover:underline transition-colors"
+                    >
+                      View Page →
+                    </Link>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {group.items.map((item: any) => (
+                      <ProductCard 
+                        key={item.id} 
+                        item={item} 
+                        userCollections={collections} 
+                        onDelete={handleDelete}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )
+            ))}
+
+            {/* Empty State for Grouped View */}
+            {groupedItems.every(g => g.items.length === 0) && uncategorizedItems.length === 0 && (
+              <div className="text-center py-20 text-zinc-500">
+                No items found. Add some items to see them here!
+              </div>
+            )}
+          </div>
+        )}
       </main>
     </div>
   )
