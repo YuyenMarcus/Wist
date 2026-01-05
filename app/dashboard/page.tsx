@@ -227,36 +227,6 @@ export default function DashboardPage() {
         refreshing={refreshing}
       />
 
-      {/* View Switcher - Moved to ProfileHeader area */}
-      <div className="w-full max-w-2xl mx-auto px-4 mb-6">
-        <div className="flex justify-end">
-          <div className="flex p-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-sm">
-            <Link 
-              href="/dashboard" 
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                viewMode === 'timeline' 
-                  ? 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 shadow-sm' 
-                  : 'text-zinc-500 hover:text-violet-600 dark:hover:text-violet-400'
-              }`}
-            >
-              <LayoutGrid size={16} />
-              Timeline
-            </Link>
-            <Link 
-              href="/dashboard?view=grouped" 
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                viewMode === 'grouped' 
-                  ? 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 shadow-sm' 
-                  : 'text-zinc-500 hover:text-violet-600 dark:hover:text-violet-400'
-              }`}
-            >
-              <Layers size={16} />
-              Categories
-            </Link>
-          </div>
-        </div>
-      </div>
-
       {/* The Content Grid */}
       <main className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
         {/* Timeline View (Pinterest Grid) */}
