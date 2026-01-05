@@ -9,8 +9,16 @@ export default async function CollectionPage({ params }: { params: { slug: strin
   const supabase = await createClient();
   
   // 1. Check Auth (If this fails, IT IS THE MIDDLEWARE'S FAULT)
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  
+  if (authError) {
+    console.error('🔴 Auth Error on Collection Page:', authError.message);
+  }
+  
+  if (!user) {
+    console.error('🔴 No user found, redirecting to login');
+    redirect('/login');
+  }
 
   // 2. Fetch Collection
   const { data: collection } = await supabase
