@@ -28,11 +28,12 @@ export default async function DashboardLayout({
   // Fetch collections to pass to the sidebar (only if user exists)
   let collections: Collection[] = [];
   if (user) {
-    const { data } = await supabase
-      .from('collections')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: true });
+      const { data } = await supabase
+        .from('collections')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('position', { ascending: true, nullsFirst: false })
+        .order('created_at', { ascending: true });
     collections = (data as Collection[]) || [];
   }
 
