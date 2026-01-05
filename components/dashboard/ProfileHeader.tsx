@@ -68,7 +68,7 @@ export default function ProfileHeader({ user, profile, itemCount, onRefreshPrice
           className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold shadow-sm transition-all
             ${refreshing 
               ? 'bg-zinc-100 text-zinc-400 cursor-not-allowed' 
-              : 'bg-white text-zinc-900 hover:bg-zinc-50 ring-1 ring-inset ring-zinc-200 hover:ring-zinc-300'
+              : 'bg-white text-violet-600 hover:bg-violet-50 ring-1 ring-inset ring-violet-200 hover:ring-violet-300'
             }`}
         >
           <span className={refreshing ? "animate-spin" : ""}>↻</span>

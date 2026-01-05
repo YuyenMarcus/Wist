@@ -95,7 +95,7 @@ export default function Sidebar({ initialCollections }: { initialCollections: Co
 
       {/* Collections Header */}
       <div className="flex items-center justify-between mb-2 px-4">
-        <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Collections</h3>
+        <h3 className="text-xs font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-wider">Collections</h3>
         <button 
           onClick={() => setIsCreating(true)}
           className="text-zinc-400 hover:text-violet-500 transition-colors p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded"
