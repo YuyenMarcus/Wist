@@ -17,58 +17,38 @@ export async function middleware(request: NextRequest) {
           return request.cookies.get(name)?.value
         },
         set(name: string, value: string, options: CookieOptions) {
-          // Update request cookies
           request.cookies.set({ name, value, ...options })
-          // Create new response with updated cookies
           response = NextResponse.next({
             request: {
               headers: request.headers,
             },
           })
-          // Set cookie on response with proper options
-          response.cookies.set({ 
-            name, 
-            value, 
-            ...options,
-            // Ensure cookies work on all paths
-            path: '/',
-            sameSite: 'lax' as const,
-            httpOnly: options.httpOnly ?? true,
-          })
+          response.cookies.set({ name, value, ...options })
         },
         remove(name: string, options: CookieOptions) {
-          // Update request cookies
           request.cookies.set({ name, value: '', ...options })
-          // Create new response
           response = NextResponse.next({
             request: {
               headers: request.headers,
             },
           })
-          // Remove cookie from response
-          response.cookies.set({ 
-            name, 
-            value: '', 
-            ...options,
-            path: '/',
-            maxAge: 0,
-          })
+          response.cookies.set({ name, value: '', ...options })
         },
       },
     }
   )
 
-  // Refresh session - this updates cookies if needed
   const { data: { user } } = await supabase.auth.getUser()
 
-  // If user is authenticated and trying to access login, redirect to dashboard
-  if (user && request.nextUrl.pathname.startsWith('/login')) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
-  }
-
-  // If user is NOT authenticated and trying to access dashboard, redirect to login
+  // Protected Route Logic
+  // If user is NOT logged in and tries to access /dashboard, kick them out.
   if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
     return NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  // If user IS logged in and tries to access /login, send them to dashboard.
+  if (user && request.nextUrl.pathname.startsWith('/login')) {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
   return response
