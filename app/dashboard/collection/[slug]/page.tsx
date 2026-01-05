@@ -8,12 +8,9 @@ import { FolderOpen } from 'lucide-react';
 export default async function CollectionPage({ params }: { params: { slug: string } }) {
   const supabase = await createClient();
   
-  // 1. Check Auth (Middleware handles redirect, but we still need user for queries)
+  // 1. Check Auth (If this fails, IT IS THE MIDDLEWARE'S FAULT)
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    // Middleware should have redirected, but safety check
-    return notFound();
-  }
+  if (!user) redirect('/login');
 
   // 2. Fetch Collection
   const { data: collection } = await supabase

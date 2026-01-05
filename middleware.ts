@@ -38,18 +38,7 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
-
-  // Protected Route Logic
-  // If user is NOT logged in and tries to access /dashboard, kick them out.
-  if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
-    return NextResponse.redirect(new URL('/login', request.url))
-  }
-
-  // If user IS logged in and tries to access /login, send them to dashboard.
-  if (user && request.nextUrl.pathname.startsWith('/login')) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
-  }
+  await supabase.auth.getUser()
 
   return response
 }
@@ -66,4 +55,3 @@ export const config = {
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
-

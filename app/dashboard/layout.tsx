@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import Sidebar from '@/components/dashboard/Sidebar';
+import { redirect } from 'next/navigation';
 
 // 🛑 FORCE DYNAMIC: This fixes the "Disappearing List" bug
 export const dynamic = 'force-dynamic';
@@ -21,7 +22,9 @@ export default async function DashboardLayout({
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Middleware handles redirects, but we still need user for queries
+  // Don't redirect here - let the client-side dashboard page handle auth
+  // This prevents redirect loops when cookies aren't set yet after sign-in
+  
   // Fetch collections to pass to the sidebar (only if user exists)
   let collections: Collection[] = [];
   if (user) {
@@ -36,7 +39,7 @@ export default async function DashboardLayout({
   return (
     <div className="flex min-h-screen bg-zinc-50 dark:bg-black">
       {/* Sidebar - Hidden on mobile, handled by a separate component later if needed */}
-      <Sidebar initialCollections={collections || []} />
+      <Sidebar initialCollections={collections} />
       
       {/* Main Content Area */}
       <main className="flex-1 w-full">
@@ -45,4 +48,3 @@ export default async function DashboardLayout({
     </div>
   );
 }
-
