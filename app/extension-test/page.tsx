@@ -76,12 +76,15 @@ export default function ExtensionTestPage() {
 
       const extensionId = 'hlgalligngcfiaibgkinhlkaniibjlmh';
       
-      if (typeof chrome === 'undefined' || !chrome.runtime) {
+      // Type-safe chrome API access
+      const chromeAPI = (window as any).chrome;
+      
+      if (!chromeAPI || !chromeAPI.runtime) {
         alert('Chrome extension API not available!');
         return;
       }
       
-      chrome.runtime.sendMessage(
+      chromeAPI.runtime.sendMessage(
         extensionId,
         {
           type: 'AUTH_TOKEN',
@@ -89,9 +92,9 @@ export default function ExtensionTestPage() {
           session: data,
           timestamp: Date.now()
         },
-        (response) => {
-          if (chrome.runtime.lastError) {
-            alert(`Extension error: ${chrome.runtime.lastError.message}`);
+        (response: any) => {
+          if (chromeAPI.runtime.lastError) {
+            alert(`Extension error: ${chromeAPI.runtime.lastError.message}`);
           } else {
             alert(`✅ Token synced! Response: ${JSON.stringify(response)}`);
           }
