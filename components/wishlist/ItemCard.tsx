@@ -155,12 +155,19 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
       if (itemCheck) {
         // Item is in items table - update it
         console.log('📦 Item found in items table, updating...');
+        console.log('📝 Update details:', { itemId: item.id, collectionId, userId: user.id });
         updateResult = await supabase
           .from('items')
           .update({ collection_id: collectionId })
           .eq('id', item.id)
           .eq('user_id', user.id)
           .select();
+        
+        console.log('📊 Update result:', { 
+          data: updateResult.data, 
+          error: updateResult.error,
+          dataLength: updateResult.data?.length 
+        });
       } else {
         // Item might be in products table - check and update there
         console.log('🔍 Item not in items table, checking products table...');
