@@ -1,65 +1,117 @@
-'use client';
-import { supabase } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+'use client'
 
-export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
+import { useEffect, useState, Suspense } from 'react'
+import { Auth } from '@supabase/auth-ui-react'
+import { ThemeSupa } from '@supabase/auth-ui-shared'
+import { supabase } from '@/lib/supabase/client'
+import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+function LoginForm() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [message, setMessage] = useState<string | null>(null)
+  const [messageType, setMessageType] = useState<'success' | 'error' | null>(null)
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+  useEffect(() => {
+    if (!searchParams) return
 
-    if (error) {
-      alert(error.message);
-      setLoading(false);
-    } else {
-      // SUCCESS: Force a hard refresh to Dashboard so cookies are definitely read
-      window.location.href = '/dashboard';
+    // Check for email confirmation message
+    const confirmed = searchParams.get('confirmed')
+    if (confirmed === 'true') {
+      setMessage('Email confirmed! You can now sign in.')
+      setMessageType('success')
     }
-  };
+
+    // Check for signup success
+    const signedUp = searchParams.get('signedup')
+    if (signedUp === 'true') {
+      setMessage('Check your email to confirm your account before signing in.')
+      setMessageType('success')
+    }
+
+    // Check for error message
+    const error = searchParams.get('error')
+    if (error) {
+      setMessage(decodeURIComponent(error))
+      setMessageType('error')
+    }
+
+    // Check if user is already logged in
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        // User is already logged in, redirect to dashboard
+        router.push('/dashboard')
+      }
+    })
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // Only redirect on actual sign-in, not token refresh or other events
+      if (event === 'SIGNED_IN' && session?.user) {
+        router.push('/dashboard')
+      } else if (event === 'SIGNED_OUT') {
+        // Clear any cached state on sign out
+        setMessage(null)
+        setMessageType(null)
+      }
+      // Removed TOKEN_REFRESHED redirect to prevent loops
+    })
+
+    return () => subscription.unsubscribe()
+  }, [router, searchParams])
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center p-4 bg-gray-50">
-      <form onSubmit={handleLogin} className="flex flex-col gap-4 w-full max-w-md bg-white p-8 rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold text-center text-gray-900">Login</h1>
-        <input 
-          type="email" 
-          value={email} 
-          onChange={e => setEmail(e.target.value)} 
-          placeholder="Email" 
-          className="border border-gray-300 p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" 
-          required 
+    <>
+      {message && (
+        <div className={`mb-4 rounded-md p-4 ${
+          messageType === 'success' 
+            ? 'bg-green-50 text-green-800' 
+            : 'bg-red-50 text-red-800'
+        }`}>
+          <p className="text-sm font-medium">{message}</p>
+        </div>
+      )}
+
+      <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+        <Auth
+          supabaseClient={supabase}
+          appearance={{ theme: ThemeSupa }}
+          providers={[]}
+          redirectTo={`${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback?next=/dashboard`}
+          magicLink={false}
+          onlyThirdPartyProviders={false}
+          view="sign_in"
         />
-        <input 
-          type="password" 
-          value={password} 
-          onChange={e => setPassword(e.target.value)} 
-          placeholder="Password" 
-          className="border border-gray-300 p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" 
-          required 
-        />
-        <button 
-          disabled={loading} 
-          className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          {loading ? 'Logging in...' : 'Sign In'}
-        </button>
-        <p className="text-sm text-center text-gray-600">
+      </div>
+
+      <div className="mt-4 text-center">
+        <p className="text-sm text-gray-600">
           Don't have an account?{' '}
-          <a href="/signup" className="text-blue-600 hover:underline">
+          <Link href="https://wishlist.nuvio.cloud/signup" className="text-blue-600 hover:underline">
             Sign up
-          </a>
+          </Link>
         </p>
-      </form>
-    </div>
-  );
+      </div>
+    </>
+  )
 }
+
+export default function LoginPage() {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
+          Sign in to your account
+        </h2>
+      </div>
+
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <Suspense fallback={<div className="text-center">Loading...</div>}>
+          <LoginForm />
+        </Suspense>
+      </div>
+    </div>
+  )
+}
+
