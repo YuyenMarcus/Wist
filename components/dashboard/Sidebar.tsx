@@ -22,25 +22,32 @@ export default function Sidebar({ initialCollections }: { initialCollections: Co
   const [collections, setCollections] = useState<Collection[]>(initialCollections);
   const [isCreating, setIsCreating] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCollectionName.trim()) return;
+    if (!newCollectionName.trim() || loading) return;
 
+    setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     
     // Create a simple URL-friendly slug (e.g., "Living Room" -> "living-room")
     const slug = newCollectionName.toLowerCase().replace(/ /g, '-').replace(/[^\w-]/g, '');
 
     const { data, error } = await supabase
       .from('collections')
-      .insert({ name: newCollectionName, slug, user_id: user.id })
+      .insert({ name: newCollectionName.trim(), slug, user_id: user.id })
       .select()
       .single();
 
     if (error) {
       console.error('Error creating collection:', error);
+      alert('Failed to create collection: ' + error.message);
+      setLoading(false);
       return;
     }
 
@@ -50,6 +57,12 @@ export default function Sidebar({ initialCollections }: { initialCollections: Co
       setIsCreating(false);
       router.refresh(); // Refresh server data
     }
+    setLoading(false);
+  };
+
+  const handleCancel = () => {
+    setNewCollectionName('');
+    setIsCreating(false);
   };
 
   return (
@@ -105,29 +118,43 @@ export default function Sidebar({ initialCollections }: { initialCollections: Co
         </button>
       </div>
 
-      {/* Inline Create Form */}
+      {/* Inline Create Form with Buttons */}
       {isCreating && (
-        <form onSubmit={handleCreate} className="mb-2 px-4">
-          <input 
-            autoFocus
-            type="text" 
-            placeholder="List Name..." 
-            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 text-zinc-900 dark:text-white"
-            value={newCollectionName}
-            onChange={(e) => setNewCollectionName(e.target.value)}
-            onBlur={() => {
-              if (!newCollectionName.trim()) {
-                setIsCreating(false);
-              }
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') {
-                setIsCreating(false);
-                setNewCollectionName('');
-              }
-            }}
-          />
-        </form>
+        <div className="mb-3 px-4">
+          <form onSubmit={handleCreate} className="bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-2 shadow-sm">
+            <input 
+              autoFocus
+              type="text" 
+              placeholder="List Name..." 
+              className="w-full bg-transparent text-sm focus:outline-none text-zinc-900 dark:text-white mb-2 px-1 py-1"
+              value={newCollectionName}
+              onChange={(e) => setNewCollectionName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  handleCancel();
+                }
+              }}
+              disabled={loading}
+            />
+            <div className="flex gap-2">
+              <button 
+                type="submit" 
+                disabled={loading || !newCollectionName.trim()}
+                className="flex-1 bg-violet-600 text-white text-xs py-1.5 px-2 rounded font-medium hover:bg-violet-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Adding...' : 'Add'}
+              </button>
+              <button 
+                type="button" 
+                onClick={handleCancel}
+                disabled={loading}
+                className="flex-1 bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-xs py-1.5 px-2 rounded font-medium hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
       )}
 
       {/* Collections List */}
