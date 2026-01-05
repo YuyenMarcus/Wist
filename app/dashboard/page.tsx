@@ -52,16 +52,24 @@ export default function DashboardPage() {
           setProducts(data)
         }
 
-        // Load collections for "Move to" dropdown (ordered by position)
+        // Load collections for "Move to" dropdown
         const { data: collectionsData } = await supabase
           .from('collections')
           .select('id, name, slug')
           .eq('user_id', currentUser.id)
-          .order('position', { ascending: true, nullsFirst: false })
           .order('created_at', { ascending: true })
         
         if (collectionsData) {
-          setCollections(collectionsData)
+          // Sort by position if it exists, otherwise keep created_at order
+          const sorted = collectionsData.sort((a: any, b: any) => {
+            if (a.position !== null && b.position !== null) {
+              return a.position - b.position;
+            }
+            if (a.position !== null) return -1;
+            if (b.position !== null) return 1;
+            return 0;
+          });
+          setCollections(sorted)
         }
       }
       setLoading(false)
