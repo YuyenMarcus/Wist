@@ -227,8 +227,8 @@ export default function DashboardPage() {
         refreshing={refreshing}
       />
 
-      {/* View Switcher */}
-      <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto mb-6">
+      {/* View Switcher - Moved to ProfileHeader area */}
+      <div className="w-full max-w-2xl mx-auto px-4 mb-6">
         <div className="flex justify-end">
           <div className="flex p-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-sm">
             <Link 

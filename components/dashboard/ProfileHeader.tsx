@@ -89,24 +89,6 @@ export default function ProfileHeader({ user, profile, itemCount, onRefreshPrice
         <AddItemForm />
       </div>
 
-      {/* 3. Filter Tabs (Modern "Pills" look) */}
-      <div className="flex gap-2 overflow-x-auto pb-4 no-scrollbar">
-        {['All Items', 'Tech', 'Fashion', 'Home', 'Books'].map((tab, i) => (
-          <motion.button
-            key={tab}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
-              i === 0 
-              ? 'bg-zinc-900 text-white shadow-md' 
-              : 'bg-white text-zinc-600 border border-zinc-200 hover:border-violet-300 hover:text-violet-600'
-            }`}
-          >
-            {tab}
-          </motion.button>
-        ))}
-      </div>
-      
       {/* Horizontal Divider before content */}
       <div className="h-px w-full bg-gradient-to-r from-transparent via-zinc-200 to-transparent mb-8" />
     </div>
