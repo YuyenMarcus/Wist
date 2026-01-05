@@ -164,7 +164,14 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
 
       console.log('✅ Successfully moved item:', data[0]);
       setIsMenuOpen(false)
-      router.refresh() // Reloads page to show item moved
+      
+      // Update local state immediately for better UX
+      if (onUpdate) {
+        onUpdate(item.id, { ...item, collection_id: collectionId } as any)
+      }
+      
+      // Force a page refresh to ensure collections and items are in sync
+      window.location.reload()
     } catch (err: any) {
       console.error('❌ Error moving item:', err)
       alert('Failed to move item: ' + (err.message || 'Unknown error'))
