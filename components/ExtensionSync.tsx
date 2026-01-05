@@ -17,8 +17,6 @@ export default function ExtensionSync() {
 
       console.log("🔵 [ExtensionSync] Component mounted");
       
-      const supabase = createClient();
-      
       // Get current session
       const { data: { session }, error } = await supabase.auth.getSession();
       
