@@ -76,29 +76,84 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
 
       console.log('🔄 Moving item:', item.id, 'to collection:', collectionId);
 
-      // Update with explicit user_id check for RLS
-      const { data, error } = await supabase
+      // First, check if item exists in items table
+      const { data: itemCheck } = await supabase
         .from('items')
-        .update({ collection_id: collectionId })
+        .select('id, user_id')
         .eq('id', item.id)
         .eq('user_id', user.id)
-        .select();
+        .single();
+
+      let updateResult;
       
-      if (error) {
-        console.error('❌ Error moving item:', error);
-        alert('Failed to move item: ' + error.message);
+      if (itemCheck) {
+        // Item is in items table - update it
+        console.log('📦 Item found in items table, updating...');
+        updateResult = await supabase
+          .from('items')
+          .update({ collection_id: collectionId })
+          .eq('id', item.id)
+          .eq('user_id', user.id)
+          .select();
+      } else {
+        // Item might be in products table - check and create items entry
+        console.log('🔍 Item not in items table, checking products table...');
+        const { data: productCheck } = await supabase
+          .from('products')
+          .select('id, user_id, title, url, price, image')
+          .eq('id', item.id)
+          .eq('user_id', user.id)
+          .single();
+
+        if (productCheck) {
+          // Create a new item entry linked to this product
+          console.log('📦 Item found in products table, creating items entry...');
+          
+          const { data: newItem, error: createError } = await supabase
+            .from('items')
+            .insert({
+              user_id: user.id,
+              title: productCheck.title || item.title || 'Untitled',
+              url: productCheck.url || item.url,
+              current_price: productCheck.price ? parseFloat(productCheck.price.toString()) : (item.price ? parseFloat(item.price.toString()) : null),
+              image_url: productCheck.image || item.image_url || item.image || null,
+              collection_id: collectionId,
+              status: 'active'
+            })
+            .select()
+            .single();
+
+          if (createError) {
+            console.error('❌ Error creating item entry:', createError);
+            alert('Failed to move item: ' + createError.message);
+            setIsMoving(false);
+            return;
+          }
+
+          updateResult = { data: [newItem], error: null };
+        } else {
+          console.error('⚠️ Item not found in either items or products table');
+          alert('Failed to move item: Item not found');
+          setIsMoving(false);
+          return;
+        }
+      }
+      
+      if (updateResult.error) {
+        console.error('❌ Error moving item:', updateResult.error);
+        alert('Failed to move item: ' + updateResult.error.message);
         setIsMoving(false);
         return;
       }
 
-      if (!data || data.length === 0) {
+      if (!updateResult.data || updateResult.data.length === 0) {
         console.error('⚠️ No rows updated. Item may not exist or you may not own it.');
         alert('Failed to move item: Item not found or you do not have permission');
         setIsMoving(false);
         return;
       }
 
-      console.log('✅ Successfully moved item:', data[0]);
+      console.log('✅ Successfully moved item:', updateResult.data[0]);
       setIsMenuOpen(false);
       setIsMoving(false);
       

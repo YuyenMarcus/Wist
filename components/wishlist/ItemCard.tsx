@@ -142,39 +142,94 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
 
       console.log('🔄 Moving item:', item.id, 'to collection:', collectionId);
 
-      // Update with explicit user_id check for RLS
-      const { data, error } = await supabase
+      // First, check if item exists in items table
+      const { data: itemCheck } = await supabase
         .from('items')
-        .update({ collection_id: collectionId })
+        .select('id, user_id')
         .eq('id', item.id)
         .eq('user_id', user.id)
-        .select()
+        .single();
+
+      let updateResult;
       
-      if (error) {
-        console.error('❌ Error moving item:', error)
-        alert('Failed to move item: ' + error.message)
-        return
+      if (itemCheck) {
+        // Item is in items table - update it
+        console.log('📦 Item found in items table, updating...');
+        updateResult = await supabase
+          .from('items')
+          .update({ collection_id: collectionId })
+          .eq('id', item.id)
+          .eq('user_id', user.id)
+          .select();
+      } else {
+        // Item might be in products table - check and update there
+        console.log('🔍 Item not in items table, checking products table...');
+        const { data: productCheck } = await supabase
+          .from('products')
+          .select('id, user_id')
+          .eq('id', item.id)
+          .eq('user_id', user.id)
+          .single();
+
+        if (productCheck) {
+          // Note: products table doesn't have collection_id, so we need to create an item entry
+          // or migrate it. For now, let's create an item entry linked to the product
+          console.log('📦 Item found in products table, creating items entry...');
+          
+          // Create a new item entry linked to this product
+          const { data: newItem, error: createError } = await supabase
+            .from('items')
+            .insert({
+              user_id: user.id,
+              title: item.title || 'Untitled',
+              url: item.url,
+              current_price: item.price ? parseFloat(item.price.toString()) : null,
+              image_url: item.image || null,
+              collection_id: collectionId,
+              status: 'active'
+            })
+            .select()
+            .single();
+
+          if (createError) {
+            console.error('❌ Error creating item entry:', createError);
+            alert('Failed to move item: ' + createError.message);
+            return;
+          }
+
+          updateResult = { data: [newItem], error: null };
+        } else {
+          console.error('⚠️ Item not found in either items or products table');
+          alert('Failed to move item: Item not found');
+          return;
+        }
+      }
+      
+      if (updateResult.error) {
+        console.error('❌ Error moving item:', updateResult.error);
+        alert('Failed to move item: ' + updateResult.error.message);
+        return;
       }
 
-      if (!data || data.length === 0) {
+      if (!updateResult.data || updateResult.data.length === 0) {
         console.error('⚠️ No rows updated. Item may not exist or you may not own it.');
         alert('Failed to move item: Item not found or you do not have permission');
         return;
       }
 
-      console.log('✅ Successfully moved item:', data[0]);
-      setIsMenuOpen(false)
+      console.log('✅ Successfully moved item:', updateResult.data[0]);
+      setIsMenuOpen(false);
       
       // Update local state immediately for better UX
       if (onUpdate) {
-        onUpdate(item.id, { ...item, collection_id: collectionId } as any)
+        onUpdate(item.id, { ...item, collection_id: collectionId } as any);
       }
       
       // Force a page refresh to ensure collections and items are in sync
-      window.location.reload()
+      window.location.reload();
     } catch (err: any) {
-      console.error('❌ Error moving item:', err)
-      alert('Failed to move item: ' + (err.message || 'Unknown error'))
+      console.error('❌ Error moving item:', err);
+      alert('Failed to move item: ' + (err.message || 'Unknown error'));
     }
   }
 
