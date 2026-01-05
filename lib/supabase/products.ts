@@ -18,6 +18,8 @@ export interface SupabaseProduct {
   // Visibility fields (optional - may not exist in DB yet)
   is_public?: boolean;
   share_token?: string | null;
+  // Collection field
+  collection_id?: string | null;
 }
 
 /**
@@ -92,6 +94,7 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
         note,
         status,
         retailer,
+        collection_id,
         created_at
       `)
       .eq('user_id', userId)
@@ -150,6 +153,7 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
         share_token: null,
         domain: item.retailer?.toLowerCase() || null,
         description: item.note || null,
+        collection_id: item.collection_id || null, // Preserve collection_id
       });
     });
   }
