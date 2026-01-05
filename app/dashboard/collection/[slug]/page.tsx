@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect, notFound } from 'next/navigation';
 import ProductCard from '@/components/dashboard/ProductCard';
 import CollectionSettings from '@/components/dashboard/CollectionSettings';
+import CollectionShareButton from '@/components/dashboard/CollectionShareButton';
 import { FolderOpen } from 'lucide-react';
 
 export default async function CollectionPage({ params }: { params: { slug: string } }) {
@@ -67,6 +68,13 @@ export default async function CollectionPage({ params }: { params: { slug: strin
             <CollectionSettings 
               collectionId={collection.id} 
               collectionName={collection.name} 
+            />
+            
+            {/* Share Button */}
+            <CollectionShareButton 
+              collectionId={collection.id} 
+              collectionSlug={collection.slug}
+              initialIsPublic={(collection as any).is_public || false}
             />
           </div>
         </div>
