@@ -135,7 +135,7 @@ export default function DashboardPage() {
       subscription.unsubscribe()
       supabase.removeChannel(itemsChannel)
     }
-  }, [router, user])
+  }, [router])
 
   const handleDelete = async (productId: string) => {
     if (!user) return
