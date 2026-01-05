@@ -123,7 +123,7 @@ export default function ShareButton() {
     <>
       <button
         onClick={handleShare}
-        className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-full text-sm font-medium hover:bg-violet-700 transition-colors"
+        className="flex items-center gap-2 px-4 py-2 bg-white text-zinc-600 rounded-full text-sm font-medium border border-zinc-200 hover:bg-violet-50 hover:text-violet-600 hover:border-violet-300 transition-colors"
       >
         <svg
           className="w-4 h-4"

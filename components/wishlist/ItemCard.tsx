@@ -418,7 +418,7 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                     href={item.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-indigo-700"
+                    className="rounded-lg bg-violet-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-violet-700"
                     onClick={(e) => e.stopPropagation()}
                   >
                     Buy
