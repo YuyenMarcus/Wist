@@ -53,11 +53,15 @@ export default function DashboardPage() {
         }
 
         // Load collections for "Move to" dropdown
-        const { data: collectionsData } = await supabase
+        const { data: collectionsData, error: collectionsError } = await supabase
           .from('collections')
           .select('id, name, slug')
           .eq('user_id', currentUser.id)
           .order('created_at', { ascending: true })
+        
+        if (collectionsError) {
+          console.error('Error fetching collections:', collectionsError);
+        }
         
         if (collectionsData) {
           // Sort by position if it exists, otherwise keep created_at order
@@ -69,7 +73,11 @@ export default function DashboardPage() {
             if (b.position !== null) return 1;
             return 0;
           });
+          console.log('📦 Collections loaded for move dropdown:', sorted.length);
           setCollections(sorted)
+        } else {
+          console.log('⚠️ No collections found');
+          setCollections([])
         }
       }
       setLoading(false)
