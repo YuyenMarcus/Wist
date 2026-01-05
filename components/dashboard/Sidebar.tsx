@@ -2,11 +2,10 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
-import { Folder, Plus, Grid, Gift } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { Folder, Plus, Grid, Gift, Settings, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
 
 interface Collection {
   id: string;
@@ -21,6 +20,7 @@ export default function Sidebar({ initialCollections }: { initialCollections: Co
   const router = useRouter();
   const [collections, setCollections] = useState<Collection[]>(initialCollections);
   const [isCreating, setIsCreating] = useState(false);
+  const [isManaging, setIsManaging] = useState(false); // New Manager Mode
   const [newCollectionName, setNewCollectionName] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -106,16 +106,28 @@ export default function Sidebar({ initialCollections }: { initialCollections: Co
         </Link>
       </div>
 
-      {/* Collections Header */}
-      <div className="flex items-center justify-between mb-2 px-4">
+      {/* Collections Header with Manage Button */}
+      <div className="flex items-center justify-between mb-2 px-4 group">
         <h3 className="text-xs font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-wider">Collections</h3>
-        <button 
-          onClick={() => setIsCreating(true)}
-          className="text-zinc-400 hover:text-violet-500 transition-colors p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded"
-          aria-label="Create new collection"
-        >
-          <Plus size={16} />
-        </button>
+        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {/* Manage/Delete Button */}
+          <button 
+            onClick={() => setIsManaging(!isManaging)}
+            className={`p-1 rounded transition-all ${isManaging ? 'bg-violet-100 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400' : 'text-zinc-400 hover:text-violet-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
+            title="Manage Lists"
+            aria-label="Manage collections"
+          >
+            <Settings size={14} />
+          </button>
+          {/* Add Button */}
+          <button 
+            onClick={() => setIsCreating(true)}
+            className="p-1 text-zinc-400 hover:text-violet-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-all"
+            aria-label="Create new collection"
+          >
+            <Plus size={16} />
+          </button>
+        </div>
       </div>
 
       {/* Inline Create Form with Buttons */}
@@ -163,18 +175,36 @@ export default function Sidebar({ initialCollections }: { initialCollections: Co
           <p className="text-xs text-zinc-400 px-3 py-2">No collections yet</p>
         )}
         {collections.map((col) => (
-          <Link 
+          <div 
             key={col.id} 
-            href={`/dashboard/collection/${col.slug}`}
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-              pathname?.includes(col.slug) 
-                ? 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400' 
-                : 'text-zinc-500 hover:text-violet-600 dark:hover:text-violet-400'
-            }`}
+            className="group/item flex items-center justify-between px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
           >
-            <Folder size={18} />
-            <span className="truncate">{col.name}</span>
-          </Link>
+            <Link 
+              href={`/dashboard/collection/${col.slug}`}
+              className={`flex-1 flex items-center gap-3 text-sm font-medium truncate transition-colors ${
+                pathname?.includes(col.slug) 
+                  ? 'text-violet-600 dark:text-violet-400' 
+                  : 'text-zinc-500 hover:text-violet-600 dark:hover:text-violet-400'
+              }`}
+            >
+              <Folder size={18} />
+              <span className="truncate">{col.name}</span>
+            </Link>
+            
+            {/* DELETE BUTTON (Visible in Manage Mode) */}
+            {isManaging && (
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDelete(col.id);
+                }}
+                className="text-zinc-400 hover:text-red-500 p-1 rounded transition-colors opacity-0 group-hover/item:opacity-100"
+                aria-label={`Delete ${col.name}`}
+              >
+                <Trash2 size={14} />
+              </button>
+            )}
+          </div>
         ))}
       </div>
     </aside>

@@ -2,6 +2,10 @@ import { createClient } from '@/lib/supabase/server';
 import Sidebar from '@/components/dashboard/Sidebar';
 import { redirect } from 'next/navigation';
 
+// 🛑 FORCE DYNAMIC: This fixes the "Disappearing List" bug
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 interface Collection {
   id: string;
   name: string;
