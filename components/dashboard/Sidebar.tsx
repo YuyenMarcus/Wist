@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname, useRouter } from 'next/navigation';
-import { Folder, Plus, Grid, Gift, Settings, Trash2 } from 'lucide-react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { Folder, Plus, Grid, Gift, Settings, Trash2, Layers, LayoutGrid } from 'lucide-react';
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
 
@@ -18,11 +18,15 @@ interface Collection {
 export default function Sidebar({ initialCollections }: { initialCollections: Collection[] }) {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [collections, setCollections] = useState<Collection[]>(initialCollections);
   const [isCreating, setIsCreating] = useState(false);
   const [isManaging, setIsManaging] = useState(false); // New Manager Mode
   const [newCollectionName, setNewCollectionName] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Determine view mode from URL parameter
+  const viewMode = searchParams?.get('view') === 'grouped' ? 'grouped' : 'timeline';
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,19 +103,36 @@ export default function Sidebar({ initialCollections }: { initialCollections: Co
         <span className="font-bold text-lg tracking-tight text-zinc-900 dark:text-white">wist.</span>
       </Link>
       
+      {/* View Switcher (Timeline / Categories) */}
+      <div className="px-4 pt-4 mb-6">
+        <div className="flex p-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-sm">
+          <Link 
+            href="/dashboard" 
+            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+              viewMode === 'timeline' 
+                ? 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 shadow-sm' 
+                : 'text-zinc-500 hover:text-violet-600 dark:hover:text-violet-400'
+            }`}
+          >
+            <LayoutGrid size={16} />
+            Timeline
+          </Link>
+          <Link 
+            href="/dashboard?view=grouped" 
+            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+              viewMode === 'grouped' 
+                ? 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 shadow-sm' 
+                : 'text-zinc-500 hover:text-violet-600 dark:hover:text-violet-400'
+            }`}
+          >
+            <Layers size={16} />
+            Categories
+          </Link>
+        </div>
+      </div>
+
       {/* Main Navigation */}
-      <div className="space-y-1 mb-8 px-4 pt-4">
-        <Link 
-          href="/dashboard" 
-          className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-            pathname === '/dashboard' 
-              ? 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400' 
-              : 'text-zinc-500 hover:text-violet-600 dark:hover:text-violet-400'
-          }`}
-        >
-          <Grid size={18} />
-          All Items
-        </Link>
+      <div className="space-y-1 mb-8 px-4">
         <Link 
           href="/dashboard/purchased" 
           className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${

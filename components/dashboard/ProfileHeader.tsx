@@ -2,9 +2,8 @@
 
 import { motion } from 'framer-motion'
 import Image from 'next/image'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { User, Layers, LayoutGrid } from 'lucide-react'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { User } from 'lucide-react'
 import AddItemForm from '@/components/dashboard/AddItemForm'
 import ShareButton from '@/components/dashboard/ShareButton'
 import { Profile } from '@/lib/supabase/profile'
@@ -22,13 +21,9 @@ interface ProfileHeaderProps {
 
 export default function ProfileHeader({ user, profile, itemCount, onRefreshPrices, refreshing }: ProfileHeaderProps) {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const displayName = profile?.full_name || 'Curator'
   const username = profile?.username || 'username'
   const avatarUrl = profile?.avatar_url || `https://avatar.vercel.sh/${user.id}`
-  
-  // Determine view mode from URL parameter
-  const viewMode = searchParams?.get('view') === 'grouped' ? 'grouped' : 'timeline'
 
   return (
     <div className="w-full max-w-2xl mx-auto pt-12 pb-8 px-4">
@@ -92,34 +87,6 @@ export default function ProfileHeader({ user, profile, itemCount, onRefreshPrice
       {/* 2. The "Compose" Area - Your AddItemForm lives here now */}
       <div className="mb-10">
         <AddItemForm />
-      </div>
-
-      {/* 3. View Switcher (Timeline / Categories) */}
-      <div className="flex justify-end mb-6">
-        <div className="flex p-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-sm">
-          <Link 
-            href="/dashboard" 
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-              viewMode === 'timeline' 
-                ? 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 shadow-sm' 
-                : 'text-zinc-500 hover:text-violet-600 dark:hover:text-violet-400'
-            }`}
-          >
-            <LayoutGrid size={16} />
-            Timeline
-          </Link>
-          <Link 
-            href="/dashboard?view=grouped" 
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-              viewMode === 'grouped' 
-                ? 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 shadow-sm' 
-                : 'text-zinc-500 hover:text-violet-600 dark:hover:text-violet-400'
-            }`}
-          >
-            <Layers size={16} />
-            Categories
-          </Link>
-        </div>
       </div>
       
       {/* Horizontal Divider before content */}
