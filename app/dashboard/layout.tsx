@@ -16,24 +16,26 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  const { data: { user }, error } = await supabase.auth.getUser();
-
-  if (error || !user) {
-    redirect('/login');
+  // Don't redirect here - let the client-side dashboard page handle auth
+  // This prevents redirect loops when cookies aren't set yet after sign-in
+  
+  // Fetch collections to pass to the sidebar (only if user exists)
+  let collections: Collection[] = [];
+  if (user) {
+    const { data } = await supabase
+      .from('collections')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: true });
+    collections = (data as Collection[]) || [];
   }
-
-  // Fetch collections to pass to the sidebar
-  const { data: collections } = await supabase
-    .from('collections')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: true });
 
   return (
     <div className="flex min-h-screen bg-zinc-50 dark:bg-black">
       {/* Sidebar - Hidden on mobile, handled by a separate component later if needed */}
-      <Sidebar initialCollections={(collections as Collection[]) || []} />
+      <Sidebar initialCollections={collections} />
       
       {/* Main Content Area */}
       <main className="flex-1 w-full">
