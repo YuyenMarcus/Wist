@@ -1,51 +1,41 @@
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
 import { cookies } from 'next/headers'
 
-export async function GET(request: NextRequest) {
-  const requestUrl = new URL(request.url)
-  const code = requestUrl.searchParams.get('code')
-  const next = requestUrl.searchParams.get('next') || '/dashboard'
-  const type = requestUrl.searchParams.get('type') // 'signup' or 'recovery'
+export async function GET(request: Request) {
+  const { searchParams, origin } = new URL(request.url)
+  const code = searchParams.get('code')
+  // if "next" is in param, use it as the redirect URL
+  const next = searchParams.get('next') ?? '/dashboard'
 
   if (code) {
     const cookieStore = await cookies()
-    
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
-          getAll() {
-            return cookieStore.getAll()
+          get(name: string) {
+            return cookieStore.get(name)?.value
           },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignore errors in route handlers
-            }
+          set(name: string, value: string, options: CookieOptions) {
+            cookieStore.set({ name, value, ...options })
+          },
+          remove(name: string, options: CookieOptions) {
+            cookieStore.delete({ name, ...options })
           },
         },
       }
     )
     
+    // Exchange the code for a session
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     
-    if (error) {
-      console.error('Auth callback error:', error)
-      // Redirect to login with error
-      return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(error.message)}`, requestUrl.origin))
+    if (!error) {
+      return NextResponse.redirect(`${origin}${next}`)
     }
   }
 
-  // Redirect to the next page (use relative path)
-  const redirectUrl = new URL(next, requestUrl.origin)
-  if (type === 'signup') {
-    redirectUrl.searchParams.set('confirmed', 'true')
-  }
-  return NextResponse.redirect(redirectUrl)
+  // Return the user to an error page with instructions
+  return NextResponse.redirect(`${origin}/login?error=auth_failed`)
 }
