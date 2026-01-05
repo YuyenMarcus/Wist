@@ -6,24 +6,11 @@ import CollectionShareButton from '@/components/dashboard/CollectionShareButton'
 import { FolderOpen } from 'lucide-react';
 
 export default async function CollectionPage({ params }: { params: { slug: string } }) {
-  const supabase = createClient();
+  const supabase = await createClient();
   
-  // 1. Check Auth (Debug Version)
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  
-  // 🛑 TEMPORARY DEBUG: Don't redirect, just show me the error
-  if (!user) {
-    return (
-      <div className="p-10 text-red-500">
-        <h1 className="font-bold text-2xl">Auth Error</h1>
-        <p>User is null.</p>
-        <pre>{JSON.stringify(authError, null, 2)}</pre>
-        <p className="mt-4 text-black dark:text-white">
-           Check your lib/supabase/server.ts file.
-        </p>
-      </div>
-    );
-  }
+  // 1. Check Auth
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
 
   // 2. Fetch Collection
   const { data: collection } = await supabase
