@@ -73,8 +73,8 @@ export default function Sidebar({ initialCollections }: { initialCollections: Co
           href="/dashboard" 
           className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
             pathname === '/dashboard' 
-              ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white' 
-              : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white'
+              ? 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400' 
+              : 'text-zinc-500 hover:text-violet-600 dark:hover:text-violet-400'
           }`}
         >
           <Grid size={18} />
@@ -84,8 +84,8 @@ export default function Sidebar({ initialCollections }: { initialCollections: Co
           href="/dashboard/purchased" 
           className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
             pathname === '/dashboard/purchased'
-              ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white'
-              : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white'
+              ? 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400'
+              : 'text-zinc-500 hover:text-violet-600 dark:hover:text-violet-400'
           }`}
         >
           <Gift size={18} />
@@ -98,7 +98,7 @@ export default function Sidebar({ initialCollections }: { initialCollections: Co
         <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Collections</h3>
         <button 
           onClick={() => setIsCreating(true)}
-          className="text-zinc-400 hover:text-blue-500 transition-colors p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded"
+          className="text-zinc-400 hover:text-violet-500 transition-colors p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded"
           aria-label="Create new collection"
         >
           <Plus size={16} />
@@ -112,7 +112,7 @@ export default function Sidebar({ initialCollections }: { initialCollections: Co
             autoFocus
             type="text" 
             placeholder="List Name..." 
-            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-zinc-900 dark:text-white"
+            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 text-zinc-900 dark:text-white"
             value={newCollectionName}
             onChange={(e) => setNewCollectionName(e.target.value)}
             onBlur={() => {
@@ -141,8 +141,8 @@ export default function Sidebar({ initialCollections }: { initialCollections: Co
             href={`/dashboard/collection/${col.slug}`}
             className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               pathname?.includes(col.slug) 
-                ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white' 
-                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white'
+                ? 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400' 
+                : 'text-zinc-500 hover:text-violet-600 dark:hover:text-violet-400'
             }`}
           >
             <Folder size={18} />

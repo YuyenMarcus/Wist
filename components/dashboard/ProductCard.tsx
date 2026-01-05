@@ -140,7 +140,7 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
                   <FolderInput size={14} />
                   <span>Uncategorized</span>
                   {!item.collection_id && (
-                    <Check size={14} className="ml-auto text-blue-500" />
+                    <Check size={14} className="ml-auto text-violet-500" />
                   )}
                 </button>
 
@@ -160,7 +160,7 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
                     >
                       <span className="truncate">{col.name}</span>
                       {item.collection_id === col.id && (
-                        <Check size={14} className="ml-auto text-blue-500" />
+                        <Check size={14} className="ml-auto text-violet-500" />
                       )}
                     </button>
                   ))
