@@ -54,7 +54,7 @@ export default async function CollectionPage({ params }: { params: { slug: strin
               <span className="text-zinc-900 dark:text-zinc-100 font-medium">{collection.name}</span>
             </div>
             <h1 className="text-3xl font-bold text-zinc-900 dark:text-white tracking-tight flex items-center gap-3">
-              <FolderOpen className="text-blue-500" size={32} />
+              <FolderOpen className="text-violet-500" size={32} />
               {collection.name}
             </h1>
             <p className="text-zinc-500 dark:text-zinc-400 mt-1">
