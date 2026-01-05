@@ -128,13 +128,13 @@ export default function CollectionSettings({ collectionId, collectionName }: Pro
                         setNewName(collectionName);
                       }
                     }}
-                    className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
+                    className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 dark:text-white"
                     disabled={loading}
                   />
                   <button 
                     type="submit" 
                     disabled={loading || !newName.trim() || newName === collectionName} 
-                    className="p-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="p-1 bg-violet-500 text-white rounded hover:bg-violet-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     <Check size={16} />
                   </button>
