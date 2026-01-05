@@ -1,8 +1,10 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { ExternalLink, Trash2, Edit2, Check, X } from 'lucide-react'
+import { ExternalLink, Trash2, Edit2, Check, X, MoreHorizontal, FolderInput } from 'lucide-react'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { SupabaseProduct } from '@/lib/supabase/products'
 
 export interface WishlistItem {
@@ -13,20 +15,29 @@ export interface WishlistItem {
   url: string
 }
 
+interface Collection {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 interface ItemCardProps {
   item: SupabaseProduct
   isOwner?: boolean
   onDelete?: (id: string) => void
   onReserve?: (id: string) => void
   onUpdate?: (id: string, updatedItem: SupabaseProduct) => void
+  userCollections?: Collection[]
 }
 
-export default function ItemCard({ item, isOwner = true, onDelete, onReserve, onUpdate }: ItemCardProps) {
+export default function ItemCard({ item, isOwner = true, onDelete, onReserve, onUpdate, userCollections = [] }: ItemCardProps) {
+  const router = useRouter()
   const [isHovered, setIsHovered] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editedTitle, setEditedTitle] = useState(item.title || '')
   const [isSaving, setIsSaving] = useState(false)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   const title = item.title || 'Untitled Item'
   const imageUrl = item.image || null
@@ -118,6 +129,31 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
     }
   }
 
+  const handleMoveToCollection = async (collectionId: string | null) => {
+    try {
+      const { supabase } = await import('@/lib/supabase/client')
+      const { error } = await supabase
+        .from('items')
+        .update({ collection_id: collectionId })
+        .eq('id', item.id)
+      
+      if (error) {
+        console.error('Error moving item:', error)
+        alert('Failed to move item: ' + error.message)
+        return
+      }
+      
+      setIsMenuOpen(false)
+      router.refresh() // Reloads page to show item moved
+    } catch (err: any) {
+      console.error('Error moving item:', err)
+      alert('Failed to move item')
+    }
+  }
+
+  // Get collection_id from item (might be in different fields)
+  const itemCollectionId = (item as any).collection_id || null
+
   return (
     <motion.div
       layout
@@ -166,17 +202,86 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
             <div className={`absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 transition-opacity duration-300 flex items-end justify-end p-4 gap-2 ${
               isHovered && !isEditing ? 'opacity-100' : 'opacity-0'
             }`}>
+              {/* Details Link Button */}
+              <Link
+                href={`/dashboard/item/${item.id}`}
+                className="p-2.5 bg-white/90 backdrop-blur-md rounded-full text-zinc-700 hover:bg-violet-500 hover:text-white transition-colors shadow-sm"
+                title="View Details & Price History"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </Link>
+
               {/* Visit Link Button */}
               <a 
                 href={item.url} 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="p-2.5 bg-white/90 backdrop-blur-md rounded-full text-zinc-700 hover:bg-violet-500 hover:text-white transition-colors shadow-sm"
-                title="Visit Website"
+                title="Buy on Website"
                 onClick={(e) => e.stopPropagation()}
               >
                 <ExternalLink size={16} strokeWidth={2} />
               </a>
+
+              {/* Move to Collection Button */}
+              {userCollections.length > 0 && (
+                <div className="relative">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setIsMenuOpen(!isMenuOpen)
+                    }}
+                    className="p-2.5 bg-white/90 backdrop-blur-md rounded-full text-zinc-700 hover:bg-violet-500 hover:text-white transition-colors shadow-sm"
+                    title="Move to Collection"
+                  >
+                    <MoreHorizontal size={16} strokeWidth={2} />
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {isMenuOpen && (
+                    <div 
+                      className="absolute right-0 bottom-full mb-2 w-48 bg-white dark:bg-zinc-900 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-800 p-1 z-30"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 px-2 py-1.5 uppercase tracking-wider">
+                        Move to...
+                      </div>
+                      
+                      {/* Option to remove from collection */}
+                      <button
+                        onClick={() => handleMoveToCollection(null)}
+                        className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 transition-colors"
+                      >
+                        <FolderInput size={14} />
+                        <span>Uncategorized</span>
+                        {!itemCollectionId && (
+                          <Check size={14} className="ml-auto text-blue-500" />
+                        )}
+                      </button>
+
+                      <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-1" />
+
+                      {/* List user collections */}
+                      {userCollections.map(col => (
+                        <button
+                          key={col.id}
+                          onClick={() => handleMoveToCollection(col.id)}
+                          className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 transition-colors"
+                        >
+                          <span className="truncate">{col.name}</span>
+                          {itemCollectionId === col.id && (
+                            <Check size={14} className="ml-auto text-blue-500" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Edit Button */}
               <button 
@@ -288,6 +393,38 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                   </span>
                 </div>
               )}
+
+              {/* Footer with History and Buy buttons */}
+              <div className="mt-4 flex items-end justify-between pt-4 border-t border-zinc-100">
+                <div className="flex flex-col">
+                  <span className="text-xs text-gray-500">Current Price</span>
+                  <span className="text-lg font-bold text-gray-900">
+                    {price || 'N/A'}
+                  </span>
+                </div>
+                
+                <div className="flex gap-2">
+                  {/* Internal Link to Detail Page */}
+                  <Link
+                    href={`/dashboard/item/${item.id}`}
+                    className="rounded-lg bg-gray-100 px-3 py-2 text-xs font-bold text-gray-900 transition hover:bg-gray-200"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    History
+                  </Link>
+
+                  {/* External Link to Store */}
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-indigo-700"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Buy
+                  </a>
+                </div>
+              </div>
             </>
           )}
         </div>

@@ -5,15 +5,22 @@ import { PackageOpen } from 'lucide-react'
 import ItemCard from './ItemCard'
 import { SupabaseProduct } from '@/lib/supabase/products'
 
+interface Collection {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 interface WishlistGridProps {
   items: SupabaseProduct[]
   isOwner?: boolean
   onDelete?: (id: string) => void
   onReserve?: (id: string) => void
   onUpdate?: (id: string, updatedItem: SupabaseProduct) => void
+  userCollections?: Collection[]
 }
 
-export default function WishlistGrid({ items, isOwner = true, onDelete, onReserve, onUpdate }: WishlistGridProps) {
+export default function WishlistGrid({ items, isOwner = true, onDelete, onReserve, onUpdate, userCollections = [] }: WishlistGridProps) {
   
   // Empty State
   if (!items || items.length === 0) {
@@ -51,6 +58,7 @@ export default function WishlistGrid({ items, isOwner = true, onDelete, onReserv
             onDelete={onDelete}
             onReserve={onReserve}
             onUpdate={onUpdate}
+            userCollections={userCollections}
           />
         ))}
       </AnimatePresence>

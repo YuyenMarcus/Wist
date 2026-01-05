@@ -44,8 +44,7 @@ CREATE POLICY "Users can delete own collections" ON collections
 FOR DELETE
 USING (auth.uid() = user_id);
 
--- Optional: Add collection_id to items table to link items to collections
--- Uncomment if you want to link items to collections:
--- ALTER TABLE items ADD COLUMN IF NOT EXISTS collection_id uuid REFERENCES collections(id) ON DELETE SET NULL;
--- CREATE INDEX items_collection_id_idx ON items(collection_id);
+-- Add collection_id to items table to link items to collections
+ALTER TABLE items ADD COLUMN IF NOT EXISTS collection_id uuid REFERENCES collections(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS items_collection_id_idx ON items(collection_id);
 

@@ -14,6 +14,7 @@ export default function DashboardPage() {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [products, setProducts] = useState<SupabaseProduct[]>([])
+  const [collections, setCollections] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -34,6 +35,17 @@ export default function DashboardPage() {
         const { data, error } = await getUserProducts(currentUser.id, currentUser.id)
         if (!error && data) {
           setProducts(data)
+        }
+
+        // Load collections for "Move to" dropdown
+        const { data: collectionsData } = await supabase
+          .from('collections')
+          .select('id, name, slug')
+          .eq('user_id', currentUser.id)
+          .order('created_at', { ascending: true })
+        
+        if (collectionsData) {
+          setCollections(collectionsData)
         }
       }
       setLoading(false)
@@ -207,6 +219,7 @@ export default function DashboardPage() {
                 isOwner={true}
                 onDelete={handleDelete}
                 onUpdate={handleUpdate}
+                userCollections={collections}
               />
       </main>
     </div>
