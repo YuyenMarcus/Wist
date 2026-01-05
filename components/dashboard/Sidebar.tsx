@@ -108,15 +108,6 @@ function SortableCollectionItem({
   );
 }
 
-interface Collection {
-  id: string;
-  name: string;
-  slug: string;
-  user_id: string;
-  created_at?: string;
-  position?: number | null;
-}
-
 export default function Sidebar({ initialCollections = [] }: { initialCollections?: Collection[] }) {
   const pathname = usePathname();
   const router = useRouter();
