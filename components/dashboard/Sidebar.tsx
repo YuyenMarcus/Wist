@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { Folder, Plus, Grid, Gift } from 'lucide-react';
 import { useState } from 'react';
@@ -53,6 +54,18 @@ export default function Sidebar({ initialCollections }: { initialCollections: Co
 
   return (
     <aside className="w-64 border-r border-zinc-200 dark:border-zinc-800 h-[calc(100vh-4rem)] sticky top-16 hidden md:flex flex-col p-4 bg-white dark:bg-black">
+      
+      {/* Logo */}
+      <Link href="/dashboard" className="flex items-center gap-2 mb-8 px-3 py-2 hover:opacity-80 transition-opacity">
+        <Image 
+          src="/logo.svg" 
+          alt="Wist Logo" 
+          width={32} 
+          height={32}
+          className="w-8 h-8"
+        />
+        <span className="font-bold text-lg tracking-tight text-zinc-900 dark:text-white">wist.</span>
+      </Link>
       
       {/* Main Navigation */}
       <div className="space-y-1 mb-8">
