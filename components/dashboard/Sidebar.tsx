@@ -137,16 +137,29 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
       const { data: { user } } = await supabase.auth.getUser();
       
       if (user) {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('collections')
           .select('*')
           .eq('user_id', user.id)
-          .order('position', { ascending: true, nullsFirst: false })
           .order('created_at', { ascending: true });
         
+        if (error) {
+          console.error('Error fetching collections:', error);
+        }
+        
         if (data) {
+          // Sort by position if it exists, otherwise by created_at
+          const sorted = data.sort((a, b) => {
+            if (a.position !== null && b.position !== null) {
+              return a.position - b.position;
+            }
+            if (a.position !== null) return -1;
+            if (b.position !== null) return 1;
+            return 0; // Keep original order if both are null
+          });
+          
           // Ensure all collections have a position
-          const collectionsWithPosition = data.map((col, index) => ({
+          const collectionsWithPosition = sorted.map((col, index) => ({
             ...col,
             position: col.position ?? index + 1,
           }));

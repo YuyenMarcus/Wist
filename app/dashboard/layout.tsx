@@ -32,9 +32,22 @@ export default async function DashboardLayout({
         .from('collections')
         .select('*')
         .eq('user_id', user.id)
-        .order('position', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: true });
-    collections = (data as Collection[]) || [];
+      
+      // Sort by position if it exists, otherwise keep created_at order
+      if (data) {
+        const sorted = data.sort((a: any, b: any) => {
+          if (a.position !== null && b.position !== null) {
+            return a.position - b.position;
+          }
+          if (a.position !== null) return -1;
+          if (b.position !== null) return 1;
+          return 0;
+        });
+        collections = (sorted as Collection[]) || [];
+      } else {
+        collections = [];
+      }
   }
 
   return (
