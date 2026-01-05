@@ -178,7 +178,7 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
-      className="group relative bg-white dark:bg-zinc-900 rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800 hover:shadow-lg transition-shadow duration-300"
+      className="group relative bg-white dark:bg-zinc-900 rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800 hover:border-violet-500 hover:shadow-lg transition-all duration-300"
     >
       {/* Image Container */}
       <div className="relative aspect-[4/5] overflow-hidden bg-zinc-100 dark:bg-zinc-800">
