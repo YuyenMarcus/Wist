@@ -1,59 +1,70 @@
-// background.js - Production Force
+// background.js - Production Force with Auto Token Refresh
 // 🚨 IF YOU SEE 'PORT 3000' ERRORS, YOU ARE RUNNING OLD CODE 🚨
 
 const API_BASE_URL = "https://wishlist.nuvio.cloud";
 
 // PROOF: If you see this log, the NEW code is running
 console.log("🔒🔒🔒 WIST v2.0 - PRODUCTION MODE - NO PORTS 🔒🔒🔒");
+console.log("🟢 [Background] Service Worker started");
 
-// ---------------------------------------------------------------------------
-// 📡 EXTERNAL LISTENER (Listens to the Website)
-// ---------------------------------------------------------------------------
+// ============================================================================
+// TOKEN MANAGEMENT
+// ============================================================================
+
+// Listen for messages from the website
 chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
-  console.log("📨 [Background] Message received from:", sender.url);
+  console.log("📨 [Background] External message from:", sender.url);
   console.log("📦 [Background] Message type:", message.type);
   
   if (message.type === 'AUTH_TOKEN') {
-    console.log("🔑 [Background] Auth token received");
+    console.log("🔑 [Background] Fresh token received from website");
     
     const token = message.token;
     const session = message.session;
     
-    if (!token) {
-      console.warn("⚠️ WIST: Sync request received but token was empty.");
-      sendResponse({ success: false, error: "No token provided" });
-      return true;
+    // Decode and log token info
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const expiresAt = new Date(payload.exp * 1000);
+      const now = new Date();
+      const minutesUntilExpiry = Math.floor((expiresAt.getTime() - now.getTime()) / 60000);
+      
+      console.log("⏰ [Background] Token expires in:", minutesUntilExpiry, "minutes");
+      console.log("👤 [Background] User:", payload.email);
+    } catch (e) {
+      console.warn("⚠️ [Background] Could not decode token");
     }
     
-    // Store in chrome.storage.local (using new keys: supabase_token and supabase_session)
+    // Store the token (use multiple keys for backward compatibility)
     chrome.storage.local.set({
+      wist_auth_token: token,
+      wist_session: session,
+      wist_last_sync: Date.now(),
+      // Also store in legacy keys
       supabase_token: token,
-      supabase_session: session,
-      last_sync: Date.now(),
-      // Also keep old key for backward compatibility
-      wist_auth_token: token
+      supabase_session: session
     }, () => {
       if (chrome.runtime.lastError) {
         console.error("❌ [Background] Storage error:", chrome.runtime.lastError);
         sendResponse({ success: false, error: chrome.runtime.lastError.message });
       } else {
         console.log("✅ [Background] Token stored successfully");
-        sendResponse({ success: true, message: 'Token stored' });
+        sendResponse({ success: true, message: 'Token updated' });
       }
     });
     
-    return true; // Keep channel open for async response
+    return true;
   }
   
   // Handle legacy format for backward compatibility
-  if (request.action === "SYNC_TOKEN" || request.type === "WIST_AUTH_TOKEN") {
-    const token = request.token;
+  if (message.action === "SYNC_TOKEN" || message.type === "WIST_AUTH_TOKEN") {
+    const token = message.token;
     
     if (token) {
       chrome.storage.local.set({ 
         'wist_auth_token': token,
         'supabase_token': token,
-        last_sync: Date.now()
+        wist_last_sync: Date.now()
       }, () => {
         console.log("✅ WIST: Auth Token Synced from Website!");
         sendResponse({ success: true, message: "Token received" });
@@ -67,7 +78,89 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
   }
 });
 
-// Message listener
+// ============================================================================
+// TOKEN RETRIEVAL HELPER
+// ============================================================================
+
+async function getValidToken() {
+  const stored = await chrome.storage.local.get([
+    'wist_auth_token',
+    'wist_session',
+    'wist_last_sync',
+    // Legacy keys
+    'supabase_token',
+    'supabase_session'
+  ]);
+  
+  // Try new keys first
+  let token = stored.wist_auth_token;
+  let tokenSource = 'wist_auth_token';
+  
+  // Fall back to legacy keys
+  if (!token && stored.supabase_token) {
+    token = stored.supabase_token;
+    tokenSource = 'supabase_token (legacy)';
+  }
+  
+  // Try extracting from session
+  if (!token && stored.wist_session) {
+    const session = typeof stored.wist_session === 'string' 
+      ? JSON.parse(stored.wist_session) 
+      : stored.wist_session;
+    token = session.access_token || session.token;
+    tokenSource = 'wist_session';
+  }
+  
+  if (!token && stored.supabase_session) {
+    const session = typeof stored.supabase_session === 'string' 
+      ? JSON.parse(stored.supabase_session) 
+      : stored.supabase_session;
+    token = session.access_token || session.token;
+    tokenSource = 'supabase_session (legacy)';
+  }
+  
+  if (!token) {
+    console.error("❌ [Background] No token found in storage");
+    throw new Error("Not logged in. Please visit wishlist.nuvio.cloud and log in.");
+  }
+  
+  console.log("✅ [Background] Found token in", tokenSource);
+  
+  // Check if token is expired
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const expiresAt = payload.exp * 1000;
+    const now = Date.now();
+    
+    if (expiresAt < now) {
+      console.error("❌ [Background] Token is expired!");
+      const minutesAgo = Math.floor((now - expiresAt) / 60000);
+      console.error(`   Expired ${minutesAgo} minutes ago`);
+      throw new Error("Token expired. Please visit wishlist.nuvio.cloud to refresh.");
+    }
+    
+    const minutesUntilExpiry = Math.floor((expiresAt - now) / 60000);
+    console.log("✅ [Background] Token is valid, expires in:", minutesUntilExpiry, "minutes");
+    
+    // Warn if token is about to expire
+    if (minutesUntilExpiry < 5) {
+      console.warn("⚠️ [Background] Token expires soon! Please refresh the website.");
+    }
+    
+  } catch (e) {
+    if (e.message?.includes('expired')) {
+      throw e; // Re-throw expiration errors
+    }
+    console.warn("⚠️ [Background] Could not validate token expiry:", e.message);
+  }
+  
+  return token;
+}
+
+// ============================================================================
+// MESSAGE HANDLERS
+// ============================================================================
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "PREVIEW_LINK") {
     console.log("🔒 WIST: Preview requested for", request.url);
@@ -84,18 +177,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   if (request.action === "GET_USER_TOKEN" || request.type === "GET_TOKEN") {
     // Content script or popup is asking for the token
-    chrome.storage.local.get(['supabase_token', 'supabase_session', 'wist_auth_token'], (result) => {
-      if (chrome.runtime.lastError) {
-        sendResponse({ success: false, error: chrome.runtime.lastError.message });
-      } else {
-        console.log("📤 [Background] Sending token to requester");
-        sendResponse({ 
-          success: true, 
-          token: result.supabase_token || result.wist_auth_token,
-          session: result.supabase_session 
-        });
-      }
-    });
+    getValidToken()
+      .then(token => sendResponse({ success: true, token }))
+      .catch(error => sendResponse({ success: false, error: error.message }));
     return true;
   }
 
@@ -113,7 +197,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
-// Preview link handler - PRODUCTION ONLY
+// ============================================================================
+// PREVIEW LINK HANDLER
+// ============================================================================
+
 async function handlePreviewLink(productUrl, sendResponse) {
   try {
     const response = await fetch(`${API_BASE_URL}/api/preview-link`, {
@@ -135,55 +222,22 @@ async function handlePreviewLink(productUrl, sendResponse) {
   }
 }
 
-// Save item handler - PRODUCTION ONLY
+// ============================================================================
+// SAVE ITEM FUNCTION
+// ============================================================================
+
 async function handleSaveItem(payload, sendResponse) {
   try {
     console.log("💾 [Background] Saving item...");
     console.log("🔵 [Extension] Save Request Received", payload);
     
-    // 1. GET TOKEN FROM CHROME STORAGE (Not localStorage)
-    // Try new keys first, then fall back to old key for backward compatibility
-    const stored = await chrome.storage.local.get(['supabase_token', 'supabase_session', 'wist_auth_token']);
+    // Get valid token (with expiration check)
+    const token = await getValidToken();
     
-    let token = null;
-    
-    // Check if token is stored directly in new key
-    if (stored.supabase_token) {
-      token = stored.supabase_token;
-      console.log("✅ [Extension] Found token in supabase_token");
-    }
-    // Check if token is in session object
-    else if (stored.supabase_session) {
-      const session = typeof stored.supabase_session === 'string' 
-        ? JSON.parse(stored.supabase_session) 
-        : stored.supabase_session;
-      
-      token = session.access_token || session.token;
-      console.log("✅ [Extension] Found token in supabase_session");
-    }
-    // Fall back to old key
-    else if (stored.wist_auth_token) {
-      token = stored.wist_auth_token;
-      console.log("✅ [Extension] Found token in wist_auth_token (legacy)");
-    }
-
-    if (!token) {
-      console.error("❌ [Extension] No auth token found in chrome.storage.local");
-      console.error("Available data:", Object.keys(stored));
-      throw new Error("Not logged in. Please log in on the Wist website first.");
-    }
-
-    // 2. CLEAN THE TOKEN
-    // Remove any accidental quotes sent by JSON.stringify
-    if (typeof token === 'string') {
-      token = token.replace(/^"|"$/g, '').trim();
-    }
-
     console.log("✅ [Extension] Token extracted, length:", token.length);
     console.log("🔑 [Extension] Token preview:", token.substring(0, 20) + "...");
 
-    // 3. PREPARE DATA
-    // Ensure we send the data the server expects so it skips the scraper
+    // Prepare payload
     const apiPayload = {
       url: payload.url,
       title: payload.title || "Untitled",
@@ -196,7 +250,7 @@ async function handleSaveItem(payload, sendResponse) {
     console.log("📦 [Extension] Payload:", JSON.stringify(apiPayload, null, 2));
     console.log("🌐 [Extension] Sending to:", `${API_BASE_URL}/api/items`);
 
-    // 4. SEND TO API
+    // Make API request
     const response = await fetch(`${API_BASE_URL}/api/items`, {
       method: "POST",
       headers: {
@@ -208,12 +262,18 @@ async function handleSaveItem(payload, sendResponse) {
 
     console.log("📡 [Extension] Response status:", response.status);
 
-    // 5. HANDLE RESPONSE
+    // Handle response
     const result = await response.json();
     
     if (!response.ok) {
       console.error("❌ [Extension] API Error:", result);
-      throw new Error(result.error || `Server Error ${response.status}`);
+      
+      // If token expired, give helpful message
+      if (response.status === 401 && result.error?.includes('expired')) {
+        throw new Error("Token expired. Please open wishlist.nuvio.cloud in a new tab to refresh.");
+      }
+      
+      throw new Error(result.error || `Server error: ${response.status}`);
     }
 
     console.log("✅ [Background] Item saved successfully");
@@ -221,9 +281,41 @@ async function handleSaveItem(payload, sendResponse) {
     sendResponse({ success: true, data: result });
 
   } catch (error) {
-    console.error("❌ [Background] Save failed:", error);
+    console.error("❌ [Background] Save failed:", error.message);
     console.error("❌ [Extension] Failed:", error.message);
     console.error("❌ [Extension] Full error:", error);
     sendResponse({ success: false, error: error.message });
   }
 }
+
+// ============================================================================
+// TOKEN STATUS MONITOR (Helpful for debugging)
+// ============================================================================
+
+setInterval(async () => {
+  try {
+    const stored = await chrome.storage.local.get(['wist_auth_token', 'wist_last_sync']);
+    
+    if (stored.wist_auth_token) {
+      const payload = JSON.parse(atob(stored.wist_auth_token.split('.')[1]));
+      const expiresAt = payload.exp * 1000;
+      const now = Date.now();
+      const lastSync = stored.wist_last_sync || 0;
+      
+      const minutesUntilExpiry = Math.floor((expiresAt - now) / 60000);
+      const minutesSinceSync = Math.floor((now - lastSync) / 60000);
+      
+      if (minutesUntilExpiry < 0) {
+        console.warn(`⚠️ [Background] Token EXPIRED ${-minutesUntilExpiry}m ago. Visit website to refresh.`);
+      } else if (minutesUntilExpiry < 5) {
+        console.warn(`⚠️ [Background] Token expires in ${minutesUntilExpiry}m. Consider refreshing.`);
+      } else {
+        console.log(`✅ [Background] Token OK (expires in ${minutesUntilExpiry}m, synced ${minutesSinceSync}m ago)`);
+      }
+    } else {
+      console.warn("⚠️ [Background] No token stored. Please log in at wishlist.nuvio.cloud");
+    }
+  } catch (e) {
+    // Silent fail - this is just for monitoring
+  }
+}, 5 * 60 * 1000); // Check every 5 minutes
