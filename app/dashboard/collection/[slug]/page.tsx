@@ -20,7 +20,7 @@ export default async function CollectionPage({ params }: { params: { slug: strin
     .from('collections')
     .select('*')
     .eq('slug', params.slug)
-    .eq('user_id', user.id)
+    .eq('user_id', user?.id || '00000000-0000-0000-0000-000000000000')
     .single();
 
   // If collection doesn't exist, show 404 (Don't log out)
@@ -37,7 +37,7 @@ export default async function CollectionPage({ params }: { params: { slug: strin
   const { data: allCollections } = await supabase
     .from('collections')
     .select('*')
-    .eq('user_id', user.id);
+    .eq('user_id', user?.id || '00000000-0000-0000-0000-000000000000');
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black pb-20">

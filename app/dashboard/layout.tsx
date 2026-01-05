@@ -39,7 +39,7 @@ export default async function DashboardLayout({
   return (
     <div className="flex min-h-screen bg-zinc-50 dark:bg-black">
       {/* Sidebar - Hidden on mobile, handled by a separate component later if needed */}
-      <Sidebar initialCollections={collections} />
+      <Sidebar initialCollections={collections || []} />
       
       {/* Main Content Area */}
       <main className="flex-1 w-full">
