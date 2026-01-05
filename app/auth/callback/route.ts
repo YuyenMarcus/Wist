@@ -1,6 +1,7 @@
-import { createClient } from '@supabase/supabase-js'
+import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { cookies } from 'next/headers'
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
@@ -9,24 +10,42 @@ export async function GET(request: NextRequest) {
   const type = requestUrl.searchParams.get('type') // 'signup' or 'recovery'
 
   if (code) {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    const supabase = createClient(supabaseUrl, supabaseAnonKey)
+    const cookieStore = await cookies()
+    
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll()
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, options)
+              )
+            } catch {
+              // Ignore errors in route handlers
+            }
+          },
+        },
+      }
+    )
     
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     
     if (error) {
       console.error('Auth callback error:', error)
       // Redirect to login with error
-      return NextResponse.redirect(`https://wishlist.nuvio.cloud/login?error=${encodeURIComponent(error.message)}`)
+      return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(error.message)}`, requestUrl.origin))
     }
   }
 
-  // Redirect to the correct domain with confirmation status
-  const redirectUrl = new URL(next, 'https://wishlist.nuvio.cloud')
+  // Redirect to the next page (use relative path)
+  const redirectUrl = new URL(next, requestUrl.origin)
   if (type === 'signup') {
     redirectUrl.searchParams.set('confirmed', 'true')
   }
   return NextResponse.redirect(redirectUrl)
 }
-
