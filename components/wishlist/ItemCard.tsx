@@ -132,22 +132,42 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
   const handleMoveToCollection = async (collectionId: string | null) => {
     try {
       const { supabase } = await import('@/lib/supabase/client')
-      const { error } = await supabase
+      
+      // Get current user to verify ownership
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert('You must be logged in to move items');
+        return;
+      }
+
+      console.log('🔄 Moving item:', item.id, 'to collection:', collectionId);
+
+      // Update with explicit user_id check for RLS
+      const { data, error } = await supabase
         .from('items')
         .update({ collection_id: collectionId })
         .eq('id', item.id)
+        .eq('user_id', user.id)
+        .select()
       
       if (error) {
-        console.error('Error moving item:', error)
+        console.error('❌ Error moving item:', error)
         alert('Failed to move item: ' + error.message)
         return
       }
-      
+
+      if (!data || data.length === 0) {
+        console.error('⚠️ No rows updated. Item may not exist or you may not own it.');
+        alert('Failed to move item: Item not found or you do not have permission');
+        return;
+      }
+
+      console.log('✅ Successfully moved item:', data[0]);
       setIsMenuOpen(false)
       router.refresh() // Reloads page to show item moved
     } catch (err: any) {
-      console.error('Error moving item:', err)
-      alert('Failed to move item')
+      console.error('❌ Error moving item:', err)
+      alert('Failed to move item: ' + (err.message || 'Unknown error'))
     }
   }
 
