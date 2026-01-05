@@ -127,7 +127,7 @@ export default function Sidebar({ initialCollections }: { initialCollections: Co
             key={col.id} 
             href={`/dashboard/collection/${col.slug}`}
             className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-              pathname.includes(col.slug) 
+              pathname?.includes(col.slug) 
                 ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white' 
                 : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white'
             }`}
