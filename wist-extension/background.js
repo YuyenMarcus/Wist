@@ -92,59 +92,66 @@ async function handlePreviewLink(productUrl, sendResponse) {
 // Save item handler - PRODUCTION ONLY
 async function handleSaveItem(payload, sendResponse) {
   try {
-    console.log("🔵 [Extension] Starting save process...");
+    console.log("🔵 [Extension] Save Request Received", payload);
     
-    // A. Get the Token from Chrome Storage
+    // 1. GET TOKEN FROM CHROME STORAGE (Not localStorage)
+    // We use chrome.storage.local because that is where ExtensionSync.tsx saved it.
     const storage = await chrome.storage.local.get("wist_auth_token");
-    const token = storage.wist_auth_token;
+    let token = storage.wist_auth_token;
 
     if (!token) {
-      console.error("❌ [Extension] No auth token found in storage");
-      throw new Error("Not logged in. Please visit Wist dashboard to sync.");
+      console.error("❌ [Extension] No token found in chrome.storage.local");
+      throw new Error("Not logged in. Please open your Wist dashboard to sync.");
     }
 
-    console.log("✅ [Extension] Token found, length:", token.length);
+    // 2. CLEAN THE TOKEN
+    // Remove any accidental quotes sent by JSON.stringify
+    if (typeof token === 'string') {
+      token = token.replace(/^"|"$/g, '').trim();
+    }
+
+    console.log("🔑 [Extension] Token found (length):", token.length);
     console.log("🔑 [Extension] Token preview:", token.substring(0, 20) + "...");
 
-    // B. Prepare payload
+    // 3. PREPARE DATA
+    // Ensure we send the data the server expects so it skips the scraper
     const apiPayload = {
       url: payload.url,
-      title: payload.title,
-      price: payload.price,
-      image_url: payload.image_url,
-      retailer: payload.retailer || 'Amazon',
-      note: payload.note || ''
+      title: payload.title || "Untitled",
+      price: parseFloat(payload.price) || 0,
+      image_url: payload.image_url || "",
+      retailer: payload.retailer || "Unknown",
+      note: payload.note || ""
     };
 
     console.log("📦 [Extension] Payload:", JSON.stringify(apiPayload, null, 2));
     console.log("🌐 [Extension] Sending to:", `${API_BASE_URL}/api/items`);
 
-    // C. Make the API Call with Bearer Token
+    // 4. SEND TO API
     const response = await fetch(`${API_BASE_URL}/api/items`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}` // Critical for RLS
+        "Authorization": `Bearer ${token}` // <--- Critical Header
       },
       body: JSON.stringify(apiPayload)
     });
 
     console.log("📡 [Extension] Response status:", response.status);
 
+    // 5. HANDLE RESPONSE
+    const result = await response.json();
+    
     if (!response.ok) {
-      const errData = await response.json().catch(() => ({ error: `Server Error ${response.status}` }));
-      console.error("❌ [Extension] Server error:", errData);
-      throw new Error(errData.error || `Server Error ${response.status}`);
+      console.error("❌ [Extension] API Error:", result);
+      throw new Error(result.error || `Server Error ${response.status}`);
     }
 
-    const data = await response.json();
-    console.log("✅ [Extension] Item saved successfully!", data);
-    
-    // D. Respond Success
-    sendResponse({ success: true, data });
+    console.log("✅ [Extension] Save Success:", result);
+    sendResponse({ success: true, data: result });
 
   } catch (error) {
-    console.error("❌ [Extension] Save Failed:", error.message);
+    console.error("❌ [Extension] Failed:", error.message);
     console.error("❌ [Extension] Full error:", error);
     sendResponse({ success: false, error: error.message });
   }
