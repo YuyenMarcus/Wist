@@ -52,10 +52,10 @@ export default function DashboardPage() {
           setProducts(data)
         }
 
-        // Load collections for "Move to" dropdown
+        // Load collections for "Move to" dropdown and Categories view
         const { data: collectionsData, error: collectionsError } = await supabase
           .from('collections')
-          .select('id, name, slug')
+          .select('id, name, slug, position, created_at')
           .eq('user_id', currentUser.id)
           .order('created_at', { ascending: true })
         
@@ -66,14 +66,20 @@ export default function DashboardPage() {
         if (collectionsData) {
           // Sort by position if it exists, otherwise keep created_at order
           const sorted = collectionsData.sort((a: any, b: any) => {
-            if (a.position !== null && b.position !== null) {
+            // Both have position - sort by position
+            if (a.position !== null && a.position !== undefined && b.position !== null && b.position !== undefined) {
               return a.position - b.position;
             }
-            if (a.position !== null) return -1;
-            if (b.position !== null) return 1;
-            return 0;
+            // Only a has position - a comes first
+            if (a.position !== null && a.position !== undefined) return -1;
+            // Only b has position - b comes first
+            if (b.position !== null && b.position !== undefined) return 1;
+            // Neither has position - sort by created_at
+            const dateA = new Date(a.created_at).getTime();
+            const dateB = new Date(b.created_at).getTime();
+            return dateA - dateB;
           });
-          console.log('📦 Collections loaded for move dropdown:', sorted.length);
+          console.log('📦 Collections loaded (sorted by position):', sorted.map((c: any) => ({ name: c.name, position: c.position })));
           setCollections(sorted)
         } else {
           console.log('⚠️ No collections found');
