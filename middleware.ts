@@ -1,16 +1,14 @@
-// middleware.ts
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  // 1. Create response
+  // 1. Setup the response
   let response = NextResponse.next({
     request: {
       headers: request.headers,
     },
   })
 
-  // 2. Create client to manage cookies
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -41,8 +39,19 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // 3. Refresh session
-  await supabase.auth.getUser()
+  // 2. Refresh Session
+  const { data: { user } } = await supabase.auth.getUser()
+
+  // 3. Protected Route Logic
+  // If user is NOT logged in and tries to access /dashboard, kick them out.
+  if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  // If user IS logged in and tries to access /login, send them to dashboard.
+  if (user && request.nextUrl.pathname.startsWith('/login')) {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
 
   return response
 }
@@ -50,7 +59,11 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all paths except static files
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public folder
      */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
