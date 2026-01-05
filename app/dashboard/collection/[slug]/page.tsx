@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect, notFound } from 'next/navigation';
 import ProductCard from '@/components/dashboard/ProductCard';
+import CollectionSettings from '@/components/dashboard/CollectionSettings';
 import { FolderOpen } from 'lucide-react';
 
 export default async function CollectionPage({ params }: { params: { slug: string } }) {
@@ -43,18 +44,32 @@ export default async function CollectionPage({ params }: { params: { slug: strin
       
       {/* Header */}
       <div className="pt-8 pb-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <div className="flex items-center gap-3 mb-2 text-zinc-500 dark:text-zinc-400 text-sm">
-          <span>Collections</span>
-          <span>/</span>
-          <span className="text-zinc-900 dark:text-zinc-100 font-medium">{collection.name}</span>
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+          {/* Title Section */}
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-2 text-zinc-500 dark:text-zinc-400 text-sm">
+              <span>Collections</span>
+              <span>/</span>
+              <span className="text-zinc-900 dark:text-zinc-100 font-medium">{collection.name}</span>
+            </div>
+            <h1 className="text-3xl font-bold text-zinc-900 dark:text-white tracking-tight flex items-center gap-3">
+              <FolderOpen className="text-blue-500" size={32} />
+              {collection.name}
+            </h1>
+            <p className="text-zinc-500 dark:text-zinc-400 mt-1">
+              {items?.length || 0} {items?.length === 1 ? 'item' : 'items'}
+            </p>
+          </div>
+
+          {/* Actions Row */}
+          <div className="flex items-center gap-2">
+            {/* Settings Button */}
+            <CollectionSettings 
+              collectionId={collection.id} 
+              collectionName={collection.name} 
+            />
+          </div>
         </div>
-        <h1 className="text-3xl font-bold text-zinc-900 dark:text-white tracking-tight flex items-center gap-3">
-          <FolderOpen className="text-blue-500" size={32} />
-          {collection.name}
-        </h1>
-        <p className="text-zinc-500 dark:text-zinc-400 mt-1">
-          {items?.length || 0} {items?.length === 1 ? 'item' : 'items'}
-        </p>
       </div>
 
       {/* Grid */}
