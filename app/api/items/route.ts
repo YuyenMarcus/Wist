@@ -33,66 +33,141 @@ export async function POST(request: Request) {
     console.log("📥 [API] Incoming Item Request:", { url, hasTitle: !!title, hasPrice: !!price });
 
     // -----------------------------------------------------------------------
-    // 1. AUTHENTICATION (Proper Token Verification)
+    // 1. AUTHENTICATION FIX - CORRECTED VERSION
     // -----------------------------------------------------------------------
-    const authHeader = request.headers.get('Authorization');
-    let supabase;
-    let user;
+    let user = null;
+    let supabaseClient = null;
 
-    if (authHeader) {
-      // Extension/API Key auth - Bearer Token
-      const token = authHeader.replace('Bearer ', '').trim();
-      
-      if (!token || token === 'undefined' || token === 'null') {
-        console.error("❌ [API] Invalid token in Authorization header");
-        return NextResponse.json(
-          { error: 'Invalid token. Please log in to Wist.' },
-          { status: 401, headers: corsHeaders(origin) }
-        );
-      }
+    // Try cookie auth first (for web dashboard)
+    const cookieHeader = request.headers.get('cookie') || '';
+    const cookieMap = new Map<string, string>();
+    if (cookieHeader) {
+      cookieHeader.split(';').forEach(cookie => {
+        const [name, ...valueParts] = cookie.trim().split('=');
+        if (name && valueParts.length > 0) {
+          cookieMap.set(name.trim(), valueParts.join('='));
+        }
+      });
+    }
 
-      console.log("🔑 [API] Bearer token received, length:", token.length);
-      console.log("🔑 [API] Token preview:", token.substring(0, 20) + "...");
-
-      // Create Supabase client with the token
-      supabase = createClient(
+    if (cookieMap.size > 0) {
+      const response = NextResponse.next();
+      supabaseClient = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
-          global: {
-            headers: {
-              Authorization: `Bearer ${token}`,
+          cookies: {
+            getAll() {
+              return Array.from(cookieMap.entries()).map(([name, value]) => ({ name, value }));
+            },
+            setAll(cookiesToSet) {
+              cookiesToSet.forEach(({ name, value, options }) => {
+                cookieMap.set(name, value);
+                response.cookies.set(name, value, options);
+              });
             },
           },
         }
       );
+
+      const cookieAuth = await supabaseClient.auth.getUser();
+      if (cookieAuth.data?.user) {
+        user = cookieAuth.data.user;
+        console.log("✅ [API] Authenticated via Cookie:", user.email);
+      }
+    }
+
+    // If no cookie, check Bearer token (for extension)
+    if (!user) {
+      const authHeader = request.headers.get('Authorization');
+      console.log("🔍 [API] Authorization Header:", authHeader ? `Present (${authHeader.substring(0, 30)}...)` : "Missing");
       
-      // Verify the token and get user
-      console.log("🔍 [API] Verifying token...");
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-      
-      if (authError) {
-        console.error("❌ [API] Token verification failed:", authError.message);
-        return NextResponse.json(
-          { 
-            error: 'Token verification failed. Please log in again.',
-            details: authError.message 
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.replace('Bearer ', '').trim();
+        
+        if (!token || token === 'undefined' || token === 'null') {
+          console.error("❌ [API] Invalid token in Authorization header");
+          return NextResponse.json(
+            { error: 'Invalid token. Please log in to Wist.' },
+            { status: 401, headers: corsHeaders(origin) }
+          );
+        }
+
+        console.log("🔑 [API] Token length:", token.length);
+        console.log("🔑 [API] Token preview:", token.substring(0, 30) + "...");
+        
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        
+        if (!supabaseUrl || !supabaseAnonKey) {
+          console.error("❌ [API] Missing environment variables!");
+          console.error("NEXT_PUBLIC_SUPABASE_URL:", !!supabaseUrl);
+          console.error("NEXT_PUBLIC_SUPABASE_ANON_KEY:", !!supabaseAnonKey);
+          return NextResponse.json({ 
+            error: 'Server configuration error' 
+          }, { status: 500, headers: corsHeaders(origin) });
+        }
+        
+        // CRITICAL FIX: Create a client-side Supabase instance with the token
+        // The server client uses cookies, so we need a fresh instance
+        const supabaseWithToken = createClient(supabaseUrl, supabaseAnonKey, {
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false
           },
-          { status: 401, headers: corsHeaders(origin) }
-        );
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        });
+        
+        console.log("🔧 [API] Created token-based Supabase client");
+        
+        // Verify the token by getting the user
+        const { data: { user: tokenUser }, error: tokenError } = await supabaseWithToken.auth.getUser();
+        
+        if (tokenError) {
+          console.error("❌ [API] Token verification failed:", tokenError.message);
+          console.error("❌ [API] Error code:", tokenError.status);
+          console.error("❌ [API] Full error:", JSON.stringify(tokenError, null, 2));
+          
+          // Check if token is expired
+          if (tokenError.message?.includes('expired') || tokenError.status === 401) {
+            return NextResponse.json({ 
+              error: 'Token expired. Please log in again.',
+              details: tokenError.message
+            }, { status: 401, headers: corsHeaders(origin) });
+          }
+          
+          return NextResponse.json({ 
+            error: 'Token verification failed. Please log in again.',
+            details: tokenError.message
+          }, { status: 401, headers: corsHeaders(origin) });
+        }
+        
+        if (tokenUser) {
+          user = tokenUser;
+          supabaseClient = supabaseWithToken; // Use this client for DB operations
+          console.log("✅ [API] Authenticated via Bearer Token:", user.email);
+        } else {
+          console.error("❌ [API] Token verification returned no user");
+        }
+      } else {
+        console.warn("⚠️ [API] No valid Authorization header found");
       }
+    }
 
-      if (!authUser) {
-        console.error("❌ [API] Token verified but no user found");
-        return NextResponse.json(
-          { error: 'Invalid token. Please log in to Wist.' },
-          { status: 401, headers: corsHeaders(origin) }
-        );
-      }
+    // Final auth check
+    if (!user) {
+      console.error("❌ [API] Authentication failed - no user found");
+      return NextResponse.json({ 
+        error: 'Unauthorized. Please log in.',
+        details: 'No valid session or token found'
+      }, { status: 401, headers: corsHeaders(origin) });
+    }
 
-      user = authUser;
-      console.log("✅ [API] User authenticated:", user.id, user.email);
-    } else {
+    console.log("👤 [API] User authenticated:", user.id, user.email);
       // Cookie-based auth for dashboard requests
       // Read cookies directly from request headers (middleware should have refreshed them)
       const cookieHeader = request.headers.get('cookie') || '';
@@ -129,43 +204,11 @@ export async function POST(request: Request) {
         }
       );
       
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-      
-      if (authError) {
-        console.error("❌ [API] Cookie auth failed:", authError.message);
-        return NextResponse.json(
-          { error: 'Unauthorized. Please log in to Wist.' },
-          { status: 401, headers: corsHeaders(origin) }
-        );
-      }
-
-      if (!authUser) {
-        console.error("❌ [API] Cookie auth succeeded but no user found");
-        return NextResponse.json(
-          { error: 'Unauthorized. Please log in to Wist.' },
-          { status: 401, headers: corsHeaders(origin) }
-        );
-      }
-
-      user = authUser;
-      console.log("✅ [API] User authenticated via cookies:", user.id);
-    }
-
-    // Final auth check
-    if (!user) {
-      console.error("❌ [API] Authentication failed - no user found");
-      return NextResponse.json({ 
-        error: 'Unauthorized. Please log in.',
-        details: 'No valid session or token found'
-      }, { status: 401, headers: corsHeaders(origin) });
-    }
-
-    console.log("👤 [API] User authenticated:", user.id);
 
     // 3. CHECK: Does this URL already exist in products table?
     let existingProduct = null;
-    if (url) {
-      const { data: productData } = await supabase
+    if (url && supabaseClient) {
+      const { data: productData } = await supabaseClient
         .from('products')
         .select('*')
         .eq('url', url)
@@ -237,14 +280,21 @@ export async function POST(request: Request) {
     }
 
     // 5. Ensure Profile Exists
-    const { data: profile } = await supabase
+    if (!supabaseClient) {
+      return NextResponse.json(
+        { error: 'Database client not initialized' },
+        { status: 500, headers: corsHeaders(origin) }
+      );
+    }
+
+    const { data: profile } = await supabaseClient
       .from('profiles')
       .select('id')
       .eq('id', user.id)
       .single();
 
     if (!profile) {
-      await supabase.from('profiles').insert({
+      await supabaseClient.from('profiles').insert({
         id: user.id,
         username: user.email?.split('@')[0] || 'user',
         full_name: user.user_metadata?.full_name || '',
@@ -253,7 +303,7 @@ export async function POST(request: Request) {
     }
 
     // 6. Find or Create Wishlist
-    let { data: wishlists } = await supabase
+    let { data: wishlists } = await supabaseClient
       .from('wishlists')
       .select('id')
       .eq('user_id', user.id)
@@ -261,7 +311,7 @@ export async function POST(request: Request) {
 
     let wishlistId;
     if (!wishlists || wishlists.length === 0) {
-      const { data: newWishlist, error: createError } = await supabase
+      const { data: newWishlist, error: createError } = await supabaseClient
         .from('wishlists')
         .insert({ 
           user_id: user.id, 
@@ -279,7 +329,7 @@ export async function POST(request: Request) {
 
     // 7. Insert Item into items table (user's personal wishlist)
     // This allows multiple users to have the same product in their wishlist
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from('items')
       .insert({
         title,
@@ -304,7 +354,7 @@ export async function POST(request: Request) {
 
     // 8. Insert Price History (if price exists)
     if (currentPrice > 0) {
-      await supabase.from('price_history').insert({
+      await supabaseClient.from('price_history').insert({
         item_id: data.id,
         price: currentPrice
       });
