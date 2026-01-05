@@ -261,8 +261,9 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
                   e.stopPropagation();
                   handleDelete(col.id);
                 }}
-                className="text-zinc-400 hover:text-red-500 p-1 rounded transition-colors opacity-0 group-hover/item:opacity-100"
+                className="text-zinc-400 hover:text-red-500 p-1 rounded transition-colors"
                 aria-label={`Delete ${col.name}`}
+                title={`Delete ${col.name}`}
               >
                 <Trash2 size={14} />
               </button>
