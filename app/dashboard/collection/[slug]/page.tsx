@@ -8,11 +8,11 @@ import { FolderOpen } from 'lucide-react';
 export default async function CollectionPage({ params }: { params: { slug: string } }) {
   const supabase = await createClient();
   
-  // 1. Check Auth (DISABLED FOR DEBUGGING - No redirects)
+  // 1. Check Auth (Middleware handles redirect, but we still need user for queries)
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
-    console.log("Collection Page: User is missing on server side.");
-    // return notFound(); <--- COMMENTED OUT FOR DEBUGGING
+    // Middleware should have redirected, but safety check
+    return notFound();
   }
 
   // 2. Fetch Collection
@@ -20,7 +20,7 @@ export default async function CollectionPage({ params }: { params: { slug: strin
     .from('collections')
     .select('*')
     .eq('slug', params.slug)
-    .eq('user_id', user?.id || '00000000-0000-0000-0000-000000000000')
+    .eq('user_id', user.id)
     .single();
 
   // If collection doesn't exist, show 404 (Don't log out)
@@ -37,7 +37,7 @@ export default async function CollectionPage({ params }: { params: { slug: strin
   const { data: allCollections } = await supabase
     .from('collections')
     .select('*')
-    .eq('user_id', user?.id || '00000000-0000-0000-0000-000000000000');
+    .eq('user_id', user.id);
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black pb-20">
