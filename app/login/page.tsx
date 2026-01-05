@@ -37,25 +37,20 @@ function LoginForm() {
       setMessageType('error')
     }
 
-    // Check if user is already logged in
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        // User is already logged in, redirect to dashboard
-        router.push('/dashboard')
-      }
-    })
-
-    // Listen for auth state changes
+    // Listen for auth state changes - ONLY redirect on actual sign-in
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      // Only redirect on actual sign-in, not token refresh or other events
+      // Only redirect on SIGNED_IN event (actual sign-in action)
+      // Don't redirect on TOKEN_REFRESHED or other events
       if (event === 'SIGNED_IN' && session?.user) {
-        router.push('/dashboard')
+        // Small delay to ensure cookies are set
+        setTimeout(() => {
+          router.push('/dashboard')
+        }, 100)
       } else if (event === 'SIGNED_OUT') {
         // Clear any cached state on sign out
         setMessage(null)
         setMessageType(null)
       }
-      // Removed TOKEN_REFRESHED redirect to prevent loops
     })
 
     return () => subscription.unsubscribe()
