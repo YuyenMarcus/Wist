@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/utils/supabase/client';
+import { createClient } from '@/lib/supabase/client';
 
 // ⚠️ CONFIRM THIS ID MATCHES YOUR CHROME://EXTENSIONS
 const EXTENSION_ID = "hlgalligngcfiaibgkinhlkaniibjlmh";
