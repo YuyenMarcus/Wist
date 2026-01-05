@@ -168,42 +168,6 @@ export async function POST(request: Request) {
     }
 
     console.log("👤 [API] User authenticated:", user.id, user.email);
-      // Cookie-based auth for dashboard requests
-      // Read cookies directly from request headers (middleware should have refreshed them)
-      const cookieHeader = request.headers.get('cookie') || '';
-      
-      // Create response object to set cookies if needed
-      const response = NextResponse.next();
-      
-      // Parse cookies from header
-      const cookieMap = new Map<string, string>();
-      if (cookieHeader) {
-        cookieHeader.split(';').forEach(cookie => {
-          const [name, ...valueParts] = cookie.trim().split('=');
-          if (name && valueParts.length > 0) {
-            cookieMap.set(name.trim(), valueParts.join('='));
-          }
-        });
-      }
-      
-      supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-          cookies: {
-            getAll() {
-              return Array.from(cookieMap.entries()).map(([name, value]) => ({ name, value }));
-            },
-            setAll(cookiesToSet) {
-              cookiesToSet.forEach(({ name, value, options }) => {
-                cookieMap.set(name, value);
-                response.cookies.set(name, value, options);
-              });
-            },
-          },
-        }
-      );
-      
 
     // 3. CHECK: Does this URL already exist in products table?
     let existingProduct = null;
