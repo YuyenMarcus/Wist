@@ -65,6 +65,25 @@ export default function Sidebar({ initialCollections }: { initialCollections: Co
     setIsCreating(false);
   };
 
+  // Delete Collection (Directly from Sidebar)
+  const handleDelete = async (id: string) => {
+    if (!confirm("Delete this collection? Items will move to 'Uncategorized'.")) return;
+    
+    const { error } = await supabase.from('collections').delete().eq('id', id);
+
+    if (!error) {
+      const deletedCollection = collections.find(c => c.id === id);
+      setCollections(collections.filter(c => c.id !== id));
+      router.refresh();
+      // If we're on the deleted collection's page, redirect to dashboard
+      if (pathname?.includes(deletedCollection?.slug || '')) {
+        router.push('/dashboard');
+      }
+    } else {
+      alert("Error deleting collection: " + error.message);
+    }
+  };
+
   return (
     <aside className="w-64 border-r border-zinc-200 dark:border-zinc-800 h-screen sticky top-0 hidden md:flex flex-col bg-white dark:bg-black">
       
