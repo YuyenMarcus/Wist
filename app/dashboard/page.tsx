@@ -23,7 +23,7 @@ export default function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false)
 
   // Determine view mode from URL parameter
-  const viewMode = searchParams.get('view') === 'grouped' ? 'grouped' : 'timeline'
+  const viewMode = searchParams?.get('view') === 'grouped' ? 'grouped' : 'timeline'
 
   // Group items by collection for the Categories view
   const groupedItems = collections.map(col => ({
