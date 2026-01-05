@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import Sidebar from '@/components/dashboard/Sidebar';
-import { redirect } from 'next/navigation';
+// import { redirect } from 'next/navigation'; <--- COMMENTED OUT
 
 // 🛑 FORCE DYNAMIC: This fixes the "Disappearing List" bug
 export const dynamic = 'force-dynamic';
@@ -22,19 +22,19 @@ export default async function DashboardLayout({
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Don't redirect here - let the client-side dashboard page handle auth
-  // This prevents redirect loops when cookies aren't set yet after sign-in
-  
-  // Fetch collections to pass to the sidebar (only if user exists)
-  let collections: Collection[] = [];
-  if (user) {
-    const { data } = await supabase
-      .from('collections')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: true });
-    collections = (data as Collection[]) || [];
+  // 🛑 DISABLE THE REDIRECT. Just log it.
+  if (!user) {
+    console.log("Layout: User is missing on server side.");
+    // redirect('/login'); <--- COMMENTED OUT
   }
+
+  // Allow the page to render even if user is null (for debugging)
+  const { data: collections } = await supabase
+    .from('collections')
+    .select('*')
+    //.eq('user_id', user.id) <--- This will fail if user is null, so handle it:
+    .eq('user_id', user?.id || '00000000-0000-0000-0000-000000000000') // Dummy ID to prevent crash
+    .order('created_at', { ascending: true });
 
   return (
     <div className="flex min-h-screen bg-zinc-50 dark:bg-black">
