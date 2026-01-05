@@ -60,9 +60,9 @@ export default function Sidebar({ initialCollections }: { initialCollections: Co
         <Image 
           src="/logo.svg" 
           alt="Wist Logo" 
-          width={32} 
-          height={32}
-          className="w-8 h-8"
+          width={40} 
+          height={40}
+          className="w-10 h-10"
         />
         <span className="font-bold text-lg tracking-tight text-zinc-900 dark:text-white">wist.</span>
       </Link>
