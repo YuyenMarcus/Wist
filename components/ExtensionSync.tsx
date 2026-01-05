@@ -15,6 +15,7 @@ export default function ExtensionSync() {
       setMsg("Syncing...");
       setColor("bg-yellow-600");
 
+      console.log("🔵 [ExtensionSync] Component mounted");
       console.log("🔵 [ExtensionSync] Syncing token...");
       
       // Get current session
