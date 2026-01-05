@@ -2,7 +2,6 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  // 1. Setup the response
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -39,19 +38,7 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // 2. Refresh Session
-  const { data: { user } } = await supabase.auth.getUser()
-
-  // 3. Protected Route Logic
-  // If user is NOT logged in and tries to access /dashboard, kick them out.
-  if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
-    return NextResponse.redirect(new URL('/login', request.url))
-  }
-
-  // If user IS logged in and tries to access /login, send them to dashboard.
-  if (user && request.nextUrl.pathname.startsWith('/login')) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
-  }
+  await supabase.auth.getUser()
 
   return response
 }

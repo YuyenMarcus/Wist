@@ -7,38 +7,34 @@ import { FolderOpen } from 'lucide-react';
 
 export default async function CollectionPage({ params }: { params: { slug: string } }) {
   const supabase = await createClient();
+  
+  // 1. Check Auth (If this fails, IT IS THE MIDDLEWARE'S FAULT)
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
 
-  if (!user) {
-    redirect('/login');
-  }
-
-  // 1. Get the Collection ID from the slug
+  // 2. Fetch Collection
   const { data: collection } = await supabase
     .from('collections')
     .select('*')
-    .eq('user_id', user.id)
     .eq('slug', params.slug)
+    .eq('user_id', user.id)
     .single();
 
-  if (!collection) {
-    notFound(); // Shows 404 if list doesn't exist
-  }
+  // If collection doesn't exist, show 404 (Don't log out)
+  if (!collection) return notFound();
 
-  // 2. Fetch items ONLY in this collection
+  // 3. Fetch Items (SAFE: If empty, it returns [])
   const { data: items } = await supabase
     .from('items')
     .select('*')
-    .eq('user_id', user.id)
     .eq('collection_id', collection.id)
     .order('created_at', { ascending: false });
 
-  // 3. Fetch all collections for the "Move to" dropdown
-  const { data: collections } = await supabase
+  // 4. Fetch All Collections (For the "Move" dropdown)
+  const { data: allCollections } = await supabase
     .from('collections')
-    .select('id, name, slug')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: true });
+    .select('*')
+    .eq('user_id', user.id);
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black pb-20">
@@ -54,7 +50,7 @@ export default async function CollectionPage({ params }: { params: { slug: strin
               <span className="text-zinc-900 dark:text-zinc-100 font-medium">{collection.name}</span>
             </div>
             <h1 className="text-3xl font-bold text-zinc-900 dark:text-white tracking-tight flex items-center gap-3">
-              <FolderOpen className="text-violet-500" size={32} />
+              <FolderOpen className="text-blue-500" size={32} />
               {collection.name}
             </h1>
             <p className="text-zinc-500 dark:text-zinc-400 mt-1">
@@ -80,29 +76,26 @@ export default async function CollectionPage({ params }: { params: { slug: strin
         </div>
       </div>
 
-      {/* Grid */}
       <main className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        {items && items.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {items.map((item: any) => (
-              <ProductCard 
-                key={item.id} 
-                item={item}
-                userCollections={collections || []}
-              />
-            ))}
-          </div>
-        ) : (
-          // Empty State specific to collections
-          <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl bg-white/50 dark:bg-zinc-900/50">
-            <div className="w-16 h-16 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-4 text-2xl text-zinc-400">
-              📂
+        {/* EMPTY STATE HANDLING */}
+        {(!items || items.length === 0) ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl">
+                <div className="text-4xl mb-4">📂</div>
+                <h3 className="text-lg font-medium text-zinc-900 dark:text-white">This collection is empty</h3>
+                <p className="text-zinc-500 dark:text-zinc-400 max-w-sm mt-2">
+                    Move items here using the options menu on your main dashboard.
+                </p>
             </div>
-            <h3 className="text-lg font-medium text-zinc-900 dark:text-white">This list is empty</h3>
-            <p className="text-zinc-500 dark:text-zinc-400 max-w-sm mt-2">
-              Go to "All Items" and move some items here.
-            </p>
-          </div>
+        ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {items.map((item: any) => (
+                    <ProductCard 
+                        key={item.id} 
+                        item={item} 
+                        userCollections={allCollections || []} 
+                    />
+                ))}
+            </div>
         )}
       </main>
     </div>
