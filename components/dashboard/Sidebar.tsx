@@ -197,6 +197,7 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
   const [isManaging, setIsManaging] = useState(false); // New Manager Mode
   const [newCollectionName, setNewCollectionName] = useState('');
   const [newCollectionIcon, setNewCollectionIcon] = useState('Folder');
+  const [newCollectionColor, setNewCollectionColor] = useState('Violet');
   const [loading, setLoading] = useState(false);
 
   // Determine view mode from URL parameter
