@@ -77,16 +77,16 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
       console.log('🔄 Moving item:', item.id, 'to collection:', collectionId);
 
       // First, check if item exists in items table
-      const { data: itemCheck } = await supabase
+      const { data: itemCheck, error: itemCheckError } = await supabase
         .from('items')
         .select('id, user_id')
         .eq('id', item.id)
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       let updateResult;
       
-      if (itemCheck) {
+      if (itemCheck && !itemCheckError) {
         // Item is in items table - update it
         console.log('📦 Item found in items table, updating...');
         console.log('📝 Update details:', { itemId: item.id, collectionId, userId: user.id });
@@ -103,46 +103,111 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
           dataLength: updateResult.data?.length 
         });
       } else {
-        // Item might be in products table - check and create items entry
-        console.log('🔍 Item not in items table, checking products table...');
-        const { data: productCheck } = await supabase
-          .from('products')
-          .select('id, user_id, title, url, price, image')
-          .eq('id', item.id)
+        // Item not found by ID - check if item with same URL already exists for this user
+        // This prevents duplicates when moving items created via paste link
+        console.log('🔍 Item not found by ID, checking for existing item by URL...');
+        const { data: existingItem } = await supabase
+          .from('items')
+          .select('id, user_id')
+          .eq('url', item.url)
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
-        if (productCheck) {
-          // Create a new item entry linked to this product
-          console.log('📦 Item found in products table, creating items entry...');
-          
-          const { data: newItem, error: createError } = await supabase
+        if (existingItem) {
+          // Item with same URL exists - update it instead of creating duplicate
+          console.log('📦 Found existing item with same URL, updating...');
+          updateResult = await supabase
             .from('items')
-            .insert({
-              user_id: user.id,
-              title: productCheck.title || item.title || 'Untitled',
-              url: productCheck.url || item.url,
-              current_price: productCheck.price ? parseFloat(productCheck.price.toString()) : (item.price ? parseFloat(item.price.toString()) : null),
-              image_url: productCheck.image || item.image_url || item.image || null,
-              collection_id: collectionId,
-              status: 'active'
-            })
-            .select()
-            .single();
+            .update({ collection_id: collectionId })
+            .eq('id', existingItem.id)
+            .eq('user_id', user.id)
+            .select();
+        } else {
+          // Item doesn't exist - check products table as last resort
+          console.log('🔍 No existing item found, checking products table...');
+          const { data: productCheck } = await supabase
+            .from('products')
+            .select('id, user_id, title, url, price, image')
+            .eq('id', item.id)
+            .eq('user_id', user.id)
+            .maybeSingle();
 
-          if (createError) {
-            console.error('❌ Error creating item entry:', createError);
-            alert('Failed to move item: ' + createError.message);
+          if (productCheck) {
+            // Check again if item with same URL exists (race condition protection)
+            const { data: doubleCheck } = await supabase
+              .from('items')
+              .select('id')
+              .eq('url', productCheck.url || item.url)
+              .eq('user_id', user.id)
+              .maybeSingle();
+
+            if (doubleCheck) {
+              // Item was created between checks - update it
+              console.log('📦 Item created between checks, updating...');
+              updateResult = await supabase
+                .from('items')
+                .update({ collection_id: collectionId })
+                .eq('id', doubleCheck.id)
+                .eq('user_id', user.id)
+                .select();
+            } else {
+              // Create a new item entry linked to this product
+              console.log('📦 Item found in products table, creating items entry...');
+              
+              const { data: newItem, error: createError } = await supabase
+                .from('items')
+                .insert({
+                  user_id: user.id,
+                  title: productCheck.title || item.title || 'Untitled',
+                  url: productCheck.url || item.url,
+                  current_price: productCheck.price ? parseFloat(productCheck.price.toString()) : (item.price ? parseFloat(item.price.toString()) : null),
+                  image_url: productCheck.image || item.image_url || item.image || null,
+                  collection_id: collectionId,
+                  status: 'active'
+                })
+                .select()
+                .single();
+
+              if (createError) {
+                // If insert fails due to duplicate URL, try to update instead
+                if (createError.code === '23505' || createError.message.includes('duplicate') || createError.message.includes('unique')) {
+                  console.log('⚠️ Duplicate detected, updating existing item...');
+                  const { data: existingByUrl } = await supabase
+                    .from('items')
+                    .select('id')
+                    .eq('url', productCheck.url || item.url)
+                    .eq('user_id', user.id)
+                    .maybeSingle();
+                  
+                  if (existingByUrl) {
+                    updateResult = await supabase
+                      .from('items')
+                      .update({ collection_id: collectionId })
+                      .eq('id', existingByUrl.id)
+                      .eq('user_id', user.id)
+                      .select();
+                  } else {
+                    console.error('❌ Error creating item entry:', createError);
+                    alert('Failed to move item: ' + createError.message);
+                    setIsMoving(false);
+                    return;
+                  }
+                } else {
+                  console.error('❌ Error creating item entry:', createError);
+                  alert('Failed to move item: ' + createError.message);
+                  setIsMoving(false);
+                  return;
+                }
+              } else {
+                updateResult = { data: [newItem], error: null };
+              }
+            }
+          } else {
+            console.error('⚠️ Item not found in either items or products table');
+            alert('Failed to move item: Item not found');
             setIsMoving(false);
             return;
           }
-
-          updateResult = { data: [newItem], error: null };
-        } else {
-          console.error('⚠️ Item not found in either items or products table');
-          alert('Failed to move item: Item not found');
-          setIsMoving(false);
-          return;
         }
       }
       
