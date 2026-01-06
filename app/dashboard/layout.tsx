@@ -12,6 +12,7 @@ interface Collection {
   slug: string;
   user_id: string;
   created_at?: string;
+  icon?: string | null;
 }
 
 export default async function DashboardLayout({

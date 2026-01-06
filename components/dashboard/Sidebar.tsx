@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Folder, Plus, Grid, Gift, Settings, Trash2, Layers, LayoutGrid } from 'lucide-react';
+import { Folder, Plus, Grid, Gift, Settings, Trash2, Layers, LayoutGrid, Heart, Home, ShoppingBag, Star, Bookmark, Tag, Box, Package, Sparkles, Zap, Coffee, Music, Gamepad2, Shirt, Car, Plane, Camera, Palette, Dumbbell, BookOpen, Laptop, Phone, Watch, Headphones } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase/client';
 
@@ -13,6 +13,43 @@ interface Collection {
   slug: string;
   user_id: string;
   created_at?: string;
+  icon?: string | null;
+}
+
+// Available icons for collections
+const AVAILABLE_ICONS = [
+  { name: 'Folder', icon: Folder },
+  { name: 'Gift', icon: Gift },
+  { name: 'Heart', icon: Heart },
+  { name: 'Home', icon: Home },
+  { name: 'ShoppingBag', icon: ShoppingBag },
+  { name: 'Star', icon: Star },
+  { name: 'Bookmark', icon: Bookmark },
+  { name: 'Tag', icon: Tag },
+  { name: 'Box', icon: Box },
+  { name: 'Package', icon: Package },
+  { name: 'Sparkles', icon: Sparkles },
+  { name: 'Zap', icon: Zap },
+  { name: 'Coffee', icon: Coffee },
+  { name: 'Music', icon: Music },
+  { name: 'Gamepad2', icon: Gamepad2 },
+  { name: 'Shirt', icon: Shirt },
+  { name: 'Car', icon: Car },
+  { name: 'Plane', icon: Plane },
+  { name: 'Camera', icon: Camera },
+  { name: 'Palette', icon: Palette },
+  { name: 'Dumbbell', icon: Dumbbell },
+  { name: 'BookOpen', icon: BookOpen },
+  { name: 'Laptop', icon: Laptop },
+  { name: 'Phone', icon: Phone },
+  { name: 'Watch', icon: Watch },
+  { name: 'Headphones', icon: Headphones },
+] as const;
+
+// Helper function to get icon component by name
+function getIconComponent(iconName: string | null | undefined) {
+  const iconEntry = AVAILABLE_ICONS.find(i => i.name === iconName);
+  return iconEntry ? iconEntry.icon : Folder;
 }
 
 // Collection Item Component (without drag and drop)
@@ -21,14 +58,37 @@ function CollectionItem({
   pathname,
   isManaging,
   onDelete,
+  onIconChange,
 }: {
   collection: Collection;
   pathname: string | null;
   isManaging: boolean;
   onDelete: (id: string) => void;
+  onIconChange?: (id: string, iconName: string) => void;
 }) {
+  const IconComponent = getIconComponent(collection.icon);
+  const [showIconPicker, setShowIconPicker] = useState(false);
+  const iconPickerRef = useRef<HTMLDivElement>(null);
+
+  // Close icon picker when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (iconPickerRef.current && !iconPickerRef.current.contains(event.target as Node)) {
+        setShowIconPicker(false);
+      }
+    }
+
+    if (showIconPicker) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showIconPicker]);
+
   return (
-    <div className="group/item flex items-center justify-between px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors">
+    <div className="group/item flex items-center justify-between px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors relative" ref={iconPickerRef}>
       <Link
         href={`/dashboard/collection/${collection.slug}`}
         className={`flex-1 flex items-center gap-3 text-sm font-medium truncate transition-colors ${
@@ -37,9 +97,54 @@ function CollectionItem({
             : 'text-zinc-500 hover:text-violet-600 dark:hover:text-violet-400'
         }`}
       >
-        <Folder size={18} />
+        {isManaging ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              setShowIconPicker(!showIconPicker);
+            }}
+            className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded transition-colors"
+            title="Change icon"
+          >
+            <IconComponent size={18} />
+          </button>
+        ) : (
+          <IconComponent size={18} />
+        )}
         <span className="truncate">{collection.name}</span>
       </Link>
+
+      {/* Icon Picker Popup */}
+      {showIconPicker && isManaging && (
+        <div className="absolute left-0 top-full mt-1 z-50 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl p-2 w-64 max-h-64 overflow-y-auto">
+          <div className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 px-2 py-1 mb-1">Choose Icon</div>
+          <div className="grid grid-cols-6 gap-1">
+            {AVAILABLE_ICONS.map(({ name, icon: Icon }) => {
+              const isSelected = collection.icon === name || (!collection.icon && name === 'Folder');
+              return (
+                <button
+                  key={name}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    if (onIconChange) {
+                      onIconChange(collection.id, name);
+                    }
+                    setShowIconPicker(false);
+                  }}
+                  className={`p-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors ${
+                    isSelected ? 'bg-violet-100 dark:bg-violet-900/20 ring-1 ring-violet-500' : ''
+                  }`}
+                  title={name}
+                >
+                  <Icon size={16} className={isSelected ? 'text-violet-600 dark:text-violet-400' : 'text-zinc-500'} />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* DELETE BUTTON (Visible in Manage Mode) */}
       {isManaging && (
@@ -69,6 +174,7 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
   const [isCreating, setIsCreating] = useState(false);
   const [isManaging, setIsManaging] = useState(false); // New Manager Mode
   const [newCollectionName, setNewCollectionName] = useState('');
+  const [newCollectionIcon, setNewCollectionIcon] = useState('Folder');
   const [loading, setLoading] = useState(false);
 
   // Determine view mode from URL parameter
@@ -126,7 +232,8 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
       .insert({ 
         name: newCollectionName.trim(), 
         slug, 
-        user_id: user.id
+        user_id: user.id,
+        icon: newCollectionIcon
       })
       .select()
       .single();
@@ -141,6 +248,7 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
     if (data) {
       setCollections((prev) => [...prev, data]); // Add to local state immediately
       setNewCollectionName('');
+      setNewCollectionIcon('Folder');
       setIsCreating(false);
       router.refresh(); // Refresh server data
     }
@@ -149,7 +257,28 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
 
   const handleCancel = () => {
     setNewCollectionName('');
+    setNewCollectionIcon('Folder');
     setIsCreating(false);
+  };
+
+  // Update collection icon
+  const handleIconChange = async (collectionId: string, iconName: string) => {
+    const { error } = await supabase
+      .from('collections')
+      .update({ icon: iconName })
+      .eq('id', collectionId);
+
+    if (error) {
+      console.error('Error updating icon:', error);
+      alert('Failed to update icon: ' + error.message);
+      return;
+    }
+
+    // Update local state
+    setCollections((prev) =>
+      prev.map((col) => (col.id === collectionId ? { ...col, icon: iconName } : col))
+    );
+    router.refresh();
   };
 
   // Delete Collection (Directly from Sidebar)
@@ -257,20 +386,41 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
       {isCreating && (
         <div className="mb-3 px-4">
           <form onSubmit={handleCreate} className="bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-2 shadow-sm">
-            <input 
-              autoFocus
-              type="text" 
-              placeholder="List Name..." 
-              className="w-full bg-transparent text-sm focus:outline-none text-zinc-900 dark:text-white mb-2 px-1 py-1"
-              value={newCollectionName}
-              onChange={(e) => setNewCollectionName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') {
-                  handleCancel();
-                }
-              }}
-              disabled={loading}
-            />
+            <div className="flex items-center gap-2 mb-2">
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    // Toggle icon picker - we'll use a simple dropdown for now
+                    const currentIndex = AVAILABLE_ICONS.findIndex(i => i.name === newCollectionIcon);
+                    const nextIndex = (currentIndex + 1) % AVAILABLE_ICONS.length;
+                    setNewCollectionIcon(AVAILABLE_ICONS[nextIndex].name);
+                  }}
+                  className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded transition-colors"
+                  title="Change icon (click to cycle)"
+                >
+                  {(() => {
+                    const IconComponent = getIconComponent(newCollectionIcon);
+                    return <IconComponent size={18} className="text-violet-600 dark:text-violet-400" />;
+                  })()}
+                </button>
+              </div>
+              <input 
+                autoFocus
+                type="text" 
+                placeholder="List Name..." 
+                className="flex-1 bg-transparent text-sm focus:outline-none text-zinc-900 dark:text-white px-1 py-1"
+                value={newCollectionName}
+                onChange={(e) => setNewCollectionName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    handleCancel();
+                  }
+                }}
+                disabled={loading}
+              />
+            </div>
             <div className="flex gap-2">
               <button 
                 type="submit" 
@@ -304,6 +454,7 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
             pathname={pathname}
             isManaging={isManaging}
             onDelete={handleDelete}
+            onIconChange={handleIconChange}
           />
         ))}
       </div>

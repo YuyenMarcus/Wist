@@ -141,7 +141,7 @@ export default function DashboardPage() {
         // Load collections for "Move to" dropdown and Categories view
         const { data: collectionsData, error: collectionsError } = await supabase
           .from('collections')
-          .select('id, name, slug, created_at')
+          .select('id, name, slug, created_at, icon')
           .eq('user_id', currentUser.id)
           .order('created_at', { ascending: true })
         
