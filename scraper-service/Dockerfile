@@ -15,11 +15,17 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Expose port
-EXPOSE 5000
+# Expose port (Railway uses PORT env var)
+EXPOSE ${PORT:-5000}
 
-# Use gunicorn in production
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "--timeout", "120", "app:app"]
+# Use gunicorn in production (Railway sets PORT env var)
+CMD gunicorn -w 4 -b 0.0.0.0:${PORT:-5000} --timeout 120 app:app
+
+
+
+
+
+
 
 
 
