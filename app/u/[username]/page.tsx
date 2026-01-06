@@ -51,7 +51,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         title,
         description,
         images: profile.avatar_url ? [profile.avatar_url] : [],
-      },
+        },
     };
   } catch (error) {
     console.error('Error generating metadata:', error);

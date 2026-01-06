@@ -16,3 +16,9 @@ END $$;
 -- Create an index for faster lookups since we'll query this often
 CREATE INDEX IF NOT EXISTS profiles_username_idx ON profiles (username) WHERE username IS NOT NULL;
 
+
+
+
+
+
+

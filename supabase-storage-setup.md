@@ -73,3 +73,9 @@ Images will be stored at: `wishlist-images/{user_id}/{timestamp}.{ext}`
 
 Public URL format: `https://{project-ref}.supabase.co/storage/v1/object/public/wishlist-images/{user_id}/{filename}`
 
+
+
+
+
+
+

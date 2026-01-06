@@ -278,3 +278,9 @@ export default function WishlistGrid({ userId, isOwner = false }: WishlistGridPr
   )
 }
 
+
+
+
+
+
+

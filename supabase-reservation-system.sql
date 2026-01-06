@@ -48,3 +48,9 @@ WITH CHECK (
   AND user_id = (SELECT user_id FROM products WHERE id = products.id)
 );
 
+
+
+
+
+
+

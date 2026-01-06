@@ -25,3 +25,9 @@ FOR UPDATE TO authenticated
 USING (auth.uid()::text = user_id)
 WITH CHECK (auth.uid()::text = user_id);
 
+
+
+
+
+
+

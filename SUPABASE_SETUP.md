@@ -81,3 +81,9 @@ pip install -r requirements.txt
 - Check Flask service logs for Supabase connection messages
 
 
+
+
+
+
+
+

@@ -10,3 +10,9 @@ ALTER TABLE profiles
 ADD CONSTRAINT profiles_bio_length_check 
 CHECK (char_length(bio) <= 150);
 
+
+
+
+
+
+

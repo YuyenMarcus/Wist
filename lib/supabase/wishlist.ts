@@ -48,11 +48,13 @@ export async function getWishlistItems(userId: string): Promise<{
   data: WishlistItem[] | null;
   error: any;
 }> {
+  // Limit to 100 items and select only needed columns
   const { data, error } = await supabase
     .from('wishlist_items')
-    .select('*')
+    .select('id, user_id, title, description, price, price_raw, currency, image, domain, url, meta, created_at')
     .eq('user_id', userId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(100);
 
   return { data, error };
 }

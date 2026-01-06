@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
 
 // ⚠️ CONFIRM THIS ID MATCHES YOUR CHROME://EXTENSIONS
-const EXTENSION_ID = "hlgalligngcfiaibgkinhlkaniibjlmh";
+const EXTENSION_ID = "hlgalligngcfiaibgkinhlkaniibjlmh"; 
 
 export default function ExtensionSync() {
   const [msg, setMsg] = useState("Initializing...");
@@ -58,19 +58,19 @@ export default function ExtensionSync() {
         return;
       }
 
-      const chrome = (window as any).chrome;
+            const chrome = (window as any).chrome;
 
       // Method 1: Direct chrome.runtime message (if extension is installed)
       try {
-        chrome.runtime.sendMessage(
-          EXTENSION_ID,
+            chrome.runtime.sendMessage(
+              EXTENSION_ID,
           {
             type: 'AUTH_TOKEN',
             token: token,
             session: session,
             timestamp: Date.now()
           },
-          (response: any) => {
+              (response: any) => {
             if (chrome.runtime.lastError) {
               console.log("⚠️ [ExtensionSync] Extension not responding:", chrome.runtime.lastError.message);
               setMsg("Extension Not Found");
@@ -84,10 +84,10 @@ export default function ExtensionSync() {
                 setColor("hidden");
                 setMsg("");
               }, 3000);
-            }
-          }
-        );
-      } catch (e) {
+                }
+              }
+            );
+        } catch (e) {
         console.log("⚠️ [ExtensionSync] Could not send via chrome.runtime:", e);
         setMsg("Send Error");
         setColor("bg-red-600");
@@ -107,8 +107,8 @@ export default function ExtensionSync() {
       console.error("❌ [ExtensionSync] Error:", error);
       setMsg("Sync Error");
       setColor("bg-red-600");
-    }
-  };
+      }
+    };
 
   // Run automatically on mount
   useEffect(() => {
@@ -132,7 +132,7 @@ export default function ExtensionSync() {
         syncTokenToExtension();
       }
     });
-    
+
     return () => {
       console.log("🔴 [ExtensionSync] Component unmounting");
       clearInterval(interval);

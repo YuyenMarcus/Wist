@@ -41,3 +41,9 @@ USING (username IS NOT NULL);
 
 -- Note: Users can only UPDATE their own profile (existing policy should handle this)
 
+
+
+
+
+
+

@@ -44,3 +44,9 @@ After updating:
 2. Click the confirmation link - it should redirect to `wishlist.nuvio.cloud` and confirm your email
 3. Try signing in - it should redirect to the dashboard
 
+
+
+
+
+
+

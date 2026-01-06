@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { Check, X } from 'lucide-react'
+import { Check, X, LogOut, ArrowLeft } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { getProfile, updateProfile, Profile } from '@/lib/supabase/profile'
 import { useUsername } from '@/hooks/useUsername'
@@ -462,6 +462,31 @@ export default function AccountPage() {
               </button>
             </div>
           </form>
+
+          {/* Sign Out Section */}
+          <div className="mt-8 pt-8 border-t border-zinc-200">
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut()
+                router.push('/login')
+                router.refresh()
+              }}
+              className="w-full flex items-center justify-center gap-2 rounded-lg bg-red-50 px-4 py-3 text-red-600 font-semibold hover:bg-red-100 transition-colors"
+            >
+              <LogOut size={18} />
+              Sign Out
+            </button>
+          </div>
+        </div>
+
+        {/* Footer Link */}
+        <div className="bg-zinc-50 p-4 text-center border-t border-zinc-200">
+          <button 
+            onClick={() => router.push('/dashboard')}
+            className="text-sm text-zinc-600 hover:text-violet-600 font-medium flex items-center justify-center gap-2 mx-auto"
+          >
+            <ArrowLeft size={16} /> Back to Dashboard
+          </button>
         </div>
       </div>
     </div>

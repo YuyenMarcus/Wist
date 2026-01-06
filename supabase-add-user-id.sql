@@ -7,3 +7,9 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS user_id text;
 -- 2. (Optional) If you want to empty the table to start fresh:
 -- TRUNCATE TABLE products;
 
+
+
+
+
+
+

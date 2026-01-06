@@ -29,11 +29,13 @@ async function getUserItems(userId: string): Promise<{
   data: SupabaseProduct[] | null;
   error: any;
 }> {
+  // Limit to 100 items and select only needed columns
   const { data, error } = await supabase
     .from('items')
-    .select('*')
+    .select('id, user_id, title, current_price, image_url, url, note, status, retailer, collection_id, created_at')
     .eq('user_id', userId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(100);
 
   if (error) return { data: null, error };
 
@@ -80,9 +82,12 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
   data: SupabaseProduct[] | null;
   error: any;
 }> {
-  // Fetch from BOTH tables in parallel
+  // Fetch from BOTH tables in parallel with pagination
+  // Limit to 100 items per table to prevent large data transfers
+  const ITEMS_LIMIT = 100;
+  
   const [itemsResult, productsResult] = await Promise.all([
-    // Query items table
+    // Query items table (limited to 100 most recent)
     supabase
       .from('items')
       .select(`
@@ -99,9 +104,10 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
         created_at
       `)
       .eq('user_id', userId)
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false })
+      .limit(ITEMS_LIMIT),
     
-    // Query products table
+    // Query products table (limited to 100 most recent)
     supabase
       .from('products')
       .select(`
@@ -116,6 +122,7 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
       `)
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
+      .limit(ITEMS_LIMIT)
   ]);
 
   if (itemsResult.error) {

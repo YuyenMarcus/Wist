@@ -141,3 +141,9 @@ body: JSON.stringify({
 - [ ] Deploy backend (Railway)
 - [ ] Deploy frontend (Vercel)
 
+
+
+
+
+
+

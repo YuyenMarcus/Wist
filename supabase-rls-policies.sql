@@ -35,3 +35,9 @@ USING (auth.uid()::text = user_id);
 -- TO authenticated
 -- WITH CHECK (auth.uid()::text = user_id);
 
+
+
+
+
+
+

@@ -43,3 +43,9 @@ create policy "Public Update" on products
 for update using (true);
 
 
+
+
+
+
+
+

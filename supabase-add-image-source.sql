@@ -9,3 +9,9 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS image_source text DEFAULT 'url';
 -- Add index for filtering by image source (optional)
 CREATE INDEX IF NOT EXISTS products_image_source_idx ON products(image_source) WHERE image_source IS NOT NULL;
 
+
+
+
+
+
+
