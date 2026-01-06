@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import ProfileHeader from '@/components/dashboard/ProfileHeader'
@@ -25,13 +25,54 @@ export default function DashboardPage() {
   // Determine view mode from URL parameter
   const viewMode = searchParams?.get('view') === 'grouped' ? 'grouped' : 'timeline'
 
-  // Group items by collection for the Categories view
-  const groupedItems = collections.map(col => ({
-    ...col,
-    items: products.filter((item: any) => item.collection_id === col.id) || []
-  })) || []
+  // Group items by collection for the Categories view - use useMemo to ensure proper computation
+  const groupedItems = useMemo(() => {
+    if (!collections.length || !products.length) {
+      return []
+    }
+    
+    const grouped = collections.map(col => {
+      // Filter items that belong to this collection
+      // Ensure both values are strings for comparison
+      const items = products.filter((item: any) => {
+        const itemCollectionId = item.collection_id?.toString() || null
+        const collectionId = col.id?.toString() || null
+        return itemCollectionId === collectionId && itemCollectionId !== null
+      })
+      
+      return {
+        ...col,
+        items
+      }
+    })
+    
+    // Debug logging
+    if (viewMode === 'grouped') {
+      console.log('📊 Grouped items computation:', {
+        collectionsCount: collections.length,
+        productsCount: products.length,
+        grouped: grouped.map(g => ({
+          name: g.name,
+          id: g.id,
+          itemsCount: g.items.length,
+          sampleItemIds: g.items.slice(0, 3).map((i: any) => i.id)
+        })),
+        productsWithCollectionId: products.filter((p: any) => p.collection_id).map((p: any) => ({
+          id: p.id,
+          collection_id: p.collection_id
+        }))
+      })
+    }
+    
+    return grouped
+  }, [collections, products, viewMode])
 
-  const uncategorizedItems = products.filter((item: any) => !item.collection_id) || []
+  const uncategorizedItems = useMemo(() => {
+    return products.filter((item: any) => {
+      const hasCollectionId = item.collection_id !== null && item.collection_id !== undefined && item.collection_id !== ''
+      return !hasCollectionId
+    })
+  }, [products])
 
   // Load user, profile, and products
   useEffect(() => {
