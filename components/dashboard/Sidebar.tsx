@@ -3,7 +3,13 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Folder, Plus, Grid, Gift, Settings, Trash2, Layers, LayoutGrid, Heart, Home, ShoppingBag, Star, Bookmark, Tag, Box, Package, Sparkles, Zap, Coffee, Music, Gamepad2, Shirt, Car, Plane, Camera, Palette, Dumbbell, BookOpen, Laptop, Phone, Watch, Headphones } from 'lucide-react';
+import { 
+  Folder, Plus, Grid, Gift, Settings, Trash2, Layers, LayoutGrid, 
+  Heart, Home, ShoppingBag, Star, Bookmark, Tag, Box, Package, 
+  Sparkles, Zap, Coffee, Music, Gamepad2, Shirt, Car, Plane, 
+  Camera, Palette, Dumbbell, BookOpen, Laptop, Phone, Watch, 
+  Headphones, Utensils, Bed, Sofa, TreePine  // ← Added new icons
+} from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
 
@@ -14,7 +20,19 @@ interface Collection {
   user_id: string;
   created_at?: string;
   icon?: string | null;
+  color?: string | null;
 }
+
+// Color palette for collection icons
+const COLOR_PALETTE = [
+  { name: 'Violet', value: '#8b5cf6', class: 'text-violet-600 dark:text-violet-400' },
+  { name: 'Red', value: '#ef4444', class: 'text-red-600 dark:text-red-400' },
+  { name: 'Blue', value: '#3b82f6', class: 'text-blue-600 dark:text-blue-400' },
+  { name: 'Green', value: '#10b981', class: 'text-green-600 dark:text-green-400' },
+  { name: 'Yellow', value: '#eab308', class: 'text-yellow-600 dark:text-yellow-400' },
+  { name: 'Orange', value: '#f97316', class: 'text-orange-600 dark:text-orange-400' },
+  { name: 'Pink', value: '#ec4899', class: 'text-pink-600 dark:text-pink-400' },
+] as const;
 
 // Available icons for collections
 const AVAILABLE_ICONS = [
@@ -44,6 +62,10 @@ const AVAILABLE_ICONS = [
   { name: 'Phone', icon: Phone },
   { name: 'Watch', icon: Watch },
   { name: 'Headphones', icon: Headphones },
+  { name: 'Utensils', icon: Utensils },      // ← Knife
+  { name: 'Bed', icon: Bed },                // ← Bed
+  { name: 'Sofa', icon: Sofa },              // ← Couch
+  { name: 'TreePine', icon: TreePine },      // ← Christmas Tree
 ] as const;
 
 // Helper function to get icon component by name
@@ -67,6 +89,7 @@ function CollectionItem({
   onIconChange?: (id: string, iconName: string) => void;
 }) {
   const IconComponent = getIconComponent(collection.icon);
+  const colorClass = COLOR_PALETTE.find(c => c.name === collection.color)?.class || 'text-violet-600 dark:text-violet-400';
   const [showIconPicker, setShowIconPicker] = useState(false);
   const iconPickerRef = useRef<HTMLDivElement>(null);
 
@@ -106,10 +129,10 @@ function CollectionItem({
             className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded transition-colors"
             title="Change icon"
           >
-            <IconComponent size={18} />
+            <IconComponent size={18} className={colorClass} />
           </button>
         ) : (
-          <IconComponent size={18} />
+          <IconComponent size={18} className={colorClass} />
         )}
         <span className="truncate">{collection.name}</span>
       </div>
@@ -231,8 +254,9 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
       .insert({ 
         name: newCollectionName.trim(), 
         slug, 
-        user_id: user.id
-        // icon: newCollectionIcon  // Commented out until SQL migration is run
+        user_id: user.id,
+        icon: newCollectionIcon,
+        color: newCollectionColor
       })
       .select()
       .single();
@@ -248,6 +272,7 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
       setCollections((prev) => [...prev, data]); // Add to local state immediately
       setNewCollectionName('');
       setNewCollectionIcon('Folder');
+      setNewCollectionColor('Violet');
       setIsCreating(false);
       router.refresh(); // Refresh server data
     }
@@ -257,6 +282,7 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
   const handleCancel = () => {
     setNewCollectionName('');
     setNewCollectionIcon('Folder');
+    setNewCollectionColor('Violet');
     setIsCreating(false);
   };
 
@@ -384,14 +410,16 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
       {/* Inline Create Form with Buttons */}
       {isCreating && (
         <div className="mb-3 px-4">
-          <form onSubmit={handleCreate} className="bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-2 shadow-sm">
-            <div className="flex items-center gap-2 mb-2">
+          <form onSubmit={handleCreate} className="bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-3 shadow-sm">
+            
+            {/* Icon and Color Picker Row */}
+            <div className="flex items-center gap-2 mb-3">
+              {/* Icon Picker */}
               <div className="relative">
                 <button
                   type="button"
                   onClick={(e) => {
                     e.preventDefault();
-                    // Toggle icon picker - we'll use a simple dropdown for now
                     const currentIndex = AVAILABLE_ICONS.findIndex(i => i.name === newCollectionIcon);
                     const nextIndex = (currentIndex + 1) % AVAILABLE_ICONS.length;
                     setNewCollectionIcon(AVAILABLE_ICONS[nextIndex].name);
@@ -401,25 +429,51 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
                 >
                   {(() => {
                     const IconComponent = getIconComponent(newCollectionIcon);
-                    return <IconComponent size={18} className="text-violet-600 dark:text-violet-400" />;
+                    const colorClass = COLOR_PALETTE.find(c => c.name === newCollectionColor)?.class || 'text-violet-600 dark:text-violet-400';
+                    return <IconComponent size={18} className={colorClass} />;
                   })()}
                 </button>
               </div>
-              <input 
-                autoFocus
-                type="text" 
-                placeholder="List Name..." 
-                className="flex-1 bg-transparent text-sm focus:outline-none text-zinc-900 dark:text-white px-1 py-1"
-                value={newCollectionName}
-                onChange={(e) => setNewCollectionName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') {
-                    handleCancel();
-                  }
-                }}
-                disabled={loading}
-              />
+              
+              {/* Color Palette */}
+              <div className="flex gap-1">
+                {COLOR_PALETTE.map(color => (
+                  <button
+                    key={color.name}
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setNewCollectionColor(color.name);
+                    }}
+                    className={`w-6 h-6 rounded-full transition-all ${
+                      newCollectionColor === color.name 
+                        ? 'ring-2 ring-offset-2 ring-zinc-400 dark:ring-zinc-600 scale-110' 
+                        : 'hover:scale-105'
+                    }`}
+                    style={{ backgroundColor: color.value }}
+                    title={color.name}
+                  />
+                ))}
+              </div>
             </div>
+            
+            {/* Name Input */}
+            <input 
+              autoFocus
+              type="text" 
+              placeholder="List Name..."
+              className="w-full bg-transparent text-sm focus:outline-none text-zinc-900 dark:text-white px-2 py-2 mb-3 border-b border-zinc-200 dark:border-zinc-800"
+              value={newCollectionName}
+              onChange={(e) => setNewCollectionName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  handleCancel();
+                }
+              }}
+              disabled={loading}
+            />
+            
+            {/* Action Buttons */}
             <div className="flex gap-2">
               <button 
                 type="submit" 
