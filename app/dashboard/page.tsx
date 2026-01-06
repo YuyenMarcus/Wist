@@ -48,6 +48,17 @@ export default function DashboardPage() {
     }
   }, [viewMode, collections, products])
 
+  // Debug: Log Collections Check right before Categories view renders
+  useEffect(() => {
+    if (viewMode === 'grouped') {
+      console.log('🎨 Categories View - Collections Check:', {
+        collectionsCount: collections.length,
+        collections: collections,
+        productsCount: products.length
+      });
+    }
+  }, [viewMode, collections, products])
+
   // Group items by collection for the Categories view - use useMemo to ensure proper computation
   const groupedItems = useMemo(() => {
     if (!products.length) {
