@@ -34,6 +34,20 @@ export default function DashboardPage() {
     })
   }, [viewMode, searchParams])
 
+  // Debug: Log Categories view rendering conditions
+  useEffect(() => {
+    if (viewMode === 'grouped') {
+      console.log('🎨 Categories View Debug:', {
+        viewMode,
+        collectionsLength: collections.length,
+        productsLength: products.length,
+        shouldRenderAllItems: collections.length === 0 && products.length > 0,
+        collections: collections.map((c: any) => ({ id: c.id, name: c.name })),
+        productsSample: products.slice(0, 3).map((p: any) => ({ id: p.id, title: p.title }))
+      })
+    }
+  }, [viewMode, collections, products])
+
   // Group items by collection for the Categories view - use useMemo to ensure proper computation
   const groupedItems = useMemo(() => {
     if (!products.length) {
@@ -323,15 +337,6 @@ export default function DashboardPage() {
         {/* Categories View (Grouped by Collection) */}
         {viewMode === 'grouped' && (
           <div className="space-y-12">
-            {/* Debug: Log when categories view renders */}
-            {console.log('🎨 Categories View Debug:', {
-              viewMode,
-              collectionsLength: collections.length,
-              productsLength: products.length,
-              shouldRenderAllItems: collections.length === 0 && products.length > 0,
-              collections: collections.map((c: any) => ({ id: c.id, name: c.name })),
-              productsSample: products.slice(0, 3).map((p: any) => ({ id: p.id, title: p.title }))
-            })}
             {/* Show all items if no collections exist */}
             {collections.length === 0 && products.length > 0 && (
               <section>
