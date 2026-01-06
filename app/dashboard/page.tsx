@@ -24,10 +24,24 @@ export default function DashboardPage() {
 
   // Determine view mode from URL parameter
   const viewMode = searchParams?.get('view') === 'grouped' ? 'grouped' : 'timeline'
+  
+  // Debug: Log view mode changes
+  useEffect(() => {
+    console.log('🔍 View mode changed:', {
+      viewMode,
+      searchParamsView: searchParams?.get('view'),
+      url: typeof window !== 'undefined' ? window.location.href : 'server'
+    })
+  }, [viewMode, searchParams])
 
   // Group items by collection for the Categories view - use useMemo to ensure proper computation
   const groupedItems = useMemo(() => {
-    if (!collections.length || !products.length) {
+    if (!products.length) {
+      return []
+    }
+    
+    // If no collections, return empty array (items will show in uncategorized)
+    if (!collections.length) {
       return []
     }
     
@@ -49,8 +63,10 @@ export default function DashboardPage() {
     // Debug logging
     if (viewMode === 'grouped') {
       console.log('📊 Grouped items computation:', {
+        viewMode,
         collectionsCount: collections.length,
         productsCount: products.length,
+        collections: collections.map((c: any) => ({ id: c.id, name: c.name })),
         grouped: grouped.map(g => ({
           name: g.name,
           id: g.id,
@@ -59,7 +75,12 @@ export default function DashboardPage() {
         })),
         productsWithCollectionId: products.filter((p: any) => p.collection_id).map((p: any) => ({
           id: p.id,
+          title: p.title,
           collection_id: p.collection_id
+        })),
+        productsWithoutCollectionId: products.filter((p: any) => !p.collection_id).map((p: any) => ({
+          id: p.id,
+          title: p.title
         }))
       })
     }
@@ -68,11 +89,21 @@ export default function DashboardPage() {
   }, [collections, products, viewMode])
 
   const uncategorizedItems = useMemo(() => {
-    return products.filter((item: any) => {
+    const uncategorized = products.filter((item: any) => {
       const hasCollectionId = item.collection_id !== null && item.collection_id !== undefined && item.collection_id !== ''
       return !hasCollectionId
     })
-  }, [products])
+    
+    // Debug logging
+    if (viewMode === 'grouped') {
+      console.log('📦 Uncategorized items:', {
+        count: uncategorized.length,
+        items: uncategorized.map((i: any) => ({ id: i.id, title: i.title, collection_id: i.collection_id }))
+      })
+    }
+    
+    return uncategorized
+  }, [products, viewMode])
 
   // Load user, profile, and products
   useEffect(() => {
@@ -307,8 +338,40 @@ export default function DashboardPage() {
         {/* Categories View (Grouped by Collection) */}
         {viewMode === 'grouped' && (
           <div className="space-y-12">
+            {/* Debug: Log when categories view renders */}
+            {console.log('🎨 Rendering Categories View:', {
+              viewMode,
+              productsCount: products.length,
+              collectionsCount: collections.length,
+              groupedItemsCount: groupedItems.length,
+              uncategorizedCount: uncategorizedItems.length,
+              hasNoCollections: collections.length === 0,
+              hasProducts: products.length > 0
+            })}
+            {/* Show all items if no collections exist */}
+            {collections.length === 0 && products.length > 0 && (
+              <section>
+                <h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
+                  All Items
+                  <span className="text-xs font-normal text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded-full">
+                    {products.length}
+                  </span>
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {products.map((item: any) => (
+                    <ProductCard 
+                      key={item.id} 
+                      item={item} 
+                      userCollections={collections} 
+                      onDelete={handleDelete}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
             {/* Uncategorized Section */}
-            {uncategorizedItems.length > 0 && (
+            {collections.length > 0 && uncategorizedItems.length > 0 && (
               <section>
                 <h2 className="text-lg font-bold text-zinc-900 dark:text-white mb-4 flex items-center gap-2 opacity-50">
                   <span className="w-2 h-2 rounded-full bg-zinc-300"></span>
@@ -328,7 +391,7 @@ export default function DashboardPage() {
             )}
 
             {/* Collection Sections */}
-            {groupedItems.map(group => (
+            {collections.length > 0 && groupedItems.map(group => (
               group.items.length > 0 && (
                 <section key={group.id} className="pt-8 border-t border-zinc-200 dark:border-zinc-800">
                   <div className="flex items-center justify-between mb-4">
@@ -361,9 +424,23 @@ export default function DashboardPage() {
             ))}
 
             {/* Empty State for Grouped View */}
-            {groupedItems.every(g => g.items.length === 0) && uncategorizedItems.length === 0 && (
+            {products.length === 0 && (
               <div className="text-center py-20 text-zinc-500">
                 No items found. Add some items to see them here!
+              </div>
+            )}
+
+            {/* Debug info in development */}
+            {process.env.NODE_ENV === 'development' && viewMode === 'grouped' && (
+              <div className="mt-8 p-4 bg-zinc-100 dark:bg-zinc-800 rounded-lg text-xs">
+                <div>Debug Info:</div>
+                <div>View Mode: {viewMode}</div>
+                <div>Products Count: {products.length}</div>
+                <div>Collections Count: {collections.length}</div>
+                <div>Grouped Items Count: {groupedItems.length}</div>
+                <div>Uncategorized Items Count: {uncategorizedItems.length}</div>
+                <div>Products with collection_id: {products.filter((p: any) => p.collection_id).length}</div>
+                <div>Products without collection_id: {products.filter((p: any) => !p.collection_id).length}</div>
               </div>
             )}
           </div>
