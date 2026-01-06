@@ -1,8 +1,8 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { ExternalLink, Trash2, Edit2, Check, X, MoreHorizontal, FolderInput } from 'lucide-react'
-import { useState } from 'react'
+import { Trash2, Edit2, Check, X, MoreHorizontal, FolderInput } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { SupabaseProduct } from '@/lib/supabase/products'
@@ -38,6 +38,8 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
   const [editedTitle, setEditedTitle] = useState(item.title || '')
   const [isSaving, setIsSaving] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
+  const [menuPosition, setMenuPosition] = useState({ top: 0, right: 0 })
 
   const title = item.title || 'Untitled Item'
   const imageUrl = item.image || null
@@ -291,37 +293,20 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
             <div className={`absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 transition-opacity duration-300 flex items-end justify-end p-4 gap-2 ${
               isHovered && !isEditing ? 'opacity-100' : 'opacity-0'
             }`}>
-              {/* Details Link Button */}
-              <Link
-                href={`/dashboard/item/${item.id}`}
-                className="p-2.5 bg-white/90 backdrop-blur-md rounded-full text-zinc-700 hover:bg-violet-500 hover:text-white transition-colors shadow-sm"
-                title="View Details & Price History"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-              </Link>
-
-              {/* Visit Link Button */}
-              <a 
-                href={item.url} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="p-2.5 bg-white/90 backdrop-blur-md rounded-full text-zinc-700 hover:bg-violet-500 hover:text-white transition-colors shadow-sm"
-                title="Buy on Website"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <ExternalLink size={16} strokeWidth={2} />
-              </a>
-
               {/* Move to Collection Button */}
               {userCollections.length > 0 && (
                 <div className="relative">
                   <button 
+                    ref={menuButtonRef}
                     onClick={(e) => {
                       e.stopPropagation()
+                      if (menuButtonRef.current) {
+                        const rect = menuButtonRef.current.getBoundingClientRect()
+                        setMenuPosition({
+                          top: rect.top - 10,
+                          right: window.innerWidth - rect.right
+                        })
+                      }
                       setIsMenuOpen(!isMenuOpen)
                     }}
                     className="p-2.5 bg-white/90 backdrop-blur-md rounded-full text-zinc-700 hover:bg-violet-500 hover:text-white transition-colors shadow-sm"
@@ -330,12 +315,26 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                     <MoreHorizontal size={16} strokeWidth={2} />
                   </button>
 
-                  {/* Dropdown Menu */}
+                  {/* Dropdown Menu - Using fixed positioning to avoid overflow */}
                   {isMenuOpen && (
-                    <div 
-                      className="absolute right-0 bottom-full mb-2 w-48 bg-white dark:bg-zinc-900 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-800 p-1 z-30"
-                      onClick={(e) => e.stopPropagation()}
-                    >
+                    <>
+                      {/* Backdrop to close menu */}
+                      <div 
+                        className="fixed inset-0 z-[9998]"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setIsMenuOpen(false)
+                        }}
+                      />
+                      <div 
+                        className="fixed w-48 bg-white dark:bg-zinc-900 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-800 p-1 z-[9999]"
+                        style={{
+                          top: `${menuPosition.top}px`,
+                          right: `${menuPosition.right}px`,
+                          transform: 'translateY(-100%)',
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
                       <div className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 px-2 py-1.5 uppercase tracking-wider">
                         Move to...
                       </div>
@@ -367,7 +366,8 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                           )}
                         </button>
                       ))}
-                    </div>
+                      </div>
+                    </>
                   )}
                 </div>
               )}

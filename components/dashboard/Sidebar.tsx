@@ -92,6 +92,8 @@ function CollectionItem({
   const colorClass = COLOR_PALETTE.find(c => c.name === collection.color)?.class || 'text-violet-600 dark:text-violet-400';
   const [showIconPicker, setShowIconPicker] = useState(false);
   const iconPickerRef = useRef<HTMLDivElement>(null);
+  const iconButtonRef = useRef<HTMLButtonElement>(null);
+  const [iconPickerPosition, setIconPickerPosition] = useState({ top: 0, left: 0 });
 
   // Close icon picker when clicking outside
   useEffect(() => {
@@ -121,9 +123,17 @@ function CollectionItem({
       >
         {isManaging ? (
           <button
+            ref={iconButtonRef}
             onClick={(e) => {
               e.stopPropagation();
               e.preventDefault();
+              if (iconButtonRef.current) {
+                const rect = iconButtonRef.current.getBoundingClientRect();
+                setIconPickerPosition({
+                  top: rect.bottom + 4,
+                  left: rect.left
+                });
+              }
               setShowIconPicker(!showIconPicker);
             }}
             className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded transition-colors"
@@ -137,9 +147,25 @@ function CollectionItem({
         <span className="truncate">{collection.name}</span>
       </div>
 
-      {/* Icon Picker Popup */}
+      {/* Icon Picker Popup - Using fixed positioning to avoid overflow */}
       {showIconPicker && isManaging && (
-        <div className="absolute left-0 top-full mt-1 z-[9999] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl p-2 w-64 max-h-64 overflow-y-auto">
+        <>
+          {/* Backdrop to close popup */}
+          <div 
+            className="fixed inset-0 z-[9998]"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowIconPicker(false);
+            }}
+          />
+          <div 
+            className="fixed z-[9999] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl p-2 w-64 max-h-64 overflow-y-auto"
+            style={{
+              top: `${iconPickerPosition.top}px`,
+              left: `${iconPickerPosition.left}px`,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
           <div className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 px-2 py-1 mb-1">Choose Icon</div>
           <div className="grid grid-cols-6 gap-1">
             {AVAILABLE_ICONS.map(({ name, icon: Icon }) => {
@@ -165,7 +191,8 @@ function CollectionItem({
               );
             })}
           </div>
-        </div>
+          </div>
+        </>
       )}
 
       {/* DELETE BUTTON (Visible in Manage Mode) */}
@@ -201,6 +228,8 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
   const [showCreateIconPicker, setShowCreateIconPicker] = useState(false);
   const [loading, setLoading] = useState(false);
   const createIconPickerRef = useRef<HTMLDivElement>(null);
+  const createIconButtonRef = useRef<HTMLButtonElement>(null);
+  const [createIconPickerPosition, setCreateIconPickerPosition] = useState({ top: 0, left: 0 });
 
   // Determine view mode from URL parameter
   const viewMode = searchParams?.get('view') === 'grouped' ? 'grouped' : 'timeline';
@@ -439,10 +468,18 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
               {/* Icon Picker */}
               <div className="relative flex-shrink-0" ref={createIconPickerRef}>
                 <button
+                  ref={createIconButtonRef}
                   type="button"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
+                    if (createIconButtonRef.current) {
+                      const rect = createIconButtonRef.current.getBoundingClientRect();
+                      setCreateIconPickerPosition({
+                        top: rect.bottom + 4,
+                        left: rect.left
+                      });
+                    }
                     setShowCreateIconPicker(!showCreateIconPicker);
                   }}
                   className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded transition-colors"
@@ -455,9 +492,25 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
                   })()}
                 </button>
 
-                {/* Icon Picker Popup for Creation */}
+                {/* Icon Picker Popup for Creation - Using fixed positioning to avoid overflow */}
                 {showCreateIconPicker && (
-                  <div className="absolute left-0 top-full mt-1 z-[9999] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl p-2 w-64 max-h-64 overflow-y-auto">
+                  <>
+                    {/* Backdrop to close popup */}
+                    <div 
+                      className="fixed inset-0 z-[9998]"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowCreateIconPicker(false);
+                      }}
+                    />
+                    <div 
+                      className="fixed z-[9999] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl p-2 w-64 max-h-64 overflow-y-auto"
+                      style={{
+                        top: `${createIconPickerPosition.top}px`,
+                        left: `${createIconPickerPosition.left}px`,
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
                     <div className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 px-2 py-1 mb-1">Choose Icon</div>
                     <div className="grid grid-cols-6 gap-1">
                       {AVAILABLE_ICONS.map(({ name, icon: Icon }) => {
@@ -482,7 +535,8 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
                         );
                       })}
                     </div>
-                  </div>
+                    </div>
+                  </>
                 )}
               </div>
               
