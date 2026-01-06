@@ -49,64 +49,136 @@ document.addEventListener('DOMContentLoaded', async () => {
       const results = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: () => {
-          // This runs INSIDE the Amazon/product page
-          const title = document.getElementById('productTitle')?.innerText.trim() 
-                     || document.querySelector('h1')?.innerText.trim()
-                     || document.title.replace('Amazon.com: ', '').replace(' : Amazon.com', '');
+          // UNIVERSAL PRODUCT EXTRACTION - Works on Amazon, independent stores, and generic e-commerce sites
           
-          // COMPREHENSIVE Amazon Price Extraction (20+ selectors)
-          // Try JSON-LD structured data first (most reliable)
-          let price = null;
-          let priceString = null;
+          // ============================================
+          // 1. TITLE EXTRACTION (Multiple strategies)
+          // ============================================
+          let title = null;
           
+          // Strategy 1: JSON-LD structured data (most reliable)
           try {
             const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
             for (const script of jsonLdScripts) {
               try {
                 const data = JSON.parse(script.textContent);
-                if (data.offers?.price || data.offers?.['@type'] === 'AggregateOffer' && data.offers.lowPrice) {
-                  price = parseFloat(data.offers.price || data.offers.lowPrice);
-                  priceString = `$${price.toFixed(2)}`;
-                  break;
+                const items = Array.isArray(data) ? data : [data];
+                for (const item of items) {
+                  if (item['@type'] === 'Product' || (Array.isArray(item['@type']) && item['@type'].includes('Product'))) {
+                    title = item.name || item.title || null;
+                    if (title) break;
+                  }
                 }
+                if (title) break;
               } catch (e) {}
             }
           } catch (e) {}
           
-          // If JSON-LD didn't work, try comprehensive CSS selectors
+          // Strategy 2: Open Graph meta tags (works on most sites)
+          if (!title) {
+            title = document.querySelector('meta[property="og:title"]')?.getAttribute('content')?.trim() || null;
+          }
+          
+          // Strategy 3: Amazon-specific selectors
+          if (!title) {
+            title = document.getElementById('productTitle')?.innerText.trim() || null;
+          }
+          
+          // Strategy 4: Generic h1 or title tag
+          if (!title) {
+            const h1 = document.querySelector('h1');
+            if (h1) {
+              title = h1.innerText.trim();
+              // Clean up common prefixes/suffixes
+              title = title.replace(/^Amazon\.com:\s*/i, '').replace(/\s*:\s*Amazon\.com$/i, '');
+            }
+          }
+          
+          // Strategy 5: Page title as last resort
+          if (!title) {
+            title = document.title.trim();
+            // Clean up common patterns
+            title = title.replace(/^Amazon\.com:\s*/i, '').replace(/\s*:\s*Amazon\.com$/i, '');
+            title = title.replace(/\s*[-|]\s*.*$/, ''); // Remove " - Store Name" suffix
+          }
+          
+          // ============================================
+          // 2. PRICE EXTRACTION (Multiple strategies)
+          // ============================================
+          let price = null;
+          let priceString = null;
+          
+          // Strategy 1: JSON-LD structured data (most reliable for all sites)
+          try {
+            const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
+            for (const script of jsonLdScripts) {
+              try {
+                const data = JSON.parse(script.textContent);
+                const items = Array.isArray(data) ? data : [data];
+                for (const item of items) {
+                  if (item['@type'] === 'Product' || item['@type'] === 'Offer' || 
+                      (Array.isArray(item['@type']) && (item['@type'].includes('Product') || item['@type'].includes('Offer')))) {
+                    // Try offers.price, offers.lowPrice, or price
+                    if (item.offers) {
+                      const offer = Array.isArray(item.offers) ? item.offers[0] : item.offers;
+                      if (offer.price) {
+                        price = parseFloat(offer.price);
+                        priceString = `$${price.toFixed(2)}`;
+                        break;
+                      } else if (offer.lowPrice) {
+                        price = parseFloat(offer.lowPrice);
+                        priceString = `$${price.toFixed(2)}`;
+                        break;
+                      }
+                    } else if (item.price) {
+                      price = parseFloat(item.price);
+                      priceString = `$${price.toFixed(2)}`;
+                      break;
+                    }
+                  }
+                }
+                if (price) break;
+              } catch (e) {}
+            }
+          } catch (e) {}
+          
+          // Strategy 2: Meta tags (Open Graph, product meta)
           if (!price) {
-            const priceSelectors = [
-              // Modern Amazon layouts
+            const metaPrice = document.querySelector('meta[property="product:price:amount"]')?.getAttribute('content')
+                           || document.querySelector('meta[property="og:price:amount"]')?.getAttribute('content')
+                           || document.querySelector('meta[name="price"]')?.getAttribute('content');
+            if (metaPrice) {
+              price = parseFloat(metaPrice);
+              priceString = `$${price.toFixed(2)}`;
+            }
+          }
+          
+          // Strategy 3: Amazon-specific selectors (comprehensive)
+          if (!price) {
+            const amazonPriceSelectors = [
               '.a-price .a-offscreen',
               '#corePrice_feature_div .a-offscreen',
               '#corePriceDisplay_desktop_feature_div .a-offscreen',
               '#apex_desktop .a-offscreen',
               '.a-price-whole',
               '.a-price .a-price-whole',
-              // Legacy selectors
               '#priceblock_ourprice',
               '#priceblock_dealprice',
               '#priceblock_saleprice',
               '#price',
-              // Generic price classes
               '.a-color-price',
               '.a-size-medium.a-color-price',
               '.a-price-range .a-offscreen',
-              // Hidden input data
               'input#twister-plus-price-data-price',
               '#priceblock_usedprice',
               '#priceblock_newprice',
-              // Mobile/tablet layouts
               '.a-mobile .a-price .a-offscreen',
               '#mobile-price .a-offscreen',
-              // Deal/Bundle prices
               '.a-price.a-text-price .a-offscreen',
-              '.a-price.a-text-price.a-size-medium .a-offscreen',
-              // Price range (take first)
               '.a-price-range .a-offscreen:first-child'
             ];
             
-            for (const selector of priceSelectors) {
+            for (const selector of amazonPriceSelectors) {
               const element = document.querySelector(selector);
               if (element) {
                 priceString = element.innerText?.trim() || element.textContent?.trim() || element.getAttribute('value');
@@ -116,52 +188,157 @@ document.addEventListener('DOMContentLoaded', async () => {
               }
             }
             
-            // Try to extract from data attributes
+            // Try data attributes
             if (!priceString) {
-              const priceData = document.querySelector('[data-asin-price]')?.getAttribute('data-asin-price');
+              const priceData = document.querySelector('[data-asin-price]')?.getAttribute('data-asin-price')
+                             || document.querySelector('[data-price]')?.getAttribute('data-price');
               if (priceData) priceString = priceData;
             }
           }
           
-          // Fallback: Try meta tags
+          // Strategy 4: Generic e-commerce selectors (for independent stores)
+          if (!price) {
+            const genericPriceSelectors = [
+              '.price',
+              '.product-price',
+              '.price-current',
+              '.current-price',
+              '.sale-price',
+              '.regular-price',
+              '[data-price]',
+              '[itemprop="price"]',
+              '.price-value',
+              '.product-price-value',
+              '#product-price',
+              '.price-wrapper .price',
+              '.product-info .price',
+              '.product-details .price'
+            ];
+            
+            for (const selector of genericPriceSelectors) {
+              const element = document.querySelector(selector);
+              if (element) {
+                priceString = element.innerText?.trim() || element.textContent?.trim() || element.getAttribute('content');
+                if (priceString && priceString.match(/\$?\d+\.?\d*/)) {
+                  break;
+                }
+              }
+            }
+          }
+          
+          // Strategy 5: Regex search in page text (last resort)
           if (!priceString) {
-            const metaPrice = document.querySelector('meta[property="product:price:amount"]')?.getAttribute('content')
-                           || document.querySelector('meta[property="og:price:amount"]')?.getAttribute('content');
-            if (metaPrice) {
-              priceString = `$${metaPrice}`;
+            const bodyText = document.body?.innerText || '';
+            const priceMatch = bodyText.match(/\$?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/);
+            if (priceMatch) {
+              priceString = priceMatch[0].trim();
             }
           }
           
           // Clean and parse price
           if (priceString) {
-            // Remove currency symbols, commas, and text, keep numbers and decimal
             const cleanPrice = priceString.replace(/[^0-9.]/g, '');
             price = parseFloat(cleanPrice) || 0;
             
-            // Safety check: if price seems wrong (like "29.9929.99"), take first valid chunk
+            // Safety check: if price seems wrong, take first valid chunk
             if (price > 1000000) {
               const match = cleanPrice.match(/(\d+\.?\d*)/);
               if (match) price = parseFloat(match[1]) || 0;
             }
           } else {
             price = 0;
-            priceString = "0.00";
+            priceString = "Price not found";
           }
           
-          const image = document.getElementById('landingImage')?.src 
-                     || document.querySelector('#imgBlkFront')?.src
-                     || document.querySelector('.a-dynamic-image')?.src
-                     || '';
+          // ============================================
+          // 3. IMAGE EXTRACTION (Multiple strategies)
+          // ============================================
+          let image = null;
+          
+          // Strategy 1: JSON-LD structured data
+          try {
+            const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
+            for (const script of jsonLdScripts) {
+              try {
+                const data = JSON.parse(script.textContent);
+                const items = Array.isArray(data) ? data : [data];
+                for (const item of items) {
+                  if (item['@type'] === 'Product') {
+                    if (item.image) {
+                      if (Array.isArray(item.image)) {
+                        image = item.image[0] || null;
+                      } else if (typeof item.image === 'string') {
+                        image = item.image;
+                      } else if (item.image.url) {
+                        image = item.image.url;
+                      }
+                      if (image) break;
+                    }
+                  }
+                }
+                if (image) break;
+              } catch (e) {}
+            }
+          } catch (e) {}
+          
+          // Strategy 2: Open Graph meta tag
+          if (!image) {
+            image = document.querySelector('meta[property="og:image"]')?.getAttribute('content') || null;
+          }
+          
+          // Strategy 3: Amazon-specific selectors
+          if (!image) {
+            image = document.getElementById('landingImage')?.src 
+                 || document.querySelector('#imgBlkFront')?.src
+                 || document.querySelector('.a-dynamic-image')?.src
+                 || null;
+          }
+          
+          // Strategy 4: Generic product image selectors
+          if (!image) {
+            const genericImageSelectors = [
+              '.product-image img',
+              '.product-photo img',
+              '.product-gallery img',
+              '[itemprop="image"]',
+              '.main-image img',
+              '#product-image img',
+              '.product-main-image img',
+              'img[alt*="product"]',
+              'img[alt*="Product"]'
+            ];
+            
+            for (const selector of genericImageSelectors) {
+              const img = document.querySelector(selector);
+              if (img && img.src && !img.src.includes('placeholder') && !img.src.includes('loading')) {
+                image = img.src;
+                break;
+              }
+            }
+          }
+          
+          // Strategy 5: First large image (fallback)
+          if (!image) {
+            const images = document.querySelectorAll('img');
+            for (const img of images) {
+              if (img.naturalWidth > 200 && img.naturalHeight > 200 && 
+                  !img.src.includes('logo') && !img.src.includes('icon') &&
+                  !img.src.includes('avatar') && !img.src.includes('placeholder')) {
+                image = img.src;
+                break;
+              }
+            }
+          }
 
           // Extract retailer from URL
           const urlObj = new URL(window.location.href);
           const retailer = urlObj.hostname.replace('www.', '').split('.')[0];
 
           return { 
-            title, 
-            price: price,
-            price_string: priceString || (price > 0 ? `$${price.toFixed(2)}` : "Price not found"), // Keep original for display
-            image_url: image, 
+            title: title || 'Untitled Item',
+            price: price || 0,
+            price_string: priceString || (price > 0 ? `$${price.toFixed(2)}` : "Price not found"),
+            image_url: image || '',
             url: window.location.href,
             retailer: retailer.charAt(0).toUpperCase() + retailer.slice(1)
           };

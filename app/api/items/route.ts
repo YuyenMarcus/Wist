@@ -213,8 +213,8 @@ export async function POST(request: Request) {
       // C. SCRAPE MODE (Only for manual dashboard adds - no extension data)
       console.log("🔍 [API] No extension data provided, attempting server-side scrape for:", url);
       try {
-        // Dynamic import to avoid webpack analyzing scraper dependencies during build
-        const scraperModule = await import('@/lib/scraper');
+        // Use the advanced scraper from lib/scraper/index.ts (supports Playwright, Scrapy, structured data)
+        const scraperModule = await import('@/lib/scraper/index');
         const scrapeResult = await scraperModule.scrapeProduct(url) as { ok: boolean; data?: { title?: string; price?: number; image?: string; domain?: string }; error?: string; detail?: string } | null;
         
         if (scrapeResult && scrapeResult.ok && scrapeResult.data) {
