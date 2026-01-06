@@ -179,7 +179,9 @@ export default function DashboardPage() {
           setCollections([])
         }
       }
-      setLoading(false)
+      
+      // Wait a tiny bit to ensure collections state is updated
+      setTimeout(() => setLoading(false), 50)  // Small delay to ensure state updates
     }
 
     loadUser()
