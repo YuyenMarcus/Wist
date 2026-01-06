@@ -414,9 +414,9 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
           <form onSubmit={handleCreate} className="bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-3 shadow-sm">
             
             {/* Icon and Color Picker Row */}
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
               {/* Icon Picker */}
-              <div className="relative">
+              <div className="relative flex-shrink-0">
                 <button
                   type="button"
                   onClick={(e) => {
@@ -437,7 +437,7 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
               </div>
               
               {/* Color Palette */}
-              <div className="flex gap-1">
+              <div className="flex gap-1 flex-wrap flex-1 min-w-0">
                 {COLOR_PALETTE.map(color => (
                   <button
                     key={color.name}
@@ -446,9 +446,9 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
                       e.preventDefault();
                       setNewCollectionColor(color.name);
                     }}
-                    className={`w-6 h-6 rounded-full transition-all ${
+                    className={`w-5 h-5 rounded-full transition-all flex-shrink-0 ${
                       newCollectionColor === color.name 
-                        ? 'ring-2 ring-offset-2 ring-zinc-400 dark:ring-zinc-600 scale-110' 
+                        ? 'ring-2 ring-zinc-400 dark:ring-zinc-600 ring-inset scale-110' 
                         : 'hover:scale-105'
                     }`}
                     style={{ backgroundColor: color.value }}
