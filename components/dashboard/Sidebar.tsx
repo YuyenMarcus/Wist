@@ -139,7 +139,7 @@ function CollectionItem({
 
       {/* Icon Picker Popup */}
       {showIconPicker && isManaging && (
-        <div className="absolute left-0 top-full mt-1 z-50 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl p-2 w-64 max-h-64 overflow-y-auto">
+        <div className="absolute left-0 top-full mt-1 z-[9999] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl p-2 w-64 max-h-64 overflow-y-auto">
           <div className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 px-2 py-1 mb-1">Choose Icon</div>
           <div className="grid grid-cols-6 gap-1">
             {AVAILABLE_ICONS.map(({ name, icon: Icon }) => {
@@ -198,10 +198,29 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
   const [newCollectionName, setNewCollectionName] = useState('');
   const [newCollectionIcon, setNewCollectionIcon] = useState('Folder');
   const [newCollectionColor, setNewCollectionColor] = useState('Violet');
+  const [showCreateIconPicker, setShowCreateIconPicker] = useState(false);
   const [loading, setLoading] = useState(false);
+  const createIconPickerRef = useRef<HTMLDivElement>(null);
 
   // Determine view mode from URL parameter
   const viewMode = searchParams?.get('view') === 'grouped' ? 'grouped' : 'timeline';
+
+  // Close create icon picker when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (createIconPickerRef.current && !createIconPickerRef.current.contains(event.target as Node)) {
+        setShowCreateIconPicker(false);
+      }
+    }
+
+    if (showCreateIconPicker) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showCreateIconPicker]);
 
   // NEW: Fetch collections directly on mount to ensure we have the latest data
   // This bypasses any "stale" data coming from the Server Layout
@@ -274,6 +293,7 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
       setNewCollectionName('');
       setNewCollectionIcon('Folder');
       setNewCollectionColor('Violet');
+      setShowCreateIconPicker(false);
       setIsCreating(false);
       router.refresh(); // Refresh server data
     }
@@ -284,6 +304,7 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
     setNewCollectionName('');
     setNewCollectionIcon('Folder');
     setNewCollectionColor('Violet');
+    setShowCreateIconPicker(false);
     setIsCreating(false);
   };
 
@@ -416,17 +437,16 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
             {/* Icon and Color Picker Row */}
             <div className="flex items-center gap-2 mb-3 flex-wrap">
               {/* Icon Picker */}
-              <div className="relative flex-shrink-0">
+              <div className="relative flex-shrink-0" ref={createIconPickerRef}>
                 <button
                   type="button"
                   onClick={(e) => {
                     e.preventDefault();
-                    const currentIndex = AVAILABLE_ICONS.findIndex(i => i.name === newCollectionIcon);
-                    const nextIndex = (currentIndex + 1) % AVAILABLE_ICONS.length;
-                    setNewCollectionIcon(AVAILABLE_ICONS[nextIndex].name);
+                    e.stopPropagation();
+                    setShowCreateIconPicker(!showCreateIconPicker);
                   }}
                   className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded transition-colors"
-                  title="Change icon (click to cycle)"
+                  title="Choose icon"
                 >
                   {(() => {
                     const IconComponent = getIconComponent(newCollectionIcon);
@@ -434,6 +454,36 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
                     return <IconComponent size={18} className={colorClass} />;
                   })()}
                 </button>
+
+                {/* Icon Picker Popup for Creation */}
+                {showCreateIconPicker && (
+                  <div className="absolute left-0 top-full mt-1 z-[9999] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl p-2 w-64 max-h-64 overflow-y-auto">
+                    <div className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 px-2 py-1 mb-1">Choose Icon</div>
+                    <div className="grid grid-cols-6 gap-1">
+                      {AVAILABLE_ICONS.map(({ name, icon: Icon }) => {
+                        const isSelected = newCollectionIcon === name || (!newCollectionIcon && name === 'Folder');
+                        return (
+                          <button
+                            key={name}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              setNewCollectionIcon(name);
+                              setShowCreateIconPicker(false);
+                            }}
+                            className={`p-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors ${
+                              isSelected ? 'bg-violet-100 dark:bg-violet-900/20 ring-1 ring-violet-500' : ''
+                            }`}
+                            title={name}
+                          >
+                            <Icon size={16} className={isSelected ? 'text-violet-600 dark:text-violet-400' : 'text-zinc-500'} />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
               
               {/* Color Palette */}
