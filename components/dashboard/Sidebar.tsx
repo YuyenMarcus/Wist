@@ -231,8 +231,8 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
       .insert({ 
         name: newCollectionName.trim(), 
         slug, 
-        user_id: user.id,
-        icon: newCollectionIcon
+        user_id: user.id
+        // icon: newCollectionIcon  // Commented out until SQL migration is run
       })
       .select()
       .single();
