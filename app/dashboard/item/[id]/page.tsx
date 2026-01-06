@@ -12,6 +12,7 @@ export default function ItemDetail() {
   const [item, setItem] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [checkingPrice, setCheckingPrice] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -60,12 +61,14 @@ export default function ItemDetail() {
 
       setItem(itemData);
 
-      // 2. Get Price History (CORRECTED COLUMN NAME)
+      // 2. Get Price History (LIMITED to last 100 entries or 90 days)
       const { data: historyData, error: historyError } = await supabase
         .from('price_history')
-        .select('price, recorded_at') // Changed to 'recorded_at'
+        .select('price, created_at') // Use created_at (correct column name)
         .eq('item_id', itemId)
-        .order('recorded_at', { ascending: true }); // Changed to 'recorded_at'
+        .gte('created_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()) // Last 90 days only
+        .order('created_at', { ascending: true })
+        .limit(100); // Limit to 100 most recent entries
 
       if (historyError) {
         console.error("History Error:", historyError);
@@ -76,7 +79,7 @@ export default function ItemDetail() {
         console.log("Raw History Data:", historyData); // Check console to see real data
 
         const formattedHistory = historyData.map(entry => {
-          const dateObj = new Date(entry.recorded_at); // Changed to 'recorded_at'
+          const dateObj = new Date(entry.created_at); // Use created_at
           return {
             price: Number(entry.price), // Force number
             // Create a simple string like "12/24"
@@ -96,6 +99,31 @@ export default function ItemDetail() {
 
     fetchData();
   }, [params, router]);
+
+  const handleManualPriceCheck = async () => {
+    if (!item) return;
+    
+    setCheckingPrice(true);
+    try {
+      const response = await fetch(`/api/items/${item.id}/check-price`, {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Refresh the page data
+        window.location.reload();
+      } else {
+        alert(`Failed to check price: ${data.error || data.details || 'Unknown error'}`);
+      }
+    } catch (error: any) {
+      console.error('Manual price check error:', error);
+      alert(`Error: ${error.message}`);
+    } finally {
+      setCheckingPrice(false);
+    }
+  };
 
   if (loading) return (
     <div className="flex h-screen items-center justify-center bg-gray-50">
@@ -194,8 +222,16 @@ export default function ItemDetail() {
                     </LineChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="flex h-full items-center justify-center text-gray-400">
-                    Not enough data points yet.
+                  <div className="flex flex-col h-full items-center justify-center text-gray-400 space-y-4 px-4">
+                    <p>No price history yet.</p>
+                    <p className="text-sm text-gray-500 text-center">We're tracking this item's price. Check back in 24 hours to see price trends!</p>
+                    <button
+                      onClick={handleManualPriceCheck}
+                      disabled={checkingPrice}
+                      className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                    >
+                      {checkingPrice ? 'Checking...' : 'Check Price Now'}
+                    </button>
                   </div>
                 )}
               </div>

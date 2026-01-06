@@ -1,0 +1,279 @@
+import { createClient } from '@supabase/supabase-js';
+import { NextResponse } from 'next/server';
+import { scrapeProduct } from '@/lib/scraper';
+
+// ⚠️ CRITICAL CHANGE: Use the SERVICE_ROLE_KEY
+// This bypasses RLS so the bot can see ALL items
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Missing Supabase credentials. Check your .env.local file.');
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+export const dynamic = 'force-dynamic';
+
+export async function GET(req: Request) {
+  try {
+    // Verify cron secret to prevent unauthorized access (if CRON_SECRET is set)
+    const authHeader = req.headers.get('authorization');
+    const cronSecret = process.env.CRON_SECRET;
+    
+    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+      // If CRON_SECRET is set, require authentication
+      // Vercel cron jobs automatically add this header, but manual calls need it
+      console.warn('⚠️ Unauthorized cron access attempt');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    console.log("\n--- ⏰ STARTING PRICE CHECK (ADMIN MODE) ---");
+    
+    // ============================================
+    // RATE LIMITING: Prevent accidental spam
+    // ============================================
+    const RATE_LIMIT_HOURS = 1; // Minimum 1 hour between runs
+    
+    // Check last run time from a simple key-value store
+    // Using a simple approach: check if there's a recent entry in price_history
+    // (Alternative: use a system_config table or Redis)
+    const { data: recentHistory } = await supabase
+      .from('price_history')
+      .select('created_at')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+    
+    if (recentHistory?.created_at) {
+      const lastRunTime = new Date(recentHistory.created_at);
+      const hoursSinceLastRun = (Date.now() - lastRunTime.getTime()) / (1000 * 60 * 60);
+      
+      if (hoursSinceLastRun < RATE_LIMIT_HOURS) {
+        const minutesRemaining = Math.ceil((RATE_LIMIT_HOURS - hoursSinceLastRun) * 60);
+        console.log(`⏸️  Rate limit: Last run was ${Math.round(hoursSinceLastRun * 60)} minutes ago. Please wait ${minutesRemaining} more minutes.`);
+        return NextResponse.json({ 
+          error: `Rate limit: Please wait ${minutesRemaining} more minutes before running again.`,
+          lastRun: lastRunTime.toISOString(),
+          nextRunAvailable: new Date(Date.now() + (RATE_LIMIT_HOURS - hoursSinceLastRun) * 60 * 60 * 1000).toISOString()
+        }, { status: 429 });
+      }
+    }
+    
+    console.log("🔍 Environment Variable Check:");
+    console.log("   NEXT_PUBLIC_SUPABASE_URL:", process.env.NEXT_PUBLIC_SUPABASE_URL ? "✅ Found" : "❌ Missing");
+    console.log("   NEXT_PUBLIC_SUPABASE_ANON_KEY:", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "✅ Found" : "❌ Missing");
+    console.log("   SUPABASE_SERVICE_ROLE_KEY:", process.env.SUPABASE_SERVICE_ROLE_KEY ? "✅ Found" : "❌ Missing");
+    
+    // Check if service role key is configured
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.warn("\n⚠️  WARNING: SUPABASE_SERVICE_ROLE_KEY not found!");
+      console.warn("   Make sure .env.local is in the ROOT folder (same level as package.json)");
+      console.warn("   File should be at: C:\\Users\\yuyen\\OneDrive\\Desktop\\Projects\\wist\\.env.local");
+      console.warn("   After adding it, you MUST restart the server (Ctrl+C, then npm run dev)");
+      console.warn("   Using ANON_KEY instead (may fail with RLS)");
+    } else {
+      console.log("\n✅ Using SERVICE_ROLE_KEY (bypasses RLS)");
+    }
+
+    // ============================================
+    // OPTIMIZED: Process items in batches with pagination
+    // ============================================
+    const BATCH_SIZE = 50; // Process 50 items at a time
+    const MAX_ITEMS_TO_CHECK = 200; // Limit total items per run (prevents timeout)
+    
+    let totalChecked = 0;
+    let updateCount = 0;
+    let offset = 0;
+    let hasMore = true;
+
+    // Only select columns we actually need (reduces data transfer)
+    const selectColumns = 'id, title, url, current_price, status, updated_at';
+
+    console.log(`📊 Starting batch processing (batch size: ${BATCH_SIZE}, max items: ${MAX_ITEMS_TO_CHECK})`);
+
+    // Process items in batches
+    while (hasMore && totalChecked < MAX_ITEMS_TO_CHECK) {
+      // 1. Get batch of items that need checking
+      // Priority: Items that haven't been checked in 24+ hours, or never checked
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      
+      let { data: items, error } = await supabase
+        .from('items')
+        .select(selectColumns + ', last_price_check, price_check_failures')
+        .not('url', 'is', null)
+        .eq('status', 'active') // Only check active items (not purchased)
+        .or(`last_price_check.is.null,last_price_check.lt.${twentyFourHoursAgo}`) // Not checked in 24h
+        .order('last_price_check', { ascending: true, nullsFirst: true }) // Check oldest first
+        .limit(BATCH_SIZE);
+
+        // If error, try without status filter and last_price_check filter (in case columns don't exist)
+        if (error) {
+          console.log("⚠️  Query error (might be missing columns), trying simplified query...");
+          const retry = await supabase
+            .from('items')
+            .select(selectColumns)
+            .not('url', 'is', null)
+            .order('created_at', { ascending: true })
+            .limit(BATCH_SIZE);
+        
+          items = retry.data;
+          error = retry.error;
+        }
+
+      // Debugging output
+      if (error) {
+        console.error("❌ Database Error:", error.message);
+        console.error("   Code:", error.code);
+        console.error("   Details:", error.details);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+
+      if (!items || items.length === 0) {
+        hasMore = false;
+        break;
+      }
+
+      console.log(`\n📦 Processing batch ${Math.floor(offset / BATCH_SIZE) + 1}: ${items.length} items (total checked: ${totalChecked})`);
+
+      // 2. Loop and Check items in this batch
+      for (const item of items) {
+        console.log(`\n🔍 Checking: ${item.title?.substring(0, 30)}...`);
+        console.log(`   URL: ${item.url}`);
+        console.log(`   DB Price: $${item.current_price}`);
+        console.log(`   Last Check: ${item.last_price_check || 'Never'}`);
+        console.log(`   Failures: ${item.price_check_failures || 0}`);
+
+        try {
+          // SCRAPE with retry logic
+          let freshData = null;
+          let retries = 3;
+          
+          while (retries > 0 && !freshData) {
+            freshData = await scrapeProduct(item.url);
+            if (!freshData || !freshData.current_price) {
+              retries--;
+              if (retries > 0) {
+                console.log(`   ⚠️  Scrape attempt failed, retrying... (${retries} left)`);
+                await new Promise(r => setTimeout(r, 2000)); // Wait before retry
+              }
+            }
+          }
+
+          if (!freshData || !freshData.current_price) {
+            console.log("   ❌ Scrape Failed: Could not fetch price after retries");
+            
+            // Update failure count
+            const failureCount = (item.price_check_failures || 0) + 1;
+            await supabase.from('items').update({
+              last_price_check: new Date().toISOString(),
+              price_check_failures: failureCount
+            }).eq('id', item.id);
+            
+            if (failureCount >= 5) {
+              console.log(`   ⚠️  Item has failed ${failureCount} times - may need manual review`);
+            }
+            
+            totalChecked++;
+            continue;
+          }
+
+          const newPrice = freshData.current_price;
+          const oldPrice = item.current_price || 0;
+          const priceChanged = Math.abs(Number(newPrice) - Number(oldPrice)) > 0.01;
+
+          console.log(`   ✅ Scrape Success: Found $${newPrice}`);
+
+          // Update item (always update last_price_check and reset failures)
+          const updateData: any = {
+            last_price_check: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            price_check_failures: 0 // Reset on success
+          };
+
+          if (priceChanged) {
+            updateData.current_price = newPrice;
+            console.log(`   💰 PRICE DIFFERENCE! Updating DB...`);
+            console.log(`   Old: $${oldPrice} → New: $${newPrice}`);
+          } else {
+            console.log("   💤 No change in price.");
+          }
+          
+          const updateResult = await supabase.from('items').update(updateData).eq('id', item.id);
+          
+          if (updateResult.error) {
+            console.log(`   ❌ Update Error: ${updateResult.error.message}`);
+          } else {
+            console.log(`   ✅ Item updated in DB`);
+          }
+          
+          // Log price history if price changed
+          if (priceChanged) {
+            const historyResult = await supabase.from('price_history').insert({
+              item_id: item.id,
+              price: newPrice
+            });
+
+            if (historyResult.error) {
+              console.log(`   ⚠️  History Error: ${historyResult.error.message}`);
+            } else {
+              console.log(`   ✅ Price history logged`);
+            }
+
+            updateCount++;
+          }
+          
+        } catch (error: any) {
+          console.error(`   ❌ Error checking item:`, error.message);
+          
+          // Update failure count
+          const failureCount = (item.price_check_failures || 0) + 1;
+          await supabase.from('items').update({
+            last_price_check: new Date().toISOString(),
+            price_check_failures: failureCount
+          }).eq('id', item.id);
+        }
+        
+        // Polite Delay between items
+        await new Promise(r => setTimeout(r, 2000));
+        
+        totalChecked++;
+      }
+
+      // Check if we've reached the limit
+      if (totalChecked >= MAX_ITEMS_TO_CHECK) {
+        console.log(`\n⚠️  Reached max items limit (${MAX_ITEMS_TO_CHECK}). Stopping.`);
+        hasMore = false;
+        break;
+      }
+
+      // Check if there are more items to process
+      // Since we're using limit instead of range, check if we got a full batch
+      if (items.length < BATCH_SIZE) {
+        hasMore = false;
+      } else {
+        // Continue to next batch (offset is not used with limit, but we track it for logging)
+        offset += BATCH_SIZE;
+      }
+
+      // Small delay between batches
+      await new Promise(r => setTimeout(r, 1000));
+    }
+
+    console.log("\n--- JOB FINISHED ---");
+    console.log(`📊 Summary: Checked ${totalChecked} items, Updated ${updateCount} prices`);
+    
+    return NextResponse.json({ 
+      success: true, 
+      checked: totalChecked, 
+      updates: updateCount,
+      message: totalChecked >= MAX_ITEMS_TO_CHECK 
+        ? `Processed ${totalChecked} items (limit reached). More items will be checked in next run.`
+        : `Processed all ${totalChecked} items.`
+    });
+
+  } catch (error: any) {
+    console.error("CRITICAL CRON ERROR:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
