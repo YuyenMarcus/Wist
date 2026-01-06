@@ -89,12 +89,11 @@ function CollectionItem({
 
   return (
     <div className="group/item flex items-center justify-between px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors relative" ref={iconPickerRef}>
-      <Link
-        href={`/dashboard/collection/${collection.slug}`}
-        className={`flex-1 flex items-center gap-3 text-sm font-medium truncate transition-colors ${
+      <div
+        className={`flex-1 flex items-center gap-3 text-sm font-medium truncate ${
           pathname?.includes(collection.slug)
             ? 'text-violet-600 dark:text-violet-400'
-            : 'text-zinc-500 hover:text-violet-600 dark:hover:text-violet-400'
+            : 'text-zinc-500'
         }`}
       >
         {isManaging ? (
@@ -113,7 +112,7 @@ function CollectionItem({
           <IconComponent size={18} />
         )}
         <span className="truncate">{collection.name}</span>
-      </Link>
+      </div>
 
       {/* Icon Picker Popup */}
       {showIconPicker && isManaging && (
