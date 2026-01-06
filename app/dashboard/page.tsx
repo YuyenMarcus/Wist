@@ -59,6 +59,17 @@ export default function DashboardPage() {
     }
   }, [viewMode, collections, products])
 
+  // Debug: Log Dashboard render state
+  useEffect(() => {
+    console.log('🐛 Dashboard Render Debug:', {
+      viewMode,
+      collectionsCount: collections.length,
+      collectionsData: collections,
+      productsCount: products.length,
+      timestamp: new Date().toISOString()
+    });
+  }, [viewMode, collections, products])
+
   // Group items by collection for the Categories view - use useMemo to ensure proper computation
   const groupedItems = useMemo(() => {
     if (!products.length) {
