@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Folder, Plus, Grid, Gift, Settings, Trash2, Layers, LayoutGrid, Heart, Home, ShoppingBag, Star, Bookmark, Tag, Box, Package, Sparkles, Zap, Coffee, Music, Gamepad2, Shirt, Car, Plane, Camera, Palette, Dumbbell, BookOpen, Laptop, Phone, Watch, Headphones } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
 
 interface Collection {
