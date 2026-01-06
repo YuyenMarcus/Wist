@@ -98,7 +98,21 @@ export async function GET(req: Request) {
       // Priority: Items that haven't been checked in 24+ hours, or never checked
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       
-      let { data: items, error } = await supabase
+      type ItemType = {
+        id: string;
+        title: string;
+        url: string;
+        current_price: number | null;
+        status?: string;
+        updated_at?: string;
+        last_price_check?: string;
+        price_check_failures?: number;
+      };
+      
+      let items: ItemType[] | null = null;
+      let error: any = null;
+      
+      const initialQuery = await supabase
         .from('items')
         .select(selectColumns + ', last_price_check, price_check_failures')
         .not('url', 'is', null)
@@ -107,19 +121,33 @@ export async function GET(req: Request) {
         .order('last_price_check', { ascending: true, nullsFirst: true }) // Check oldest first
         .limit(BATCH_SIZE);
 
-        // If error, try without status filter and last_price_check filter (in case columns don't exist)
-        if (error) {
-          console.log("⚠️  Query error (might be missing columns), trying simplified query...");
-          const retry = await supabase
-            .from('items')
-            .select(selectColumns)
-            .not('url', 'is', null)
-            .order('created_at', { ascending: true })
-            .limit(BATCH_SIZE);
-        
-          items = retry.data;
+      if (initialQuery.error) {
+        error = initialQuery.error;
+        items = null;
+      } else {
+        // Type assertion through unknown to handle Supabase's union types
+        items = (initialQuery.data as unknown) as ItemType[] | null;
+      }
+
+      // If error, try without status filter and last_price_check filter (in case columns don't exist)
+      if (error) {
+        console.log("⚠️  Query error (might be missing columns), trying simplified query...");
+        const retry = await supabase
+          .from('items')
+          .select('id, title, url, current_price, status, updated_at')
+          .not('url', 'is', null)
+          .order('created_at', { ascending: true })
+          .limit(BATCH_SIZE);
+      
+        if (retry.error) {
           error = retry.error;
+          items = null;
+        } else {
+          // Type assertion through unknown to handle Supabase's union types
+          items = (retry.data as unknown) as ItemType[] | null;
+          error = null;
         }
+      }
 
       // Debugging output
       if (error) {
