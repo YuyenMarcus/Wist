@@ -1,0 +1,13 @@
+*
+!.railwayignore
+!nixpacks.toml
+!railway.toml
+!railway.json
+!runtime.txt
+!requirements.txt
+!app.py
+!*.py
+!spiders/
+!scrapy.cfg
+!settings.py
+!pipelines.py
