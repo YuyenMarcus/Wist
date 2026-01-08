@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-import { scrapeProduct } from '@/lib/scraper';
 
 // ⚠️ CRITICAL CHANGE: Use the SERVICE_ROLE_KEY
 // This bypasses RLS so the bot can see ALL items
@@ -173,16 +172,52 @@ export async function GET(req: Request) {
         console.log(`   Failures: ${item.price_check_failures || 0}`);
 
         try {
-          // SCRAPE with retry logic
+          // SCRAPE using Railway scraper service with retry logic
+          const scraperUrl = process.env.SCRAPER_SERVICE_URL;
+          if (!scraperUrl) {
+            console.log("   ❌ SCRAPER_SERVICE_URL not configured");
+            totalChecked++;
+            continue;
+          }
+
           let freshData = null;
           let retries = 3;
           
           while (retries > 0 && !freshData) {
-            freshData = await scrapeProduct(item.url);
-            if (!freshData || !freshData.current_price) {
+            try {
+              console.log(`   🔄 Calling Railway scraper service... (attempt ${4 - retries}/3)`);
+              
+              const response = await fetch(`${scraperUrl}/api/scrape/sync`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: item.url }),
+                signal: AbortSignal.timeout(30000) // 30 second timeout
+              });
+
+              if (!response.ok) {
+                throw new Error(`Scraper service returned ${response.status}: ${response.statusText}`);
+              }
+
+              const data = await response.json();
+              
+              if (data.success && data.result && data.result.price) {
+                // Convert Railway service response to expected format
+                freshData = {
+                  current_price: parseFloat(data.result.price) || null,
+                  title: data.result.title || item.title,
+                  priceRaw: data.result.priceRaw || data.result.price,
+                  image: data.result.image,
+                  description: data.result.description
+                };
+                console.log(`   ✅ Scraper service returned price: $${freshData.current_price}`);
+              } else {
+                throw new Error(data.error || 'No price in response');
+              }
+            } catch (error: any) {
+              console.log(`   ⚠️  Scrape attempt failed: ${error.message}`);
               retries--;
               if (retries > 0) {
-                console.log(`   ⚠️  Scrape attempt failed, retrying... (${retries} left)`);
+                console.log(`   ⚠️  Retrying... (${retries} attempts left)`);
                 await new Promise(r => setTimeout(r, 2000)); // Wait before retry
               }
             }

@@ -141,12 +141,6 @@ export default function ExtensionSync() {
   }, []);
 
   // RENDER A VISIBLE DEBUG BUTTON
-  return (
-    <div 
-      onClick={syncTokenToExtension}
-      className={`fixed bottom-4 right-4 ${color} text-white px-4 py-2 rounded shadow-lg cursor-pointer z-[9999] text-xs font-mono transition-all`}
-    >
-      [Wist Sync] {msg}
-    </div>
-  );
+  // Hidden - sync functionality still works in background
+  return null;
 }
