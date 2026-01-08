@@ -21,8 +21,8 @@ RUN playwright install-deps chromium
 # Copy application code
 COPY . .
 
-# Expose port (Railway sets PORT env var)
-EXPOSE $PORT
+# Expose port (Railway will set PORT env var at runtime)
+EXPOSE 8080
 
-# Start Gunicorn
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:$PORT", "app:app", "--timeout", "120"]
+# Start Gunicorn (Railway sets PORT env var, but we need to use it in CMD)
+CMD gunicorn -w 4 -b 0.0.0.0:${PORT:-8080} app:app --timeout 120
