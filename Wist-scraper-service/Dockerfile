@@ -1,4 +1,4 @@
-FROM node:18-bullseye
+FROM node:20-bullseye
 
 # Install Python AND Chromium dependencies
 RUN apt-get update && apt-get install -y \
@@ -18,6 +18,9 @@ RUN apt-get update && apt-get install -y \
   libxss1 \
   libgtk-3-0 \
   && rm -rf /var/lib/apt/lists/*
+
+# Create symlink so 'python' points to 'python3'
+RUN ln -s /usr/bin/python3 /usr/bin/python
 
 WORKDIR /app
 
