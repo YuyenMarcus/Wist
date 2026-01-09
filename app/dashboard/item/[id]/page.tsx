@@ -12,7 +12,7 @@ export default function ItemDetail() {
   const [item, setItem] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [checkingPrice, setCheckingPrice] = useState(false);
+  const [priceStatus, setPriceStatus] = useState<any>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -98,32 +98,28 @@ export default function ItemDetail() {
     }
 
     fetchData();
-  }, [params, router]);
-
-  const handleManualPriceCheck = async () => {
-    if (!item) return;
     
-    setCheckingPrice(true);
-    try {
-      const response = await fetch(`/api/items/${item.id}/check-price`, {
-        method: 'POST',
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        // Refresh the page data
-        window.location.reload();
-      } else {
-        alert(`Failed to check price: ${data.error || data.details || 'Unknown error'}`);
+    // Fetch price status
+    async function fetchPriceStatus() {
+      if (!params || !params.id) return;
+      
+      const itemId = params.id as string;
+      try {
+        const response = await fetch(`/api/items/${itemId}/check-price`, {
+          method: 'POST',
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+          setPriceStatus(data);
+        }
+      } catch (error) {
+        console.error('Error fetching price status:', error);
       }
-    } catch (error: any) {
-      console.error('Manual price check error:', error);
-      alert(`Error: ${error.message}`);
-    } finally {
-      setCheckingPrice(false);
     }
-  };
+    
+    fetchPriceStatus();
+  }, [params, router]);
 
   if (loading) return (
     <div className="flex h-screen items-center justify-center bg-gray-50">
@@ -183,6 +179,56 @@ export default function ItemDetail() {
           {/* RIGHT COLUMN: Chart & History */}
           <div className="lg:col-span-2 space-y-6">
             
+            {/* Price Status Card */}
+            {priceStatus && (
+              <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-900/5">
+                <h3 className="text-sm font-semibold text-gray-700 mb-4">Price Tracking Status</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Current Price:</span>
+                    <span className="text-lg font-bold text-gray-900">
+                      ${priceStatus.currentPrice ? parseFloat(priceStatus.currentPrice).toFixed(2) : 'N/A'}
+                    </span>
+                  </div>
+                  
+                  {priceStatus.priceChange !== null && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Price Change:</span>
+                      <span className={`text-sm font-semibold ${
+                        priceStatus.priceChange < 0 ? 'text-green-600' : priceStatus.priceChange > 0 ? 'text-red-600' : 'text-gray-600'
+                      }`}>
+                        {priceStatus.priceChange < 0 ? '▼' : priceStatus.priceChange > 0 ? '▲' : ''} 
+                        ${Math.abs(priceStatus.priceChange).toFixed(2)}
+                        {priceStatus.priceChangePercent && ` (${priceStatus.priceChangePercent}%)`}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {priceStatus.lastChecked && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Last Checked:</span>
+                      <span className="text-sm text-gray-500">
+                        {new Date(priceStatus.lastChecked).toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                    <span className="text-sm text-gray-600">Next Check:</span>
+                    <span className="text-sm font-medium text-violet-600">
+                      {priceStatus.hoursUntilNextCheck > 0 
+                        ? `In ${priceStatus.hoursUntilNextCheck} hour${priceStatus.hoursUntilNextCheck !== 1 ? 's' : ''}`
+                        : 'Soon'}
+                    </span>
+                  </div>
+                  
+                  <div className="mt-4 p-3 bg-violet-50 rounded-lg">
+                    <p className="text-xs text-violet-700 text-center">{priceStatus.message}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Chart Card */}
             <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-900/5">
               <h2 className="mb-6 text-lg font-bold text-gray-900">Price History</h2>
@@ -224,14 +270,18 @@ export default function ItemDetail() {
                 ) : (
                   <div className="flex flex-col h-full items-center justify-center text-gray-400 space-y-4 px-4">
                     <p>No price history yet.</p>
-                    <p className="text-sm text-gray-500 text-center">We're tracking this item's price. Check back in 24 hours to see price trends!</p>
-                    <button
-                      onClick={handleManualPriceCheck}
-                      disabled={checkingPrice}
-                      className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-                    >
-                      {checkingPrice ? 'Checking...' : 'Check Price Now'}
-                    </button>
+                    {priceStatus ? (
+                      <div className="text-sm text-gray-500 text-center space-y-2">
+                        <p>{priceStatus.message}</p>
+                        {priceStatus.lastChecked && (
+                          <p className="text-xs text-gray-400">
+                            Last checked: {new Date(priceStatus.lastChecked).toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500 text-center">We're tracking this item's price. Check back in 24 hours to see price trends!</p>
+                    )}
                   </div>
                 )}
               </div>
