@@ -179,51 +179,79 @@ export default function ItemDetail() {
           {/* RIGHT COLUMN: Chart & History */}
           <div className="lg:col-span-2 space-y-6">
             
-            {/* Price Status Card */}
+            {/* Price Status Component - Shows Cached Data */}
             {priceStatus && (
               <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-900/5">
-                <h3 className="text-sm font-semibold text-gray-700 mb-4">Price Tracking Status</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Current Price:</span>
-                    <span className="text-lg font-bold text-gray-900">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">Price Tracking Status</h3>
+                <div className="space-y-4">
+                  {/* Current Price */}
+                  <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                    <span className="text-sm font-medium text-gray-600">Current Price</span>
+                    <span className="text-2xl font-bold text-gray-900">
                       ${priceStatus.currentPrice ? parseFloat(priceStatus.currentPrice).toFixed(2) : 'N/A'}
                     </span>
                   </div>
                   
-                  {priceStatus.priceChange !== null && (
+                  {/* Price Change Trend */}
+                  {priceStatus.priceChange !== null && priceStatus.priceChange !== undefined && (
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Price Change:</span>
-                      <span className={`text-sm font-semibold ${
-                        priceStatus.priceChange < 0 ? 'text-green-600' : priceStatus.priceChange > 0 ? 'text-red-600' : 'text-gray-600'
-                      }`}>
-                        {priceStatus.priceChange < 0 ? '▼' : priceStatus.priceChange > 0 ? '▲' : ''} 
-                        ${Math.abs(priceStatus.priceChange).toFixed(2)}
-                        {priceStatus.priceChangePercent && ` (${priceStatus.priceChangePercent}%)`}
+                      <span className="text-sm font-medium text-gray-600">Price Change</span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-base font-bold ${
+                          priceStatus.priceChange < 0 ? 'text-green-600' : priceStatus.priceChange > 0 ? 'text-red-600' : 'text-gray-600'
+                        }`}>
+                          {priceStatus.priceChange < 0 ? '▼' : priceStatus.priceChange > 0 ? '▲' : '→'} 
+                          ${Math.abs(priceStatus.priceChange).toFixed(2)}
+                        </span>
+                        {priceStatus.priceChangePercent && (
+                          <span className={`text-sm font-semibold ${
+                            priceStatus.priceChange < 0 ? 'text-green-600' : priceStatus.priceChange > 0 ? 'text-red-600' : 'text-gray-600'
+                          }`}>
+                            ({priceStatus.priceChangePercent}%)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Data Points Count */}
+                  {priceStatus.dataPoints !== undefined && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-600">Data Points</span>
+                      <span className="text-sm text-gray-700 font-medium">
+                        {priceStatus.dataPoints} {priceStatus.dataPoints === 1 ? 'entry' : 'entries'}
                       </span>
                     </div>
                   )}
                   
+                  {/* Last Checked */}
                   {priceStatus.lastChecked && (
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Last Checked:</span>
+                      <span className="text-sm font-medium text-gray-600">Last Checked</span>
                       <span className="text-sm text-gray-500">
                         {new Date(priceStatus.lastChecked).toLocaleString()}
                       </span>
                     </div>
                   )}
                   
-                  <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                    <span className="text-sm text-gray-600">Next Check:</span>
-                    <span className="text-sm font-medium text-violet-600">
+                  {/* Next Check */}
+                  <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                    <span className="text-sm font-medium text-gray-600">Next Check</span>
+                    <span className="text-sm font-semibold text-violet-600">
                       {priceStatus.hoursUntilNextCheck > 0 
                         ? `In ${priceStatus.hoursUntilNextCheck} hour${priceStatus.hoursUntilNextCheck !== 1 ? 's' : ''}`
                         : 'Soon'}
                     </span>
                   </div>
                   
-                  <div className="mt-4 p-3 bg-violet-50 rounded-lg">
-                    <p className="text-xs text-violet-700 text-center">{priceStatus.message}</p>
+                  {/* Status Message */}
+                  <div className="mt-4 p-4 bg-violet-50 rounded-lg border border-violet-100">
+                    <p className="text-sm text-violet-700 text-center font-medium">{priceStatus.message}</p>
+                    {priceStatus.cached && (
+                      <p className="text-xs text-violet-600 text-center mt-2">
+                        Showing cached data • Automatic updates every 24 hours
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -269,13 +297,18 @@ export default function ItemDetail() {
                   </ResponsiveContainer>
                 ) : (
                   <div className="flex flex-col h-full items-center justify-center text-gray-400 space-y-4 px-4">
-                    <p>No price history yet.</p>
+                    <p className="text-base font-medium">No price history yet.</p>
                     {priceStatus ? (
-                      <div className="text-sm text-gray-500 text-center space-y-2">
-                        <p>{priceStatus.message}</p>
+                      <div className="text-sm text-gray-500 text-center space-y-2 max-w-md">
+                        <p className="font-medium">{priceStatus.message}</p>
                         {priceStatus.lastChecked && (
                           <p className="text-xs text-gray-400">
                             Last checked: {new Date(priceStatus.lastChecked).toLocaleString()}
+                          </p>
+                        )}
+                        {priceStatus.hoursUntilNextCheck !== undefined && priceStatus.hoursUntilNextCheck > 0 && (
+                          <p className="text-xs text-gray-400">
+                            Next check in {priceStatus.hoursUntilNextCheck} hour{priceStatus.hoursUntilNextCheck !== 1 ? 's' : ''}
                           </p>
                         )}
                       </div>
