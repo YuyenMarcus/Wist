@@ -1,7 +1,9 @@
 FROM node:18-bullseye
 
-# Required libs for Chromium
+# Install Python AND Chromium dependencies
 RUN apt-get update && apt-get install -y \
+  python3 \
+  python3-pip \
   libnss3 \
   libatk1.0-0 \
   libatk-bridge2.0-0 \
