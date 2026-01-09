@@ -9,5 +9,4 @@ README.md
 .DS_Store
 playwright-report
 test-results
-tsconfig.json
 .eslintrc
