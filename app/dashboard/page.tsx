@@ -233,11 +233,48 @@ export default function DashboardPage() {
       )
       .subscribe()
 
+    // Real-time subscription for profile changes
+    const profileChannel = supabase
+      .channel('profile-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'profiles',
+          filter: user ? `id=eq.${user.id}` : undefined,
+        },
+        (payload) => {
+          console.log('Real-time profile update:', payload.eventType, payload.new)
+          if (user) {
+            getProfile(user.id).then(({ data }) => {
+              if (data) setProfile(data)
+            })
+          }
+        }
+      )
+      .subscribe()
+
     return () => {
       subscription.unsubscribe()
       supabase.removeChannel(itemsChannel)
+      supabase.removeChannel(profileChannel)
     }
   }, [router])
+
+  // Refresh profile when page becomes visible (user returns from account page)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && user) {
+        getProfile(user.id).then(({ data }) => {
+          if (data) setProfile(data)
+        })
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [user])
 
   const handleDelete = async (productId: string) => {
     if (!user) return

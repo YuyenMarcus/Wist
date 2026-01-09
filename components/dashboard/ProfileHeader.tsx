@@ -45,9 +45,15 @@ export default function ProfileHeader({ user, profile, itemCount, onRefreshPrice
               {displayName}
             </h1>
             <p className="text-sm text-zinc-500 font-medium">@{username}</p>
-            <p className="mt-2 text-sm text-zinc-600 max-w-xs leading-relaxed">
-              Curating the digital artifacts of my life.
-            </p>
+            {profile?.bio ? (
+              <p className="mt-2 text-sm text-zinc-600 max-w-xs leading-relaxed">
+                {profile.bio}
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-zinc-400 max-w-xs leading-relaxed italic">
+                No bio yet. Add one in your account settings.
+              </p>
+            )}
           </div>
         </div>
         
