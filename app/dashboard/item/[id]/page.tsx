@@ -133,7 +133,8 @@ export default function ItemDetail() {
                 </div>
                 <h1 className="text-lg font-bold text-gray-900 leading-snug">{item.title}</h1>
                 
-                <div className="mt-6 space-y-2">
+                <div className="mt-6 space-y-3">
+                  {/* Current Price */}
                   <div className="flex items-baseline gap-3">
                     <span className="text-4xl font-extrabold text-gray-900">${currentPrice.toFixed(2)}</span>
                     {history.length > 1 && (
@@ -144,19 +145,25 @@ export default function ItemDetail() {
                   </div>
                   
                   {/* Last Checked Time */}
-                  {item.last_price_check && (
+                  <div className="pt-2 border-t border-gray-100">
                     <p className="text-sm text-gray-600">
-                      Last checked: {(() => {
-                        const lastChecked = new Date(item.last_price_check);
-                        const now = new Date();
-                        const hoursAgo = Math.floor((now.getTime() - lastChecked.getTime()) / (1000 * 60 * 60));
-                        
-                        if (hoursAgo === 0) return 'Less than an hour ago';
-                        if (hoursAgo === 1) return '1 hour ago';
-                        return `${hoursAgo} hours ago`;
-                      })()}
+                      {item.last_price_check ? (
+                        <>
+                          Last checked: {(() => {
+                            const lastChecked = new Date(item.last_price_check);
+                            const now = new Date();
+                            const hoursAgo = Math.floor((now.getTime() - lastChecked.getTime()) / (1000 * 60 * 60));
+                            
+                            if (hoursAgo === 0) return 'Less than an hour ago';
+                            if (hoursAgo === 1) return '1 hour ago';
+                            return `${hoursAgo} hours ago`;
+                          })()}
+                        </>
+                      ) : (
+                        'Not checked yet'
+                      )}
                     </p>
-                  )}
+                  </div>
                 </div>
 
                 <a 
@@ -174,12 +181,13 @@ export default function ItemDetail() {
           {/* RIGHT COLUMN: Chart & History */}
           <div className="lg:col-span-2 space-y-6">
             
-            {/* Chart Card */}
+            {/* Price History Chart */}
             <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-900/5">
               <h2 className="mb-6 text-lg font-bold text-gray-900">Price History</h2>
               
               <div className="h-80 w-full">
                 {history.length > 0 ? (
+                  /* Price History Chart - Shows when data exists */
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={history} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
@@ -213,9 +221,10 @@ export default function ItemDetail() {
                     </LineChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="flex flex-col h-full items-center justify-center text-gray-400 space-y-4 px-4">
-                    <p className="text-base font-medium">No price history yet.</p>
-                    <p className="text-sm text-gray-500 text-center">
+                  /* Placeholder Message - Shows before data exists */
+                  <div className="flex flex-col h-full items-center justify-center text-gray-400 space-y-3 px-4">
+                    <p className="text-base font-medium text-gray-600">No price history yet.</p>
+                    <p className="text-sm text-gray-500 text-center max-w-md">
                       We're tracking this item's price automatically. Check back in 24 hours to see price trends!
                     </p>
                   </div>
