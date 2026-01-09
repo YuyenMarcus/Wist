@@ -64,10 +64,10 @@ export default function ItemDetail() {
       // 2. Get Price History (LIMITED to last 100 entries or 90 days)
       const { data: historyData, error: historyError } = await supabase
         .from('price_history')
-        .select('price, created_at') // Use created_at (correct column name)
+        .select('price, recorded_at')
         .eq('item_id', itemId)
-        .gte('created_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()) // Last 90 days only
-        .order('created_at', { ascending: true })
+        .gte('recorded_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()) // Last 90 days only
+        .order('recorded_at', { ascending: true })
         .limit(100); // Limit to 100 most recent entries
 
       if (historyError) {
@@ -79,7 +79,7 @@ export default function ItemDetail() {
         console.log("Raw History Data:", historyData); // Check console to see real data
 
         const formattedHistory = historyData.map(entry => {
-          const dateObj = new Date(entry.created_at); // Use created_at
+          const dateObj = new Date(entry.recorded_at);
           return {
             price: Number(entry.price), // Force number
             // Create a simple string like "12/24"

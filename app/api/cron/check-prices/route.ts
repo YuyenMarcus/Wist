@@ -39,13 +39,13 @@ export async function GET(req: Request) {
     // (Alternative: use a system_config table or Redis)
     const { data: recentHistory } = await supabase
       .from('price_history')
-      .select('created_at')
-      .order('created_at', { ascending: false })
+      .select('recorded_at')
+      .order('recorded_at', { ascending: false })
       .limit(1)
       .single();
     
-    if (recentHistory?.created_at) {
-      const lastRunTime = new Date(recentHistory.created_at);
+    if (recentHistory?.recorded_at) {
+      const lastRunTime = new Date(recentHistory.recorded_at);
       const hoursSinceLastRun = (Date.now() - lastRunTime.getTime()) / (1000 * 60 * 60);
       
       if (hoursSinceLastRun < RATE_LIMIT_HOURS) {
