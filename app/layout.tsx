@@ -7,6 +7,11 @@ import ClientProvider from '@/components/ClientProvider'
 export const metadata: Metadata = {
   title: 'Wist - Product Wishlist Manager',
   description: 'Track and manage your product wishlist',
+  icons: {
+    icon: '/icon.svg',
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
+  },
 }
 
 export default function RootLayout({
