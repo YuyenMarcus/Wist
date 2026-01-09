@@ -11,7 +11,8 @@ const nextConfig = {
     },
   },
   // Output configuration for standalone deployment (helps with Docker)
-  output: 'standalone',
+  // Note: Commented out for Vercel deployment (Vercel handles this automatically)
+  // output: 'standalone',
   // CORS Headers for Chrome Extension
   async headers() {
     return [

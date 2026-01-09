@@ -5,6 +5,7 @@ import { Auth } from '@supabase/auth-ui-react'
 import { ThemeSupa } from '@supabase/auth-ui-shared'
 import { supabase } from '@/lib/supabase/client'
 import Link from 'next/link'
+import GoogleOneTap from '@/components/GoogleOneTap'
 
 export default function SignupPage() {
   const [message, setMessage] = useState<string | null>(null)
@@ -20,6 +21,9 @@ export default function SignupPage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 py-12 sm:px-6 lg:px-8">
+      {/* Google One Tap Component */}
+      <GoogleOneTap />
+      
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
           Create your account

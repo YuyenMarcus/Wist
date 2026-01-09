@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   try {
     // 1. Get the data sent from the extension or dashboard
     const body = await request.json();
-    let { title, price, url, image_url, status, retailer, note } = body;
+    let { title, price, url, image_url, status, retailer, note, collection_id, is_public } = body;
 
     console.log("📥 [API] Incoming Item Request:", { url, hasTitle: !!title, hasPrice: !!price });
 
@@ -293,18 +293,42 @@ export async function POST(request: Request) {
 
     // 7. Insert Item into items table (user's personal wishlist)
     // This allows multiple users to have the same product in their wishlist
+    const insertData: any = {
+      title,
+      current_price: currentPrice,
+      url,
+      image_url,
+      retailer: retailer || 'Amazon',
+      status: status || 'active', // 'active' (Wishlist) or 'purchased' (Just Got It)
+      user_id: user.id,
+      wishlist_id: wishlistId
+    };
+
+    // Add collection_id if provided
+    if (collection_id) {
+      // Verify collection belongs to user
+      const { data: collection } = await supabaseClient
+        .from('collections')
+        .select('id')
+        .eq('id', collection_id)
+        .eq('user_id', user.id)
+        .single();
+      
+      if (collection) {
+        insertData.collection_id = collection_id;
+      } else {
+        console.warn("⚠️ [API] Collection not found or doesn't belong to user, ignoring collection_id");
+      }
+    }
+
+    // Add is_public if provided (for future use with public wishlists)
+    if (is_public !== undefined) {
+      insertData.is_public = Boolean(is_public);
+    }
+
     const { data, error } = await supabaseClient
       .from('items')
-      .insert({
-        title,
-        current_price: currentPrice,
-        url,
-        image_url,
-        retailer: retailer || 'Amazon',
-        status: status || 'active', // 'active' (Wishlist) or 'purchased' (Just Got It)
-        user_id: user.id,
-        wishlist_id: wishlistId
-      })
+      .insert(insertData)
       .select()
       .single();
 

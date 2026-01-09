@@ -175,3 +175,4 @@ FROM items
 WHERE url IS NOT NULL 
   AND status = 'active';
 
+

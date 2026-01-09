@@ -1,5 +1,9 @@
 // content.js
 
+// 0. Announce extension presence immediately (before anything else)
+// This allows the React app to detect if the extension is installed
+document.documentElement.setAttribute('data-wist-installed', 'true');
+
 // 1. Listen for the page to load
 window.addEventListener('load', () => {
   // A. Check if this is a real "Thank You" page (Production Mode)

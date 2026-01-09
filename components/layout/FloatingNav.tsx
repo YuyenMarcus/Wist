@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
+import { Chrome } from 'lucide-react'
 
 const navItems = [
   {
@@ -119,6 +120,18 @@ export default function FloatingNav() {
             </Link>
           )
         })}
+        
+        {/* Extension Link - Persistent */}
+        <Link href="/extension">
+          <motion.div
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
+            className="hidden md:flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-zinc-600 hover:text-violet-600 transition-colors"
+          >
+            <Chrome size={16} />
+            <span>Get the Button</span>
+          </motion.div>
+        </Link>
         
         {/* Sign Out Button */}
         <motion.button

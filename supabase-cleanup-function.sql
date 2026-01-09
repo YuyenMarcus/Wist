@@ -155,3 +155,4 @@ $$ LANGUAGE plpgsql;
 -- Remove a scheduled job
 -- SELECT cron.unschedule('cleanup-old-price-history');
 
+

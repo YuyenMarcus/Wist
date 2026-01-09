@@ -6,6 +6,7 @@ import { ThemeSupa } from '@supabase/auth-ui-shared'
 import { supabase } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import GoogleOneTap from '@/components/GoogleOneTap'
 
 function LoginForm() {
   const router = useRouter()
@@ -95,6 +96,9 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 py-12 sm:px-6 lg:px-8">
+      {/* Google One Tap Component (Invisible until it slides down) */}
+      <GoogleOneTap />
+      
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
           Sign in to your account

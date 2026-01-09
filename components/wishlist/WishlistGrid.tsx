@@ -1,7 +1,8 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { PackageOpen } from 'lucide-react'
+import { PackageOpen, Chrome } from 'lucide-react'
+import Link from 'next/link'
 import ItemCard from './ItemCard'
 import { SupabaseProduct } from '@/lib/supabase/products'
 
@@ -28,15 +29,23 @@ export default function WishlistGrid({ items, isOwner = true, onDelete, onReserv
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col items-center justify-center py-24 px-4 text-center"
+        className="col-span-full py-20 text-center bg-white border-2 border-dashed border-zinc-200 rounded-3xl mx-4 md:mx-0"
       >
-        <div className="bg-violet-50 p-4 rounded-full mb-4">
-          <PackageOpen size={32} className="text-violet-400" />
+        <div className="mx-auto h-16 w-16 bg-violet-50 text-violet-600 rounded-full flex items-center justify-center mb-6">
+          <Chrome size={32} />
         </div>
-        <h3 className="text-lg font-medium text-zinc-900 mb-2">Your collection is empty</h3>
-        <p className="text-zinc-500 text-sm max-w-md leading-relaxed">
-          Paste a URL above to start curating your wishlist. Items you add will appear here in a beautiful grid.
+        <h3 className="text-lg font-bold text-zinc-900 mb-2">Your wishlist is looking empty</h3>
+        <p className="text-zinc-500 max-w-md mx-auto mb-8 text-sm leading-relaxed">
+          The easiest way to add items is with our browser button. 
+          Go to Amazon or Target and save items in one click.
         </p>
+        <Link 
+          href="/extension" 
+          className="inline-flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl transition-colors shadow-sm"
+        >
+          <Chrome size={18} />
+          Install Browser Button
+        </Link>
       </motion.div>
     )
   }

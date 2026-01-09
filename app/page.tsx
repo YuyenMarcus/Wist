@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ArrowRight, Sparkles, LayoutDashboard } from 'lucide-react'
+import { ArrowRight, Sparkles, LayoutDashboard, Chrome, Download } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
+import GoogleOneTap from '@/components/GoogleOneTap'
 
 export default function LandingPage() {
   const [user, setUser] = useState<any>(null)
@@ -31,6 +32,8 @@ export default function LandingPage() {
 
   return (
     <main className="relative min-h-screen w-full flex flex-col items-center overflow-hidden bg-white selection:bg-violet-100">
+      {/* Google One Tap Component - Only shows for logged-out users */}
+      {!isLoggedIn && <GoogleOneTap />}
       
       {/* --- 1. FIXED NAV BAR (Restores Sign In) --- */}
       <nav className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-6 md:px-12">
@@ -129,34 +132,69 @@ export default function LandingPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
-          className="mt-10 flex w-full items-center justify-center gap-4"
+          className="mt-10 flex flex-col w-full items-center gap-4"
         >
-          {isLoggedIn ? (
-            <Link
-              href="/dashboard"
-              className="group flex h-12 items-center gap-2 rounded-full bg-violet-500 px-8 text-sm font-semibold text-white transition-all hover:bg-violet-600 hover:pr-6"
-            >
-              <LayoutDashboard className="h-4 w-4" />
-              Go to Dashboard
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Link>
-          ) : (
-            <>
+          <div className="flex w-full items-center justify-center gap-4 flex-wrap">
+            {isLoggedIn ? (
+              <>
+                <Link
+                  href="/dashboard"
+                  className="group flex h-12 items-center gap-2 rounded-full bg-violet-500 px-8 text-sm font-semibold text-white transition-all hover:bg-violet-600 hover:pr-6"
+                >
+                  <LayoutDashboard className="h-4 w-4" />
+                  Go to Dashboard
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </Link>
+                {/* Extension CTA - Visible for logged-in users */}
+                <Link
+                  href="/extension"
+                  className="group flex h-12 items-center gap-2 rounded-full bg-gradient-to-r from-violet-50 to-pink-50 border border-violet-200 px-6 text-sm font-semibold text-violet-700 transition-all hover:from-violet-100 hover:to-pink-100 hover:border-violet-300 hover:shadow-md"
+                >
+                  <Chrome className="h-5 w-5 text-violet-600" />
+                  <span>Get the Browser Button</span>
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1 text-violet-600" />
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/signup"
+                  className="group flex h-12 items-center gap-2 rounded-full bg-violet-500 px-8 text-sm font-semibold text-white transition-all hover:bg-violet-600 hover:pr-6"
+                >
+                  Get Started
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </Link>
+                <Link
+                  href="/login"
+                  className="flex h-12 items-center rounded-full bg-white px-8 text-sm font-semibold text-zinc-900 shadow-sm ring-1 ring-zinc-200 transition-all hover:bg-zinc-50 hover:ring-zinc-300"
+                >
+                  Log in
+                </Link>
+              </>
+            )}
+          </div>
+
+          {/* Extension CTA - Always visible below buttons */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="mt-6 w-full max-w-md"
+          >
+            {!isLoggedIn && (
               <Link
-                href="/signup"
-                className="group flex h-12 items-center gap-2 rounded-full bg-violet-500 px-8 text-sm font-semibold text-white transition-all hover:bg-violet-600 hover:pr-6"
+                href="/extension"
+                className="group flex h-12 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-violet-50 to-pink-50 border border-violet-200 px-6 text-sm font-semibold text-violet-700 transition-all hover:from-violet-100 hover:to-pink-100 hover:border-violet-300 hover:shadow-md"
               >
-                Get Started
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                <Chrome className="h-5 w-5 text-violet-600" />
+                <span>Get the Browser Button</span>
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1 text-violet-600" />
               </Link>
-              <Link
-                href="/login"
-                className="flex h-12 items-center rounded-full bg-white px-8 text-sm font-semibold text-zinc-900 shadow-sm ring-1 ring-zinc-200 transition-all hover:bg-zinc-50 hover:ring-zinc-300"
-              >
-                Log in
-              </Link>
-            </>
-          )}
+            )}
+            <p className="mt-2 text-center text-xs text-zinc-500">
+              Save items from Amazon & Target in one click
+            </p>
+          </motion.div>
         </motion.div>
 
         {/* Floating Preview Card (Optional visual flare) */}

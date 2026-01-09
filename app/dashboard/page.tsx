@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import ProfileHeader from '@/components/dashboard/ProfileHeader'
+import ExtensionBanner from '@/components/dashboard/ExtensionBanner'
 import WishlistGrid from '@/components/wishlist/WishlistGrid'
 import ProductCard from '@/components/dashboard/ProductCard'
 import { getUserProducts, SupabaseProduct, deleteUserProduct } from '@/lib/supabase/products'
@@ -335,6 +336,9 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-zinc-50/50 pb-32">
       {/* Background grain or gradient for the dashboard too, but lighter */}
       <div className="fixed inset-0 z-[-1] bg-grid-pattern opacity-30 pointer-events-none" />
+
+      {/* Extension Banner - High Visibility */}
+      <ExtensionBanner />
 
       {/* The Profile Header contains the Add Form */}
       <ProfileHeader 
