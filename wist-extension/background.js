@@ -244,7 +244,9 @@ async function handleSaveItem(payload, sendResponse) {
       price: parseFloat(payload.price) || 0,
       image_url: payload.image_url || "",
       retailer: payload.retailer || "Unknown",
-      note: payload.note || ""
+      note: payload.note || "",
+      collection_id: payload.collection_id || null, // Pass through collection_id (null for auto-categorization)
+      is_public: payload.is_public !== undefined ? Boolean(payload.is_public) : false // Pass through privacy setting
     };
 
     console.log("📦 [Extension] Payload:", JSON.stringify(apiPayload, null, 2));

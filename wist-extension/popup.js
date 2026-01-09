@@ -1,4 +1,4 @@
-// popup.js - Modern Wist Extension Popup
+// popup.js - Simplified Wist Extension Popup (No Collection Selector)
 const API_BASE_URL = "https://wishlist.nuvio.cloud";
 
 // UI Elements
@@ -8,29 +8,24 @@ const successDiv = document.getElementById('success');
 const errorDiv = document.getElementById('error');
 const errorMsg = document.getElementById('error-msg');
 const saveBtn = document.getElementById('save-btn');
-const collectionSelector = document.getElementById('collection-selector');
-const collectionName = document.getElementById('collection-name');
-const collectionDropdown = document.getElementById('collection-dropdown');
-const privacyToggle = document.getElementById('privacy-toggle');
+const privacyBtn = document.getElementById('privacy-btn');
+const privacySwitch = document.getElementById('privacy-switch');
 const privacyText = document.getElementById('privacy-text');
-const privacyIcon = document.getElementById('privacy-icon');
 
 // State
 let currentProduct = null;
-let collections = [];
-let selectedCollectionId = null;
-let isPrivate = true;
+let isPrivate = true; // Default to Private
 
 // Helper to show states
 function showState(state) {
   loadingDiv.classList.add('hidden');
   previewDiv.classList.add('hidden');
-  successDiv.classList.add('hidden');
+  successDiv.style.display = 'none';
   errorDiv.classList.add('hidden');
   
   if (state === 'loading') loadingDiv.classList.remove('hidden');
   if (state === 'preview') previewDiv.classList.remove('hidden');
-  if (state === 'success') successDiv.classList.remove('hidden');
+  if (state === 'success') successDiv.style.display = 'flex';
   if (state === 'error') errorDiv.classList.remove('hidden');
 }
 
@@ -53,10 +48,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    // 2. Load user collections
-    await loadCollections();
-
-    // 3. Scrape product data from the page
+    // 2. Scrape product data from the page
     try {
       const results = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
@@ -66,7 +58,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const data = results[0].result;
       currentProduct = data;
       
-      // 4. Render Preview
+      // 3. Render Preview
       renderPreview(data);
       showState('preview');
 
@@ -82,70 +74,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
-// Load user collections
-async function loadCollections() {
-  try {
-    // Get token from storage
-    const stored = await chrome.storage.local.get(['wist_auth_token', 'wist_session']);
-    let token = stored.wist_auth_token;
-    
-    if (!token && stored.wist_session) {
-      const session = typeof stored.wist_session === 'string' 
-        ? JSON.parse(stored.wist_session) 
-        : stored.wist_session;
-      token = session.access_token || session.token;
-    }
-
-    if (!token) {
-      console.warn("No token found, collections will be empty");
-      return;
-    }
-
-    // Fetch collections from API
-    const response = await fetch(`${API_BASE_URL}/api/collections`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (response.ok) {
-      const result = await response.json();
-      collections = result.collections || [];
-      
-      // Set default collection (first one or null for "General")
-      if (collections.length > 0) {
-        selectedCollectionId = collections[0].id;
-        collectionName.textContent = collections[0].name;
-      } else {
-        selectedCollectionId = null;
-        collectionName.textContent = 'General Wishlist';
-      }
-    } else {
-      console.warn("Failed to load collections:", response.status);
-    }
-  } catch (error) {
-    console.error("Error loading collections:", error);
-  }
-}
-
 // Render preview with product data
 function renderPreview(data) {
-  document.getElementById('item-title').textContent = data.title || 'Untitled Item';
+  document.getElementById('product-title').textContent = data.title || 'Untitled Item';
   
   // Format price
   const priceText = data.price_string && data.price_string !== '0.00' 
     ? data.price_string 
     : (data.price > 0 ? `$${data.price.toFixed(2)}` : 'Price not found');
-  document.getElementById('item-price').textContent = priceText;
+  document.getElementById('product-price').textContent = priceText;
   
   // Store badge
   const storeName = data.retailer || 'Unknown';
-  document.getElementById('item-store').textContent = storeName;
+  document.getElementById('retailer-badge').textContent = storeName;
   
   // Image
-  const img = document.getElementById('item-image');
+  const img = document.getElementById('product-img');
   if (data.image_url) {
     img.src = data.image_url;
     img.onerror = function() {
@@ -154,88 +98,25 @@ function renderPreview(data) {
   } else {
     img.style.display = 'none';
   }
-  
-  // Price history (placeholder - you can enhance this with real data)
-  const priceHistoryDiv = document.getElementById('price-history');
-  const lowestPriceEl = document.getElementById('lowest-price');
-  if (data.price && data.price > 0) {
-    // For now, show current price as lowest (you can enhance with real history)
-    lowestPriceEl.textContent = priceText;
-    priceHistoryDiv.style.display = 'flex';
-  } else {
-    priceHistoryDiv.style.display = 'none';
-  }
-}
-
-// Collection selector click handler
-collectionSelector.addEventListener('click', () => {
-  // Toggle dropdown (simple implementation - you can enhance with a proper dropdown)
-  if (collectionDropdown.classList.contains('hidden')) {
-    showCollectionDropdown();
-  } else {
-    collectionDropdown.classList.add('hidden');
-  }
-});
-
-// Show collection dropdown
-function showCollectionDropdown() {
-  collectionDropdown.innerHTML = '';
-  collectionDropdown.classList.remove('hidden');
-  
-  // Add "General Wishlist" option
-  const generalOption = document.createElement('div');
-  generalOption.className = 'collection-option';
-  generalOption.style.cssText = 'padding: 8px 12px; cursor: pointer; background: white; border-bottom: 1px solid #e4e4e7;';
-  generalOption.textContent = 'General Wishlist';
-  generalOption.onclick = () => {
-    selectedCollectionId = null;
-    collectionName.textContent = 'General Wishlist';
-    collectionDropdown.classList.add('hidden');
-  };
-  collectionDropdown.appendChild(generalOption);
-  
-  // Add collection options
-  collections.forEach(collection => {
-    const option = document.createElement('div');
-    option.className = 'collection-option';
-    option.style.cssText = 'padding: 8px 12px; cursor: pointer; background: white; border-bottom: 1px solid #e4e4e7;';
-    option.textContent = collection.name;
-    option.onclick = () => {
-      selectedCollectionId = collection.id;
-      collectionName.textContent = collection.name;
-      collectionDropdown.classList.add('hidden');
-    };
-    collectionDropdown.appendChild(option);
-  });
-  
-  // Close dropdown when clicking outside
-  setTimeout(() => {
-    document.addEventListener('click', function closeDropdown(e) {
-      if (!collectionDropdown.contains(e.target) && !collectionSelector.contains(e.target)) {
-        collectionDropdown.classList.add('hidden');
-        document.removeEventListener('click', closeDropdown);
-      }
-    });
-  }, 0);
 }
 
 // Privacy toggle handler
-privacyToggle.addEventListener('click', () => {
+privacyBtn.addEventListener('click', () => {
   isPrivate = !isPrivate;
   updatePrivacyUI();
 });
 
 function updatePrivacyUI() {
   if (isPrivate) {
-    privacyToggle.classList.remove('active');
+    privacySwitch.classList.remove('active');
     privacyText.textContent = 'Private Wishlist';
-    privacyIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>';
-    privacyIcon.classList.remove('public');
+    // Update lock icon
+    document.getElementById('lock-icon').innerHTML = '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>';
   } else {
-    privacyToggle.classList.add('active');
+    privacySwitch.classList.add('active');
     privacyText.textContent = 'Public Feed';
-    privacyIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>';
-    privacyIcon.classList.add('public');
+    // Update to globe icon
+    document.getElementById('lock-icon').innerHTML = '<circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>';
   }
 }
 
@@ -245,18 +126,19 @@ saveBtn.addEventListener('click', () => {
   handleSave(currentProduct);
 });
 
-// Save handler
+// Save handler - Uses background.js for authentication
 async function handleSave(item) {
   saveBtn.textContent = "Saving...";
   saveBtn.disabled = true;
 
-  // Prepare payload with collection and privacy settings
+  // Prepare payload with privacy settings (no collection_id - backend handles it)
   const payload = {
     ...item,
-    collection_id: selectedCollectionId || null,
-    is_public: !isPrivate
+    is_public: !isPrivate,
+    collection_id: null // Explicitly null - backend will handle categorization later
   };
 
+  // Send to background.js which handles authentication
   chrome.runtime.sendMessage(
     { action: "SAVE_ITEM", data: payload },
     (response) => {
@@ -266,7 +148,7 @@ async function handleSave(item) {
         saveBtn.style.backgroundColor = "#EF4444";
         console.error("Runtime Error:", chrome.runtime.lastError);
         setTimeout(() => {
-          saveBtn.textContent = "Save Item";
+          saveBtn.textContent = "Save to Wist";
           saveBtn.disabled = false;
           saveBtn.style.backgroundColor = "";
         }, 2000);
@@ -284,17 +166,20 @@ async function handleSave(item) {
         console.error("Save Error:", response?.error);
         
         // Show error message if auth required
-        if (response?.error && response.error.includes("logged in")) {
+        if (response?.error && (response.error.includes("logged in") || response.error.includes("Unauthorized") || response.error.includes("Token"))) {
           errorMsg.textContent = "Please log in to Wist first.";
           showState('error');
           setTimeout(() => {
             chrome.tabs.create({ url: 'https://wishlist.nuvio.cloud/login' });
           }, 1000);
+        } else {
+          errorMsg.textContent = response?.error || "Failed to save item.";
+          showState('error');
         }
         
         // Reset button
         setTimeout(() => {
-          saveBtn.textContent = "Save Item";
+          saveBtn.textContent = "Save to Wist";
           saveBtn.disabled = false;
           saveBtn.style.backgroundColor = ""; 
         }, 2000);

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
-import { Chrome } from 'lucide-react'
+import { Search } from 'lucide-react'
 
 const navItems = [
   {
@@ -95,20 +95,17 @@ export default function FloatingNav() {
         {navItems.map((item) => {
           const isActive = pathname === item.href
           return (
-            <Link key={item.href} href={item.href}>
+            <Link key={item.href} href={item.href} title={item.name}>
               <motion.div
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
-                className={`relative px-4 py-2 rounded-full transition-colors ${
+                className={`relative px-3 py-2 rounded-full transition-colors ${
                   isActive
                     ? 'bg-violet-50 text-violet-600'
                     : 'text-zinc-600 hover:text-zinc-900'
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  {item.icon}
-                  <span className="text-sm font-medium">{item.name}</span>
-                </div>
+                {item.icon}
                 {isActive && (
                   <motion.div
                     layoutId="activeTab"
@@ -121,15 +118,14 @@ export default function FloatingNav() {
           )
         })}
         
-        {/* Extension Link - Persistent */}
-        <Link href="/extension">
+        {/* Search Icon */}
+        <Link href="/dashboard" title="Search">
           <motion.div
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
-            className="hidden md:flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-zinc-600 hover:text-violet-600 transition-colors"
+            className="px-3 py-2 rounded-full text-zinc-600 hover:text-zinc-900 transition-colors"
           >
-            <Chrome size={16} />
-            <span>Get the Button</span>
+            <Search className="w-5 h-5" />
           </motion.div>
         </Link>
         
@@ -138,12 +134,12 @@ export default function FloatingNav() {
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
           onClick={handleSignOut}
-          className="px-4 py-2 rounded-full text-sm font-medium text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+          title="Sign Out"
+          className="px-3 py-2 rounded-full text-red-600 hover:bg-red-50 transition-colors"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
-          <span>Sign Out</span>
         </motion.button>
       </motion.div>
     </motion.nav>

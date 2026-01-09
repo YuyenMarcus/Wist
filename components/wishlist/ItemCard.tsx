@@ -319,7 +319,7 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
     >
       <div className={`group relative overflow-hidden rounded-2xl bg-white border transition-all duration-300 ${
         isHovered 
-          ? 'border-violet-500 shadow-xl shadow-violet-100/50 -translate-y-1' 
+          ? 'border-violet-500 shadow-lg -translate-y-1' 
           : 'border-zinc-100 shadow-sm'
       } ${isReserved && !isOwner ? 'opacity-60' : ''}`}>
         
