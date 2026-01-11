@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import * as cheerio from 'cheerio';
+import { extractDomain, isDynamic } from '../../../lib/scraper/utils';
 
 // 1. Mimic a real browser to avoid instant blocking
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -27,7 +28,61 @@ export async function POST(request: Request) {
 
     console.log(`🔍 [Preview] Scraping: ${url}`);
 
-    // 3. Lightweight Fetch (Fast & Safe for Vercel)
+    const domain = extractDomain(url);
+    let html: string;
+    let $: ReturnType<typeof cheerio.load>;
+
+    // Check if we need Playwright (dynamic sites like Etsy, Amazon)
+    // If Railway scraper service is configured, use it for Playwright scraping
+    const scraperServiceUrl = process.env.SCRAPER_SERVICE_URL || process.env.RAILWAY_SCRAPER_URL;
+    const needsPlaywright = isDynamic(domain);
+
+    if (needsPlaywright && scraperServiceUrl) {
+      console.log(`🔍 [Preview] Using Railway scraper for dynamic site: ${domain}`);
+      try {
+        // Call Railway TypeScript scraper service (supports Playwright)
+        const response = await fetch(`${scraperServiceUrl}/api/fetch-product`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ url }),
+          signal: AbortSignal.timeout(30000), // 30s timeout
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          throw new Error(errorData.error || `Railway scraper returned ${response.status}`);
+        }
+
+        const scrapeResult = await response.json();
+        
+        if (!scrapeResult || !scrapeResult.ok || !scrapeResult.data) {
+          const errorMsg = scrapeResult?.error || 'Failed to scrape product';
+          console.error(`❌ [Preview] Railway scraper failed for ${domain}:`, errorMsg);
+          throw new Error(errorMsg);
+        }
+
+        // Return the scraped data in the expected format
+        const data = {
+          url,
+          title: scrapeResult.data.title || 'No Title Found',
+          image_url: scrapeResult.data.image || '',
+          price: scrapeResult.data.price || 0,
+          retailer: domain.split('.')[0],
+          description: scrapeResult.data.description || ''
+        };
+
+        console.log("✅ [Preview] Success:", data.title);
+        return NextResponse.json({ success: true, data }, { headers: corsHeaders() });
+      } catch (error: any) {
+        console.error(`❌ [Preview] Error scraping ${domain} via Railway:`, error.message);
+        // Fall through to static scraping if Railway fails
+        console.log(`⚠️ [Preview] Falling back to static scraping for ${domain}`);
+      }
+    }
+
+    // For all other sites (including Amazon), use simple fetch
     const response = await fetch(url, {
       headers: {
         'User-Agent': USER_AGENT,
@@ -41,8 +96,8 @@ export async function POST(request: Request) {
       throw new Error(`Failed to fetch page: ${response.status}`);
     }
 
-    const html = await response.text();
-    const $ = cheerio.load(html);
+    html = await response.text();
+    $ = cheerio.load(html);
 
     // 4. Robust Metadata Extraction (Works on Amazon & Generic Sites)
     const title = 

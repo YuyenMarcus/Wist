@@ -5,9 +5,10 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc",
+    "build": "npx playwright install --with-deps chromium && tsc",
     "start": "node dist/server.js",
     "lint": "eslint src --ext .ts",
+    "postinstall": "npx playwright install --with-deps chromium",
     "playwright:install": "npx playwright install chromium"
   },
   "keywords": [

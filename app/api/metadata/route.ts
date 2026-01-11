@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import * as cheerio from 'cheerio'
+import { extractDomain, isDynamic } from '@/lib/scraper/utils'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -10,7 +11,57 @@ export async function GET(request: Request) {
   }
 
   try {
-    // 1. Fetch the HTML with headers to mimic a real browser
+    const domain = extractDomain(url)
+    let html: string
+    let $: ReturnType<typeof cheerio.load>
+
+    // Check if we need Playwright (dynamic sites like Etsy, Amazon)
+    // If Railway scraper service is configured, use it for Playwright scraping
+    const scraperServiceUrl = process.env.SCRAPER_SERVICE_URL || process.env.RAILWAY_SCRAPER_URL
+    const needsPlaywright = isDynamic(domain)
+
+    if (needsPlaywright && scraperServiceUrl) {
+      console.log(`🔍 [Metadata] Using Railway scraper for dynamic site: ${domain}`)
+      try {
+        // Call Railway TypeScript scraper service (supports Playwright)
+        const response = await fetch(`${scraperServiceUrl}/api/fetch-product`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ url }),
+          signal: AbortSignal.timeout(30000), // 30s timeout
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+          throw new Error(errorData.error || `Railway scraper returned ${response.status}`)
+        }
+
+        const scrapeResult = await response.json()
+        
+        if (!scrapeResult || !scrapeResult.ok || !scrapeResult.data) {
+          const errorMsg = scrapeResult?.error || 'Failed to scrape product'
+          console.error(`❌ [Metadata] Railway scraper failed for ${domain}:`, errorMsg)
+          throw new Error(errorMsg)
+        }
+
+        // Return the scraped data directly
+        console.log(`✅ [Metadata] Successfully scraped ${domain} product via Railway`)
+        return NextResponse.json({
+          title: scrapeResult.data.title || '',
+          description: scrapeResult.data.description || '',
+          imageUrl: scrapeResult.data.image || '',
+          price: scrapeResult.data.priceRaw || null,
+        })
+      } catch (error: any) {
+        console.error(`❌ [Metadata] Error scraping ${domain} via Railway:`, error.message)
+        // Fall through to static scraping if Railway fails
+        console.log(`⚠️ [Metadata] Falling back to static scraping for ${domain}`)
+      }
+    }
+
+    // For all other sites (including Amazon), use simple fetch
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -24,8 +75,8 @@ export async function GET(request: Request) {
       throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`)
     }
 
-    const html = await response.text()
-    const $ = cheerio.load(html)
+    html = await response.text()
+    $ = cheerio.load(html)
 
     // 2. Extract Metadata Helper
     const getMeta = (name: string) => 
