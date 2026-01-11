@@ -4,10 +4,9 @@
   "description": "Reliable product scraper and wishlist manager",
   "scripts": {
     "dev": "next dev",
-    "build": "npx playwright install --with-deps chromium && next build",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "npx playwright install --with-deps chromium",
     "playwright:install": "npx playwright install --with-deps",
     "create-admin": "tsx scripts/create-admin.ts",
     "package-extension": "node scripts/package-extension.js"
