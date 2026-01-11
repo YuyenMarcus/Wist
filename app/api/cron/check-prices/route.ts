@@ -172,10 +172,11 @@ export async function GET(req: Request) {
         console.log(`   Failures: ${item.price_check_failures || 0}`);
 
         try {
-          // SCRAPE using Railway scraper service with retry logic
-          const scraperUrl = process.env.SCRAPER_SERVICE_URL;
-          if (!scraperUrl) {
-            console.log("   ❌ SCRAPER_SERVICE_URL not configured");
+          // SCRAPE using price tracker scraper service with retry logic
+          // Use price tracker for checking prices (wist-scraper-clean-production)
+          const priceTrackerUrl = process.env.PRICE_TRACKER_URL || process.env.SCRAPER_SERVICE_URL;
+          if (!priceTrackerUrl) {
+            console.log("   ❌ PRICE_TRACKER_URL not configured");
             totalChecked++;
             continue;
           }
@@ -185,9 +186,9 @@ export async function GET(req: Request) {
           
           while (retries > 0 && !freshData) {
             try {
-              console.log(`   🔄 Calling Railway scraper service... (attempt ${4 - retries}/3)`);
+              console.log(`   🔄 Calling price tracker scraper service... (attempt ${4 - retries}/3)`);
               
-              const response = await fetch(`${scraperUrl}/api/scrape/sync`, {
+              const response = await fetch(`${priceTrackerUrl}/api/scrape/sync`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ url: item.url }),

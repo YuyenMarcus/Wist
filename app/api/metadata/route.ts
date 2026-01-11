@@ -16,8 +16,8 @@ export async function GET(request: Request) {
     let $: ReturnType<typeof cheerio.load>
 
     // Check if we need Playwright (dynamic sites like Etsy, Amazon)
-    // If Railway scraper service is configured, use it for Playwright scraping
-    const scraperServiceUrl = process.env.SCRAPER_SERVICE_URL || process.env.RAILWAY_SCRAPER_URL
+    // Use main scraper for fetching product metadata (wist-app-production)
+    const scraperServiceUrl = process.env.MAIN_SCRAPER_URL || process.env.SCRAPER_SERVICE_URL
     const needsPlaywright = isDynamic(domain)
 
     if (needsPlaywright && scraperServiceUrl) {
