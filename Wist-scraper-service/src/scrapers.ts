@@ -4,7 +4,7 @@ import msImage from 'metascraper-image';
 import msTitle from 'metascraper-title';
 import msDesc from 'metascraper-description';
 import msUrl from 'metascraper-url';
-import { chromium } from 'playwright-extra';
+import { chromium } from 'playwright';
 
 const METASCRAPER = metascraper([msImage(), msTitle(), msDesc(), msUrl()]);
 
