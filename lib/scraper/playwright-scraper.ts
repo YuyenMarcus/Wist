@@ -289,8 +289,11 @@ async function extractPlatformSpecific(page: Page, source: string): Promise<{
           await page.mouse.wheel(0, Math.floor(Math.random() * 500) + 200);
           await page.waitForTimeout(1000);
         } catch (e) {
-          // Skip scrolling if it fails
-          console.log('Scrolling failed, continuing without it');
+          // Fallback: use evaluate with explicit typing
+          await page.evaluate(() => {
+            (window as any).scrollBy(0, Math.floor(Math.random() * 500) + 200);
+          });
+          await page.waitForTimeout(1000);
         }
       } catch {}
 
