@@ -24,24 +24,37 @@ export async function GET(request: Request) {
       console.log(`🔍 [Metadata] Using Railway scraper for dynamic site: ${domain}`)
       try {
         // Call Railway TypeScript scraper service (supports Playwright)
-        const response = await fetch(`${scraperServiceUrl}/api/fetch-product`, {
+        const railwayUrl = `${scraperServiceUrl}/api/fetch-product`
+        console.log('🚂 Calling Railway:', railwayUrl, 'for URL:', url)
+
+        const scrapeResult = await fetch(railwayUrl, {
           method: 'POST',
-          headers: {
+          headers: { 
             'Content-Type': 'application/json',
+            'User-Agent': 'Wist-Scraper/1.0'
           },
           body: JSON.stringify({ url }),
           signal: AbortSignal.timeout(30000), // 30s timeout
+        }).then(async (res) => {
+          const text = await res.text()
+          console.log('🚂 Railway raw response:', {
+            status: res.status,
+            statusText: res.statusText,
+            body: text.substring(0, 500) // First 500 chars
+          })
+          
+          try {
+            return { ok: res.ok, data: JSON.parse(text), status: res.status }
+          } catch (e) {
+            console.error('❌ Failed to parse Railway response:', text)
+            throw new Error(`Railway returned invalid JSON: ${text.substring(0, 100)}`)
+          }
         })
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-          throw new Error(errorData.error || `Railway scraper returned ${response.status}`)
-        }
-
-        const scrapeResult = await response.json()
+        console.log('🚂 Railway parsed response:', scrapeResult)
         
-        if (!scrapeResult || !scrapeResult.ok || !scrapeResult.data) {
-          const errorMsg = scrapeResult?.error || 'Failed to scrape product'
+        if (!scrapeResult.ok || !scrapeResult.data || !scrapeResult.data.ok) {
+          const errorMsg = scrapeResult.data?.error || scrapeResult.data?.detail || 'Failed to scrape product'
           console.error(`❌ [Metadata] Railway scraper failed for ${domain}:`, errorMsg)
           throw new Error(errorMsg)
         }
@@ -49,10 +62,10 @@ export async function GET(request: Request) {
         // Return the scraped data directly
         console.log(`✅ [Metadata] Successfully scraped ${domain} product via Railway`)
         return NextResponse.json({
-          title: scrapeResult.data.title || '',
-          description: scrapeResult.data.description || '',
-          imageUrl: scrapeResult.data.image || '',
-          price: scrapeResult.data.priceRaw || null,
+          title: scrapeResult.data.data?.title || '',
+          description: scrapeResult.data.data?.description || '',
+          imageUrl: scrapeResult.data.data?.image || '',
+          price: scrapeResult.data.data?.priceRaw || null,
         })
       } catch (error: any) {
         console.error(`❌ [Metadata] Error scraping ${domain} via Railway:`, error)
