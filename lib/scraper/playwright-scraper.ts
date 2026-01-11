@@ -68,11 +68,68 @@ async function extractPlatformSpecific(page: Page, source: string): Promise<{
       // Use safeEval for graceful fallbacks
       const title = await safeEval(page, '#productTitle', 'Unknown Product');
       
-      // Try multiple price selectors with fallbacks
-      let price = await safeEval(page, '.a-price .a-offscreen', '');
+      // Try multiple price selectors with fallbacks (Amazon has many price layouts)
+      let price = '';
+      
+      // Strategy 1: Try .a-offscreen (most common, hidden but accessible)
+      price = await safeEval(page, '.a-price .a-offscreen', '');
+      
+      // Strategy 2: Try various price block selectors
+      if (!price) {
+        price = await safeEval(page, '#priceblock_ourprice', '');
+      }
+      if (!price) {
+        price = await safeEval(page, '#priceblock_dealprice', '');
+      }
+      if (!price) {
+        price = await safeEval(page, '#priceblock_saleprice', '');
+      }
       if (!price) {
         price = await safeEval(page, '.a-price-whole', '');
       }
+      if (!price) {
+        price = await safeEval(page, '#corePrice_feature_div .a-offscreen', '');
+      }
+      if (!price) {
+        price = await safeEval(page, '#corePriceDisplay_desktop_feature_div .a-offscreen', '');
+      }
+      if (!price) {
+        price = await safeEval(page, '.a-price-range .a-offscreen', '');
+      }
+      if (!price) {
+        price = await safeEval(page, '[data-asin-price]', '');
+      }
+      
+      // Strategy 3: Try JSON-LD structured data
+      if (!price) {
+        try {
+          const jsonLdPrice = await page.evaluate(() => {
+            const scripts = document.querySelectorAll('script[type="application/ld+json"]');
+            for (const script of scripts) {
+              try {
+                const data = JSON.parse(script.textContent || '{}');
+                const items = Array.isArray(data) ? data : [data];
+                for (const item of items) {
+                  if (item['@type'] === 'Product' && item.offers) {
+                    if (item.offers.price) {
+                      return String(item.offers.price);
+                    }
+                    if (item.offers.lowPrice) {
+                      return String(item.offers.lowPrice);
+                    }
+                  }
+                }
+              } catch (e) {}
+            }
+            return null;
+          });
+          if (jsonLdPrice) {
+            price = jsonLdPrice;
+          }
+        } catch (e) {}
+      }
+      
+      // Clean price string
       if (price) {
         price = price.replace(/[^0-9.,]/g, '');
       }

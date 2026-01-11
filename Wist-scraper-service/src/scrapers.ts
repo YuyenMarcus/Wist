@@ -65,7 +65,18 @@ export async function staticScrape(url: string): Promise<ScrapeResult> {
 // Domain-specific selectors for known eCommerce sites
 const DOMAIN_SELECTORS: Record<string, { price?: string[]; title?: string[]; image?: string[] }> = {
   'amazon.': {
-    price: ['#priceblock_ourprice', '.a-price-whole', '.a-offscreen', '[data-a-color="price"] .a-offscreen'],
+    price: [
+      '.a-price .a-offscreen',
+      '#priceblock_ourprice',
+      '#priceblock_dealprice',
+      '#priceblock_saleprice',
+      '.a-price-whole',
+      '#corePrice_feature_div .a-offscreen',
+      '#corePriceDisplay_desktop_feature_div .a-offscreen',
+      '.a-price-range .a-offscreen',
+      '[data-asin-price]',
+      '[data-a-color="price"] .a-offscreen',
+    ],
     title: ['#productTitle', 'h1.a-size-large', '[data-feature-name="title"]'],
     image: ['#landingImage', '#imgBlkFront', '[data-old-hires]'],
   },
