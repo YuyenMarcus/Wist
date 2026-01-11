@@ -55,9 +55,18 @@ export async function GET(request: Request) {
           price: scrapeResult.data.priceRaw || null,
         })
       } catch (error: any) {
-        console.error(`❌ [Metadata] Error scraping ${domain} via Railway:`, error.message)
-        // Fall through to static scraping if Railway fails
-        console.log(`⚠️ [Metadata] Falling back to static scraping for ${domain}`)
+        console.error(`❌ [Metadata] Error scraping ${domain} via Railway:`, error)
+        console.error(`❌ [Metadata] Error details:`, {
+          message: error.message,
+          stack: error.stack,
+          name: error.name,
+          cause: error.cause,
+        })
+        // Return the actual error instead of silently falling through
+        return NextResponse.json({ 
+          error: `Railway scraper failed: ${error.message || 'Unknown error'}`,
+          details: error.stack || error.toString(),
+        }, { status: 500 })
       }
     }
 
