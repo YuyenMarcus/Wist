@@ -155,9 +155,19 @@ export async function playwrightScrape(url: string): Promise<ScrapeResult> {
     const domainKey = getDomainKey(domain);
     const selectors = domainKey ? DOMAIN_SELECTORS[domainKey] : null;
 
+    // Etsy-specific: Longer delays and human-like scrolling
+    if (domain?.includes('etsy.com')) {
+      await page.waitForTimeout(5000); // Increased delay for Etsy
+      // Scroll like a human
+      await page.evaluate(() => {
+        window.scrollBy(0, Math.floor(Math.random() * 500) + 200);
+      });
+      await page.waitForTimeout(1000);
+    }
+
     // Wait for known price selectors if available (optimized for known sites)
     if (selectors?.price) {
-      await waitForSelectors(page, selectors.price, 8000).catch(() => {
+      await waitForSelectors(page, selectors.price, 10000).catch(() => {
         // Continue if selectors don't appear
       });
     }
