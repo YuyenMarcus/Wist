@@ -284,11 +284,17 @@ async function extractPlatformSpecific(page: Page, source: string): Promise<{
         await page.waitForTimeout(5000); // Increased delay for Etsy
         await page.waitForSelector('.listing-page-title, .wt-text-body-01', { timeout: 10000 }).catch(() => {});
         
-        // Scroll like a human
-        await page.evaluate(() => {
-          window.scrollBy(0, Math.floor(Math.random() * 500) + 200);
-        });
-        await page.waitForTimeout(1000);
+        // Scroll like a human using Playwright's mouse wheel
+        try {
+          await page.mouse.wheel(0, Math.floor(Math.random() * 500) + 200);
+          await page.waitForTimeout(1000);
+        } catch (e) {
+          // Fallback: use evaluate with explicit typing
+          await page.evaluate(() => {
+            (window as any).scrollBy(0, Math.floor(Math.random() * 500) + 200);
+          });
+          await page.waitForTimeout(1000);
+        }
       } catch {}
 
       // Title extraction

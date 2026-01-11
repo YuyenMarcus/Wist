@@ -169,11 +169,17 @@ export async function playwrightScrape(url: string): Promise<ScrapeResult> {
     // Etsy-specific: Longer delays and human-like scrolling
     if (domain?.includes('etsy.com')) {
       await page.waitForTimeout(5000); // Increased delay for Etsy
-      // Scroll like a human
-      await page.evaluate(() => {
-        window.scrollBy(0, Math.floor(Math.random() * 500) + 200);
-      });
-      await page.waitForTimeout(1000);
+      // Scroll like a human using Playwright's mouse wheel
+      try {
+        await page.mouse.wheel(0, Math.floor(Math.random() * 500) + 200);
+        await page.waitForTimeout(1000);
+      } catch (e) {
+        // Fallback: use evaluate with explicit typing
+        await page.evaluate(() => {
+          (window as any).scrollBy(0, Math.floor(Math.random() * 500) + 200);
+        });
+        await page.waitForTimeout(1000);
+      }
     }
 
     // Wait for known price selectors if available (optimized for known sites)
