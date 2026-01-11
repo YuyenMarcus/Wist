@@ -174,10 +174,12 @@ export async function playwrightScrape(url: string): Promise<ScrapeResult> {
         await page.mouse.wheel(0, Math.floor(Math.random() * 500) + 200);
         await page.waitForTimeout(1000);
       } catch (e) {
-        // Fallback: use evaluate with explicit typing
-        await page.evaluate(() => {
-          (window as any).scrollBy(0, Math.floor(Math.random() * 500) + 200);
-        });
+      // Fallback: use evaluate with explicit typing
+      await page.evaluate(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const win = globalThis as any;
+        win.scrollBy(0, Math.floor(Math.random() * 500) + 200);
+      });
         await page.waitForTimeout(1000);
       }
     }

@@ -291,7 +291,9 @@ async function extractPlatformSpecific(page: Page, source: string): Promise<{
         } catch (e) {
           // Fallback: use evaluate with explicit typing
           await page.evaluate(() => {
-            (window as any).scrollBy(0, Math.floor(Math.random() * 500) + 200);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const win = globalThis as any;
+            win.scrollBy(0, Math.floor(Math.random() * 500) + 200);
           });
           await page.waitForTimeout(1000);
         }
