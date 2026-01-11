@@ -1,17 +1,14 @@
 /**
- * Playwright-based scraper for dynamic sites with stealth plugin
- * Uses multiple strategies: stealth plugin, mobile user agents, JSON-LD extraction
- * Enhanced with JSDOM for reliable HTML parsing and Cheerio for structured data
- * Includes platform-specific selectors for Amazon, eBay, BestBuy, Target, Walmart
+ * Playwright-based scraper for dynamic sites
+ * Uses multiple strategies: mobile user agents, JSON-LD extraction
+ * Enhanced with Cheerio for reliable HTML parsing and structured data
+ * Includes platform-specific selectors for Amazon, eBay, BestBuy, Target, Walmart, Etsy
  */
-import { chromium } from 'playwright-extra';
-import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import { chromium } from 'playwright';
 import type { Browser, Page } from 'playwright';
-import { JSDOM } from 'jsdom';
+import * as cheerio from 'cheerio';
 import { ScrapeResult } from './static-scraper';
 import { extractStructuredData } from './structured-data';
-
-chromium.use(StealthPlugin());
 
 // Multiple user agents for rotation and mobile fallback
 const DESKTOP_USER_AGENT =
@@ -224,6 +221,110 @@ async function extractPlatformSpecific(page: Page, source: string): Promise<{
           rating: null,
         };
       }
+    } else if (source.includes('etsy.com')) {
+      // Etsy-specific extraction
+      try {
+        await page.waitForSelector('.listing-page-title, .wt-text-body-01, img[src*="etsystatic.com"]', { timeout: 8000 }).catch(() => {});
+      } catch {}
+
+      // Title extraction
+      let title = await safeEval(page, 'h1.listing-page-title', '');
+      if (!title) {
+        title = await safeEval(page, 'h1[data-buy-box-listing-title]', '');
+      }
+      if (!title) {
+        title = await safeEval(page, 'h1.wt-text-body-01', '');
+      }
+
+      // Price extraction
+      let price = await safeEval(page, '.wt-text-title-03 .currency-value', '');
+      if (!price) {
+        price = await safeEval(page, '[data-buy-box-region="price"] .currency-value', '');
+      }
+      if (!price) {
+        price = await safeEval(page, '.wt-text-title-03', '');
+      }
+      if (price) {
+        price = price.replace(/[^0-9.,]/g, '');
+      }
+
+      // Image extraction - Etsy uses lazy loading and specific patterns
+      // FIRST: Try og:image meta tag (most reliable for Etsy)
+      let image = await safeAttr(page, 'meta[property="og:image"]', 'content', '');
+      
+      // If og:image not found or invalid, try DOM selectors
+      if (!image || !image.includes('etsystatic.com')) {
+        image = await safeAttr(page, '.listing-page-image img', 'src', '');
+      }
+      if (!image || !image.includes('etsystatic.com')) {
+        image = await safeAttr(page, '.listing-page-image img', 'data-src', '');
+      }
+      if (!image || !image.includes('etsystatic.com')) {
+        image = await safeAttr(page, '.listing-page-image img', 'data-image-url', '');
+      }
+      if (!image || !image.includes('etsystatic.com')) {
+        image = await safeAttr(page, '[data-carousel-first-image] img', 'src', '');
+      }
+      if (!image || !image.includes('etsystatic.com')) {
+        image = await safeAttr(page, '[data-carousel-first-image] img', 'data-src', '');
+      }
+      if (!image || !image.includes('etsystatic.com')) {
+        // Try JSON-LD structured data
+        const jsonLdImage = await page.evaluate(() => {
+          const scripts = document.querySelectorAll('script[type="application/ld+json"]');
+          for (const script of scripts) {
+            try {
+              const data = JSON.parse(script.textContent || '{}');
+              const items = Array.isArray(data) ? data : [data];
+              for (const item of items) {
+                if (item['@type'] === 'Product' && item.image) {
+                  let imgUrl = Array.isArray(item.image) ? item.image[0] : item.image;
+                  if (typeof imgUrl === 'object' && imgUrl.url) {
+                    imgUrl = imgUrl.url;
+                  }
+                  if (imgUrl && typeof imgUrl === 'string' && imgUrl.includes('etsystatic.com')) {
+                    return imgUrl;
+                  }
+                }
+              }
+            } catch (e) {}
+          }
+          return null;
+        });
+        if (jsonLdImage) {
+          image = jsonLdImage;
+        }
+      }
+      if (!image || !image.includes('etsystatic.com')) {
+        // Try finding any Etsy image
+        const foundImage = await page.evaluate(() => {
+          const imgs = Array.from(document.querySelectorAll('img[src*="etsystatic.com"], img[data-src*="etsystatic.com"]'));
+          for (const img of imgs) {
+            const src = (img as HTMLImageElement).src || (img as HTMLImageElement).getAttribute('data-src');
+            if (src && src.includes('/il/') && !src.includes('placeholder') && !src.includes('avatar')) {
+              return src.replace(/\/\d+x\d+\//, '/').replace(/\/\d+x\d+\./, '.').split('?')[0];
+            }
+          }
+          return null;
+        });
+        if (foundImage) {
+          image = foundImage;
+        }
+      }
+      
+      // Clean up image URL to get higher resolution (only if it's an etsystatic.com URL)
+      if (image && image.includes('etsystatic.com')) {
+        image = image.replace(/\/\d+x\d+\//, '/').replace(/\/\d+x\d+\./, '.').split('?')[0];
+      }
+
+      if (title && title !== 'Unknown Product') {
+        return {
+          title: title || null,
+          price: price || null,
+          image: image || null,
+          rating: null,
+        };
+      }
     }
 
     return null;
@@ -234,33 +335,31 @@ async function extractPlatformSpecific(page: Page, source: string): Promise<{
 }
 
 /**
- * Extract product data from HTML using JSDOM (more reliable than regex)
+ * Extract product data from HTML using Cheerio (ESM-compatible)
  * Uses structured data (JSON-LD) → meta tags → regex fallback
  */
 function extractDataFromHtml(html: string, url: string): ScrapeResult {
-  const dom = new JSDOM(html);
-  const doc = dom.window.document;
+  const $ = cheerio.load(html);
 
   // --- TITLE ---
   let title: string | null =
-    doc.querySelector('meta[property="og:title"]')?.getAttribute('content') ||
-    doc.querySelector('title')?.textContent ||
+    $('meta[property="og:title"]').attr('content') ||
+    $('title').text() ||
     null;
 
   // --- IMAGE ---
   let image: string | null =
-    doc.querySelector('meta[property="og:image"]')?.getAttribute('content') ||
-    doc.querySelector('img')?.getAttribute('src') ||
+    $('meta[property="og:image"]').attr('content') ||
+    $('img').first().attr('src') ||
     null;
 
   // --- PRICE ---
   // Try structured JSON-LD first
   let priceRaw: string | null = null;
 
-  const jsonLdScripts = Array.from(doc.querySelectorAll('script[type="application/ld+json"]'));
-  for (const script of jsonLdScripts) {
+  $('script[type="application/ld+json"]').each((_, el) => {
     try {
-      const jsonLd = JSON.parse(script.textContent || '');
+      const jsonLd = JSON.parse($(el).html() || '');
       const items = Array.isArray(jsonLd) ? jsonLd : [jsonLd];
 
       for (const item of items) {
@@ -268,22 +367,22 @@ function extractDataFromHtml(html: string, url: string): ScrapeResult {
           // Try offers.price, then price
           if (item.offers?.price) {
             priceRaw = String(item.offers.price);
-            break;
+            return false; // Break the loop
           } else if (item.price) {
             priceRaw = String(item.price);
-            break;
+            return false; // Break the loop
           }
         }
       }
-      if (priceRaw) break;
+      if (priceRaw) return false; // Break the loop
     } catch (e) {
       // Ignore JSON parse errors
     }
-  }
+  });
 
   // Fallback: regex search for price in text ($XX.XX format)
   if (!priceRaw) {
-    const bodyText = doc.body?.textContent || '';
+    const bodyText = $('body').text() || '';
     const priceMatch = bodyText.match(/\$[0-9,.]+/);
     if (priceMatch) {
       priceRaw = priceMatch[0];
@@ -292,8 +391,8 @@ function extractDataFromHtml(html: string, url: string): ScrapeResult {
 
   // --- DESCRIPTION ---
   let description: string | null =
-    doc.querySelector('meta[property="og:description"]')?.getAttribute('content') ||
-    doc.querySelector('meta[name="description"]')?.getAttribute('content') ||
+    $('meta[property="og:description"]').attr('content') ||
+    $('meta[name="description"]').attr('content') ||
     null;
 
   // --- CLEANUP ---

@@ -3,11 +3,7 @@
  * Tries: Playwright → Static → Manual fallback
  * Automatically saves to Supabase wishlist_items
  */
-import { chromium } from 'playwright-extra';
-import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-import { JSDOM } from 'jsdom';
-
-chromium.use(StealthPlugin());
+import * as cheerio from 'cheerio';
 
 import { createClient } from '@supabase/supabase-js';
 import { playwrightScrape } from './playwright-scraper';
@@ -63,11 +59,11 @@ function cleanDomain(url: string): string {
 }
 
 // Helper: Extract JSON-LD from HTML
-function extractJsonLD(doc: Document): any | null {
-  const scripts = Array.from(doc.querySelectorAll('script[type="application/ld+json"]'));
-  for (const el of scripts) {
+function extractJsonLD($: ReturnType<typeof cheerio.load>): any | null {
+  const scripts = $('script[type="application/ld+json"]');
+  for (let i = 0; i < scripts.length; i++) {
     try {
-      const data = JSON.parse(el.textContent || '');
+      const data = JSON.parse($(scripts[i]).html() || '');
       if (data?.offers?.price || data?.price) {
         return data;
       }
@@ -90,22 +86,21 @@ async function staticFetchScrape(url: string): Promise<{
       },
     }).then(r => r.text());
 
-    const dom = new JSDOM(html);
-    const doc = dom.window.document;
+    const $ = cheerio.load(html);
 
-    const title = doc.querySelector('meta[property="og:title"]')?.getAttribute('content') ||
-                  doc.querySelector('title')?.textContent ||
+    const title = $('meta[property="og:title"]').attr('content') ||
+                  $('title').text() ||
                   null;
 
-    const image = doc.querySelector('meta[property="og:image"]')?.getAttribute('content') ||
-                  doc.querySelector('img')?.getAttribute('src') ||
+    const image = $('meta[property="og:image"]').attr('content') ||
+                  $('img').first().attr('src') ||
                   null;
 
-    const jsonLd = extractJsonLD(doc);
+    const jsonLd = extractJsonLD($);
     const price = jsonLd?.offers?.price || jsonLd?.price || null;
 
-    const description = doc.querySelector('meta[property="og:description"]')?.getAttribute('content') ||
-                       doc.querySelector('meta[name="description"]')?.getAttribute('content') ||
+    const description = $('meta[property="og:description"]').attr('content') ||
+                       $('meta[name="description"]').attr('content') ||
                        null;
 
     return { title, image, price, description };

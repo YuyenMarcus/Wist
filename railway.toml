@@ -1,6 +1,12 @@
 [build]
 builder = "nixpacks"
 
+[build.nixpacksConfig]
+phases.install = """
+npm install
+npx playwright install --with-deps chromium
+"""
+
 [deploy]
 startCommand = "cd scraper-service && python app.py"
 
