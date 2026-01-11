@@ -2,10 +2,9 @@
 builder = "nixpacks"
 
 [build.nixpacksConfig]
-phases.install = """
-npm install
-npx playwright install --with-deps chromium
+phases.build = """
+npm run build
 """
 
 [deploy]
-startCommand = "npm run build && npm start"
+startCommand = "npm start"
