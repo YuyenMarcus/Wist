@@ -222,9 +222,16 @@ async function extractPlatformSpecific(page: Page, source: string): Promise<{
         };
       }
     } else if (source.includes('etsy.com')) {
-      // Etsy-specific extraction
+      // Etsy-specific extraction with longer delays and human-like behavior
       try {
-        await page.waitForSelector('.listing-page-title, .wt-text-body-01, img[src*="etsystatic.com"]', { timeout: 8000 }).catch(() => {});
+        await page.waitForTimeout(5000); // Increased delay for Etsy
+        await page.waitForSelector('.listing-page-title, .wt-text-body-01', { timeout: 10000 }).catch(() => {});
+        
+        // Scroll like a human
+        await page.evaluate(() => {
+          window.scrollBy(0, Math.floor(Math.random() * 500) + 200);
+        });
+        await page.waitForTimeout(1000);
       } catch {}
 
       // Title extraction
@@ -457,6 +464,9 @@ export async function playwrightScrape(url: string, useMobile: boolean = false):
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
+        '--disable-blink-features=AutomationControlled', // Hide automation
+        '--disable-features=IsolateOrigins,site-per-process',
+        '--window-size=1920,1080',
         '--disable-accelerated-2d-canvas',
         '--no-first-run',
         '--no-zygote',

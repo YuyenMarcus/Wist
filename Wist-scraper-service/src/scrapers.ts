@@ -124,7 +124,14 @@ async function waitForSelectors(
 export async function playwrightScrape(url: string): Promise<ScrapeResult> {
   const browser = await chromium.launch({
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-blink-features=AutomationControlled', // Hide automation
+      '--disable-features=IsolateOrigins,site-per-process',
+      '--window-size=1920,1080',
+    ],
   });
 
   const page = await browser.newPage({
