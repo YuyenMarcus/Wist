@@ -160,8 +160,8 @@ export async function playwrightScrape(url: string): Promise<ScrapeResult> {
     timezoneId: 'America/New_York',
   });
 
-  // Add extra stealth measures
-  await context.addInitScript(() => {
+  // Add extra stealth measures - pass as STRING to run in browser
+  await context.addInitScript(`
     // Override the navigator.webdriver property
     Object.defineProperty(navigator, 'webdriver', {
       get: () => false,
@@ -169,12 +169,12 @@ export async function playwrightScrape(url: string): Promise<ScrapeResult> {
     
     // Override permissions
     const originalQuery = window.navigator.permissions.query;
-    window.navigator.permissions.query = (parameters: any) => (
+    window.navigator.permissions.query = (parameters) => (
       parameters.name === 'notifications' ?
-        Promise.resolve({ state: Notification.permission } as PermissionStatus) :
+        Promise.resolve({ state: Notification.permission }) :
         originalQuery(parameters)
     );
-  });
+  `);
 
   const page = await context.newPage();
   await page.setExtraHTTPHeaders({ 'Accept-Language': 'en-US,en;q=0.9' });
