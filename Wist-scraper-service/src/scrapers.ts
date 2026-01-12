@@ -4,7 +4,12 @@ import msImage from 'metascraper-image';
 import msTitle from 'metascraper-title';
 import msDesc from 'metascraper-description';
 import msUrl from 'metascraper-url';
-import { chromium } from 'playwright';
+import { chromium } from 'playwright-extra';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+import stealth from 'puppeteer-extra-plugin-stealth';
+
+// Add stealth plugin
+chromium.use(stealth());
 
 const METASCRAPER = metascraper([msImage(), msTitle(), msDesc(), msUrl()]);
 
@@ -133,25 +138,45 @@ async function waitForSelectors(
 
 // Playwright renderer (stealth + light humanization)
 export async function playwrightScrape(url: string): Promise<ScrapeResult> {
+  // Launch browser with stealth mode
   const browser = await chromium.launch({
     headless: true,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
+      '--disable-blink-features=AutomationControlled',
       '--disable-dev-shm-usage',
-      '--disable-blink-features=AutomationControlled', // Hide automation
-      '--disable-features=IsolateOrigins,site-per-process',
-      '--window-size=1920,1080',
+      '--disable-accelerated-2d-canvas',
+      '--no-first-run',
+      '--no-zygote',
+      '--disable-gpu',
     ],
   });
 
-  const page = await browser.newPage({
+  const context = await browser.newContext({
     userAgent: USER_AGENT,
-    viewport: { width: 1280, height: 800 },
+    viewport: { width: 1920, height: 1080 },
     locale: 'en-US',
     timezoneId: 'America/New_York',
   });
 
+  // Add extra stealth measures
+  await context.addInitScript(() => {
+    // Override the navigator.webdriver property
+    Object.defineProperty(navigator, 'webdriver', {
+      get: () => false,
+    });
+    
+    // Override permissions
+    const originalQuery = window.navigator.permissions.query;
+    window.navigator.permissions.query = (parameters: any) => (
+      parameters.name === 'notifications' ?
+        Promise.resolve({ state: Notification.permission } as PermissionStatus) :
+        originalQuery(parameters)
+    );
+  });
+
+  const page = await context.newPage();
   await page.setExtraHTTPHeaders({ 'Accept-Language': 'en-US,en;q=0.9' });
 
   try {
@@ -320,15 +345,17 @@ export async function playwrightScrape(url: string): Promise<ScrapeResult> {
       }
     } catch {}
 
-    await browser.close();
-
     return { title, image, priceRaw, description, html };
-  } catch (err) {
+  } finally {
+    try {
+      await context.close();
+    } catch (e) {
+      // Ignore cleanup errors
+    }
     try {
       await browser.close();
     } catch (e) {
       // Ignore cleanup errors
     }
-    throw err;
   }
 }
