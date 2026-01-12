@@ -8,7 +8,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "lint": "eslint src --ext .ts",
-    "postinstall": "npx playwright install chromium --with-deps",
+    "postinstall": "npx playwright install --with-deps",
     "playwright:install": "npx playwright install chromium"
   },
   "keywords": [
