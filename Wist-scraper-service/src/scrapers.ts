@@ -7,6 +7,8 @@ import msUrl from 'metascraper-url';
 import { chromium } from 'playwright-extra';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 import stealth from 'puppeteer-extra-plugin-stealth';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Add stealth plugin
 chromium.use(stealth());
@@ -138,8 +140,32 @@ async function waitForSelectors(
 
 // Playwright renderer (stealth + light humanization)
 export async function playwrightScrape(url: string): Promise<ScrapeResult> {
+  // Determine Chromium executable path
+  // Playwright installs to /ms-playwright/chromium-{version}/chrome-linux/chrome
+  // Try to find the actual installed path dynamically
+  let executablePath: string | undefined;
+  
+  // Try to find installed chromium directory
+  const playwrightPath = process.env.PLAYWRIGHT_BROWSERS_PATH || '/ms-playwright';
+  try {
+    const chromiumDirs = fs.readdirSync(playwrightPath).filter((dir: string) => 
+      dir.startsWith('chromium-') && !dir.includes('headless_shell')
+    );
+    if (chromiumDirs.length > 0) {
+      // Use the first (latest) chromium directory
+      const chromiumDir = chromiumDirs[0];
+      const chromePath = path.join(playwrightPath, chromiumDir, 'chrome-linux', 'chrome');
+      if (fs.existsSync(chromePath)) {
+        executablePath = chromePath;
+      }
+    }
+  } catch (e) {
+    // Fallback to Playwright's default detection
+    console.log('Could not detect Chromium path, using Playwright default');
+  }
+
   // Launch browser with stealth mode
-  const browser = await chromium.launch({
+  const launchOptions: any = {
     headless: true,
     args: [
       '--no-sandbox',
@@ -151,7 +177,15 @@ export async function playwrightScrape(url: string): Promise<ScrapeResult> {
       '--no-zygote',
       '--disable-gpu',
     ],
-  });
+  };
+  
+  // Add explicit path if found
+  if (executablePath) {
+    launchOptions.executablePath = executablePath;
+    console.log(`Using Chromium at: ${executablePath}`);
+  }
+  
+  const browser = await chromium.launch(launchOptions);
 
   const context = await browser.newContext({
     userAgent: USER_AGENT,
