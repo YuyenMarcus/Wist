@@ -1,9 +1,7 @@
 FROM node:20-bullseye
 
-# Install Python AND Chromium dependencies
+# Install Chromium dependencies for Playwright
 RUN apt-get update && apt-get install -y \
-  python3 \
-  python3-pip \
   libnss3 \
   libatk1.0-0 \
   libatk-bridge2.0-0 \
@@ -18,9 +16,6 @@ RUN apt-get update && apt-get install -y \
   libxss1 \
   libgtk-3-0 \
   && rm -rf /var/lib/apt/lists/*
-
-# Create symlink so 'python' points to 'python3'
-RUN ln -s /usr/bin/python3 /usr/bin/python
 
 WORKDIR /app
 
