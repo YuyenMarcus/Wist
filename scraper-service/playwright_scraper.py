@@ -32,6 +32,53 @@ def get_random_user_agent():
     return random.choice(USER_AGENTS)
 
 
+def extract_from_blocked_page(page, url, source):
+    """
+    Try to extract minimal data from a blocked page using OG meta tags.
+    Even challenge pages sometimes include basic metadata.
+    """
+    print(f"   [Playwright] Attempting extraction from blocked {source} page...")
+    
+    result = {
+        "title": None,
+        "price": None,
+        "priceRaw": None,
+        "image": None,
+        "description": None,
+        "url": url,
+        "method": f"playwright_{source}_blocked"
+    }
+    
+    try:
+        # Try OG tags
+        og_title = page.query_selector('meta[property="og:title"]')
+        if og_title:
+            result['title'] = og_title.get_attribute('content')
+            print(f"   [Playwright] Found OG title: {result['title'][:50] if result['title'] else 'None'}...")
+        
+        og_image = page.query_selector('meta[property="og:image"]')
+        if og_image:
+            result['image'] = og_image.get_attribute('content')
+            print(f"   [Playwright] Found OG image")
+        
+        og_desc = page.query_selector('meta[property="og:description"]')
+        if og_desc:
+            result['description'] = og_desc.get_attribute('content')
+        
+        # Try to find price in any meta tag
+        price_meta = page.query_selector('meta[property="product:price:amount"]')
+        if price_meta:
+            price_val = price_meta.get_attribute('content')
+            if price_val:
+                result['price'] = float(price_val)
+                result['priceRaw'] = f"${result['price']:.2f}"
+                print(f"   [Playwright] Found OG price: {result['priceRaw']}")
+    except Exception as e:
+        print(f"   [Playwright] Error extracting from blocked page: {e}")
+    
+    return result
+
+
 def scrape_with_playwright(url):
     """
     Main entry point for Playwright scraping.
@@ -130,11 +177,13 @@ def scrape_with_playwright(url):
                 # Log page HTML length for debugging
                 html = page.content()
                 print(f"   [Playwright] Page HTML length: {len(html)} chars")
-                if len(html) < 5000:
-                    print(f"   [Playwright] WARNING: Page seems too short, might be blocked")
-                    # Take a screenshot for debugging (if we had that capability)
                 
-                result = extract_etsy(page, url)
+                if len(html) < 5000:
+                    print(f"   [Playwright] WARNING: Page seems blocked, trying OG tags from blocked page...")
+                    # Even blocked pages sometimes have OG tags - try to extract them
+                    result = extract_from_blocked_page(page, url, 'etsy')
+                else:
+                    result = extract_etsy(page, url)
             elif any(store in domain for store in ['bestbuy', 'target', 'walmart']):
                 result = extract_major_retailer(page, url, domain)
             else:
