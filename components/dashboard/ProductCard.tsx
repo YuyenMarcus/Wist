@@ -1,11 +1,12 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ExternalLink, Trash2, MoreHorizontal, Check, FolderInput } from 'lucide-react';
+import { ExternalLink, Trash2, MoreHorizontal, Check, FolderInput, TrendingDown, TrendingUp, Minus } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { BarChart3 } from 'lucide-react';
 
 interface ProductItem {
   id: string;
@@ -16,6 +17,11 @@ interface ProductItem {
   collection_id?: string | null;
   current_price?: number | null;
   image_url?: string | null;
+  // Price tracking fields
+  price_change?: number | null;
+  price_change_percent?: number | null;
+  previous_price?: number | null;
+  last_price_check?: string | null;
 }
 
 interface Collection {
@@ -268,6 +274,16 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
             </span>
           </div>
         )}
+        
+        {/* Price Drop Badge - Shows when price dropped significantly (>5%) */}
+        {item.price_change != null && item.price_change < 0 && (item.price_change_percent || 0) <= -5 && (
+          <div className="absolute top-3 left-3 z-10">
+            <span className="inline-flex items-center gap-1 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg animate-pulse">
+              <TrendingDown className="w-3 h-3" />
+              Price Drop!
+            </span>
+          </div>
+        )}
 
         {/* Loading Overlay */}
         {isMoving && (
@@ -367,11 +383,51 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
         <h3 className="font-medium text-zinc-900 dark:text-white text-sm mb-2 line-clamp-2">
           {title}
         </h3>
-        {price && price > 0 && (
-          <p className="text-zinc-500 dark:text-zinc-400 text-sm font-medium">
-            {formatPrice(price)}
+        
+        {/* Price with change indicator */}
+        <div className="flex items-center gap-2">
+          {price && price > 0 && (
+            <p className="text-zinc-900 dark:text-white text-sm font-bold">
+              {formatPrice(price)}
+            </p>
+          )}
+          
+          {/* Price Change Badge */}
+          {item.price_change != null && item.price_change !== 0 && (
+            <span 
+              className={`inline-flex items-center gap-0.5 text-xs font-semibold px-1.5 py-0.5 rounded-full ${
+                item.price_change < 0 
+                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                  : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+              }`}
+              title={`Was ${formatPrice(item.previous_price || 0)}`}
+            >
+              {item.price_change < 0 ? (
+                <TrendingDown className="w-3 h-3" />
+              ) : (
+                <TrendingUp className="w-3 h-3" />
+              )}
+              {Math.abs(item.price_change_percent || 0).toFixed(0)}%
+            </span>
+          )}
+        </div>
+        
+        {/* Show previous price if there was a change */}
+        {item.previous_price && item.price_change !== 0 && (
+          <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1 line-through">
+            Was {formatPrice(item.previous_price)}
           </p>
         )}
+        
+        {/* View History Link */}
+        <Link 
+          href={`/dashboard/item/${item.id}`}
+          className="mt-2 inline-flex items-center gap-1 text-xs text-violet-600 hover:text-violet-700 dark:text-violet-400 dark:hover:text-violet-300 transition-colors"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <BarChart3 className="w-3 h-3" />
+          View price history
+        </Link>
       </div>
     </motion.div>
   );

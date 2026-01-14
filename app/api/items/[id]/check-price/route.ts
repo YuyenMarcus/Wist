@@ -37,11 +37,12 @@ export async function POST(
       : null
 
     // Get price history for trend
+    // Note: price_history table uses 'created_at' column, not 'recorded_at'
     const { data: priceHistory } = await supabase
       .from('price_history')
-      .select('price, recorded_at')
+      .select('price, created_at')
       .eq('item_id', itemId)
-      .order('recorded_at', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(10)
 
     // Calculate price trend

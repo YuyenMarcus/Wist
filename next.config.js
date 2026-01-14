@@ -4,7 +4,7 @@ const nextConfig = {
   
   // Output configuration for standalone deployment
   // Enable for Docker/Railway deployment, comment out for Vercel
-  output: 'standalone',
+  // output: 'standalone', // Commented out for Vercel deployment
   
   experimental: {
     serverActions: {

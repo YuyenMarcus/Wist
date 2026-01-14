@@ -10,7 +10,7 @@ import ProductCard from '@/components/dashboard/ProductCard'
 import { getUserProducts, SupabaseProduct, deleteUserProduct } from '@/lib/supabase/products'
 import { getProfile, Profile } from '@/lib/supabase/profile'
 import LavenderLoader from '@/components/ui/LavenderLoader'
-import { Layers, LayoutGrid } from 'lucide-react'
+import { Layers, LayoutGrid, Sparkles, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 
 export default function DashboardPage() {
@@ -22,6 +22,11 @@ export default function DashboardPage() {
   const [collections, setCollections] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [autoOrganizing, setAutoOrganizing] = useState(false)
+  const [autoOrganizeStats, setAutoOrganizeStats] = useState<{
+    canAutoCategorize: number;
+    uncategorized: number;
+  } | null>(null)
 
   // Determine view mode from URL parameter
   const viewMode = searchParams?.get('view') === 'grouped' ? 'grouped' : 'timeline'
@@ -357,6 +362,95 @@ export default function DashboardPage() {
     }
   }
 
+  // Fetch auto-categorize stats when in grouped view
+  useEffect(() => {
+    async function fetchAutoOrganizeStats() {
+      if (viewMode !== 'grouped' || !user) return
+      
+      try {
+        const res = await fetch('/api/items/auto-categorize')
+        const data = await res.json()
+        if (data.success && data.stats) {
+          setAutoOrganizeStats({
+            canAutoCategorize: data.stats.canAutoCategorize,
+            uncategorized: data.stats.uncategorized
+          })
+        }
+      } catch (e) {
+        console.error('Failed to fetch auto-organize stats:', e)
+      }
+    }
+    
+    fetchAutoOrganizeStats()
+  }, [viewMode, user, products])
+
+  async function handleAutoOrganize() {
+    if (autoOrganizing) return
+    
+    setAutoOrganizing(true)
+    try {
+      // First, preview what will be categorized
+      const previewRes = await fetch('/api/items/auto-categorize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ preview: true, minConfidence: 'medium' })
+      })
+      const previewData = await previewRes.json()
+      
+      if (!previewData.success) {
+        throw new Error(previewData.error || 'Failed to preview')
+      }
+      
+      if (previewData.suggestions.length === 0) {
+        alert('No items could be auto-categorized. Try creating more collections or adding items with clearer titles.')
+        setAutoOrganizing(false)
+        return
+      }
+      
+      // Show confirmation with preview
+      const confirmMessage = `Auto-organize will categorize ${previewData.suggestions.length} item(s):\n\n` +
+        previewData.suggestions.slice(0, 5).map((s: any) => 
+          `• "${s.itemTitle?.substring(0, 30)}..." → ${s.collectionName}`
+        ).join('\n') +
+        (previewData.suggestions.length > 5 ? `\n\n...and ${previewData.suggestions.length - 5} more` : '') +
+        '\n\nProceed?'
+      
+      if (!confirm(confirmMessage)) {
+        setAutoOrganizing(false)
+        return
+      }
+      
+      // Apply the categorization
+      const applyRes = await fetch('/api/items/auto-categorize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ preview: false, minConfidence: 'medium' })
+      })
+      const applyData = await applyRes.json()
+      
+      if (!applyData.success) {
+        throw new Error(applyData.error || 'Failed to apply')
+      }
+      
+      alert(`✨ Successfully organized ${applyData.applied} item(s)!`)
+      
+      // Refresh the items list
+      await fetchItems()
+      
+      // Update stats
+      setAutoOrganizeStats({
+        canAutoCategorize: 0,
+        uncategorized: applyData.stats.uncategorized - applyData.applied
+      })
+      
+    } catch (e: any) {
+      console.error('Auto-organize error:', e)
+      alert('Failed to auto-organize: ' + (e.message || 'Unknown error'))
+    } finally {
+      setAutoOrganizing(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-50">
@@ -402,6 +496,42 @@ export default function DashboardPage() {
         {/* Categories View (Grouped by Collection) */}
         {viewMode === 'grouped' && (
           <div className="space-y-12">
+            {/* Auto-organize Banner */}
+            {autoOrganizeStats && autoOrganizeStats.canAutoCategorize > 0 && (
+              <div className="flex items-center justify-between bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-950/30 dark:to-purple-950/30 border border-violet-200 dark:border-violet-800 rounded-xl px-5 py-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-violet-100 dark:bg-violet-900/50 rounded-lg">
+                    <Sparkles className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-zinc-900 dark:text-white">
+                      {autoOrganizeStats.canAutoCategorize} item{autoOrganizeStats.canAutoCategorize !== 1 ? 's' : ''} can be auto-organized
+                    </p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                      Based on item names and your collections
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleAutoOrganize}
+                  disabled={autoOrganizing}
+                  className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 disabled:bg-violet-400 text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  {autoOrganizing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Organizing...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      Auto-organize
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+
             {/* Show all items if no collections exist */}
             {collections.length === 0 && products.length > 0 && (
               <section>

@@ -20,6 +20,11 @@ export interface SupabaseProduct {
   share_token?: string | null;
   // Collection field
   collection_id?: string | null;
+  // Price tracking fields
+  price_change?: number | null;      // Change from previous price
+  price_change_percent?: number | null; // Percentage change
+  previous_price?: number | null;    // Previous price for reference
+  last_price_check?: string | null;  // When price was last checked
 }
 
 /**
@@ -87,7 +92,7 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
   const ITEMS_LIMIT = 100;
   
   const [itemsResult, productsResult] = await Promise.all([
-    // Query items table (limited to 100 most recent)
+    // Query items table (limited to 100 most recent) - include last_price_check
     supabase
       .from('items')
       .select(`
@@ -101,7 +106,8 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
         status,
         retailer,
         collection_id,
-        created_at
+        created_at,
+        last_price_check
       `)
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
@@ -132,6 +138,44 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
     console.error('❌ Error fetching products:', productsResult.error);
   }
 
+  // Collect all item IDs from items table for price history lookup
+  const itemIds = itemsResult.data?.map((item: any) => item.id) || [];
+  
+  // Fetch price history for all items in one query (optimized)
+  // Get last 2 prices per item to calculate change
+  let priceHistoryMap: Map<string, { current: number; previous: number | null }> = new Map();
+  
+  if (itemIds.length > 0) {
+    const { data: priceHistory } = await supabase
+      .from('price_history')
+      .select('item_id, price, created_at')
+      .in('item_id', itemIds)
+      .order('created_at', { ascending: false });
+    
+    if (priceHistory) {
+      // Group by item_id and get last 2 prices
+      const itemPrices: Map<string, { price: number; created_at: string }[]> = new Map();
+      
+      priceHistory.forEach((entry: any) => {
+        const existing = itemPrices.get(entry.item_id) || [];
+        if (existing.length < 2) { // Only need last 2
+          existing.push({ price: Number(entry.price), created_at: entry.created_at });
+          itemPrices.set(entry.item_id, existing);
+        }
+      });
+      
+      // Calculate price changes
+      itemPrices.forEach((prices, itemId) => {
+        if (prices.length >= 1) {
+          priceHistoryMap.set(itemId, {
+            current: prices[0].price,
+            previous: prices.length >= 2 ? prices[1].price : null
+          });
+        }
+      });
+    }
+  }
+
   // Combine both results
   const allItems: any[] = [];
   
@@ -144,6 +188,18 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
           ? parseFloat(item.current_price) 
           : Number(item.current_price);
         priceValue = isNaN(numPrice) || numPrice === 0 ? null : numPrice;
+      }
+      
+      // Get price change data
+      const priceData = priceHistoryMap.get(item.id);
+      let priceChange = null;
+      let priceChangePercent = null;
+      let previousPrice = null;
+      
+      if (priceData && priceData.previous !== null) {
+        previousPrice = priceData.previous;
+        priceChange = priceData.current - priceData.previous;
+        priceChangePercent = (priceChange / priceData.previous) * 100;
       }
       
       allItems.push({
@@ -161,7 +217,12 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
         share_token: null,
         domain: item.retailer?.toLowerCase() || null,
         description: item.note || null,
-        collection_id: item.collection_id || null, // Preserve collection_id
+        collection_id: item.collection_id || null,
+        // Price tracking data
+        price_change: priceChange,
+        price_change_percent: priceChangePercent,
+        previous_price: previousPrice,
+        last_price_check: item.last_price_check || null,
       });
     });
   }
