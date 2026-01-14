@@ -16,86 +16,74 @@ export async function GET(request: Request) {
     let $: ReturnType<typeof cheerio.load>
 
     // Check if we need Playwright (dynamic sites like Etsy, Amazon)
-    // Use main scraper for fetching product metadata (wist-app-production)
-    const scraperServiceUrl = process.env.MAIN_SCRAPER_URL || process.env.SCRAPER_SERVICE_URL
+    const scraperServiceUrl = process.env.SCRAPER_SERVICE_URL
     const needsPlaywright = isDynamic(domain)
 
     if (needsPlaywright && scraperServiceUrl) {
-      console.log(`🔍 [Metadata] Using Railway scraper for dynamic site: ${domain}`)
+      console.log(`🔍 [Metadata] Using Python scraper for dynamic site: ${domain}`)
       try {
-        // Call Railway TypeScript scraper service (supports Playwright)
-        const railwayUrl = `${scraperServiceUrl}/api/fetch-product`
-        console.log('🚂 Calling Railway:', railwayUrl, 'for URL:', url)
+        // Call Python Flask scraper service (Scrapy + Playwright)
+        const railwayUrl = `${scraperServiceUrl}/api/scrape/sync`
+        console.log('🚂 Calling scraper:', railwayUrl, 'for URL:', url)
 
         const response = await fetch(railwayUrl, {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
-            'User-Agent': 'Wist-Scraper/1.0'
           },
           body: JSON.stringify({ url }),
-          signal: AbortSignal.timeout(30000), // 30s timeout
+          signal: AbortSignal.timeout(45000), // 45s timeout for slow scrapes
         })
 
         const text = await response.text()
-        console.log('🚂 Railway raw response:', {
+        console.log('🚂 Scraper raw response:', {
           status: response.status,
           statusText: response.statusText,
-          body: text.substring(0, 500) // First 500 chars
+          body: text.substring(0, 500)
         })
         
         let scrapeResult
         try {
           scrapeResult = JSON.parse(text)
-          console.log('🚂 Railway parsed response:', scrapeResult)
+          console.log('🚂 Scraper parsed response:', scrapeResult)
         } catch (e) {
-          console.error('❌ Failed to parse Railway response:', text)
-          throw new Error(`Railway returned invalid JSON: ${text.substring(0, 100)}`)
+          console.error('❌ Failed to parse scraper response:', text)
+          throw new Error(`Scraper returned invalid JSON: ${text.substring(0, 100)}`)
         }
 
-        if (!response.ok) {
-          const errorMsg = scrapeResult?.error || scrapeResult?.detail || `Railway scraper returned ${response.status}`
+        // Python scraper returns { success: true, result: {...} }
+        if (!response.ok || !scrapeResult.success) {
+          const errorMsg = scrapeResult?.error || `Scraper returned ${response.status}`
           throw new Error(errorMsg)
         }
         
-        if (!scrapeResult || !scrapeResult.ok || !scrapeResult.data) {
-          const errorMsg = scrapeResult?.error || scrapeResult?.detail || 'Failed to scrape product'
-          console.error(`❌ [Metadata] Railway scraper failed for ${domain}:`, errorMsg)
-          throw new Error(errorMsg)
+        const result = scrapeResult.result
+        if (!result || !result.title) {
+          throw new Error('Scraper returned no product data')
         }
 
-        // Return the scraped data directly
-        console.log(`✅ [Metadata] Successfully scraped ${domain} product via Railway`)
+        // Return the scraped data
+        console.log(`✅ [Metadata] Successfully scraped ${domain} via Python scraper`)
         return NextResponse.json({
-          title: scrapeResult.data.title || '',
-          description: scrapeResult.data.description || '',
-          imageUrl: scrapeResult.data.image || '',
-          price: scrapeResult.data.priceRaw || null,
+          title: result.title || '',
+          description: result.description || '',
+          imageUrl: result.image || '',
+          price: result.priceRaw || (result.price ? `$${result.price}` : null),
         })
       } catch (error: any) {
-        console.error(`❌ [Metadata] Error scraping ${domain} via Railway:`, error)
-        console.error(`❌ [Metadata] Error details:`, {
-          message: error.message,
-          stack: error.stack,
-          name: error.name,
-          cause: error.cause,
-        })
-        // Return the actual error instead of silently falling through
-        return NextResponse.json({ 
-          error: `Railway scraper failed: ${error.message || 'Unknown error'}`,
-          details: error.stack || error.toString(),
-        }, { status: 500 })
+        console.error(`❌ [Metadata] Error scraping ${domain}:`, error.message)
+        // Fall through to static scraping
       }
     }
 
-    // For all other sites (including Amazon), use simple fetch
+    // For static sites or as fallback, use simple fetch
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5',
       },
-      signal: AbortSignal.timeout(10000), // 10 second timeout
+      signal: AbortSignal.timeout(10000),
     })
 
     if (!response.ok) {
@@ -105,7 +93,7 @@ export async function GET(request: Request) {
     html = await response.text()
     $ = cheerio.load(html)
 
-    // 2. Extract Metadata Helper
+    // Extract Metadata
     const getMeta = (name: string) => 
       $(`meta[property="${name}"]`).attr('content') || 
       $(`meta[name="${name}"]`).attr('content')
@@ -113,44 +101,34 @@ export async function GET(request: Request) {
     const title = getMeta('og:title') || getMeta('twitter:title') || $('title').text() || ''
     const description = getMeta('og:description') || getMeta('twitter:description') || $('meta[name="description"]').attr('content') || ''
     
-    // --- IMPROVED IMAGE EXTRACTION ---
-    // We now check 6 different places for an image
+    // Image extraction
     let image = 
-      // 1. Standard Open Graph
       getMeta('og:image') || 
-      // 2. Twitter Cards
       getMeta('twitter:image') || 
       getMeta('twitter:image:src') ||
-      // 3. Schema.org (Common on Google Shopping/Pinterest)
       $('meta[itemprop="image"]').attr('content') ||
-      // 4. Secure URL fallback
       $('meta[property="og:image:secure_url"]').attr('content') ||
-      // 5. Amazon Specific IDs (Amazon often blocks OG tags but leaves these)
       $('#landingImage').attr('src') ||
       $('#imgBlkFront').attr('src') ||
-      // 6. Generic Link fallback
       $('link[rel="image_src"]').attr('href')
 
-    // Fix relative image URLs (e.g., "/images/logo.png" -> "https://site.com/images/logo.png")
+    // Fix relative image URLs
     if (image && (image.startsWith('/') || !image.startsWith('http'))) {
       try {
         const urlObj = new URL(url)
-        // Handle protocol-relative URLs (//example.com/img.jpg)
         if (image.startsWith('//')) {
           image = `${urlObj.protocol}${image}`
         } else if (image.startsWith('/')) {
           image = `${urlObj.protocol}//${urlObj.host}${image}`
         } else {
-          // If it's just a filename "image.jpg", append to base path
           image = new URL(image, url).toString()
         }
       } catch (e) {
         console.error('Error fixing relative image URL:', e)
-        // Keep original image string if parsing fails, might still work for some weird edge cases
       }
     }
 
-    // --- PRICE EXTRACTION (Unchanged but validated) ---
+    // Price extraction
     let price = null
     let currency = '$'
 
@@ -161,7 +139,6 @@ export async function GET(request: Request) {
         try {
           const json = JSON.parse($(el).html() || '{}')
           
-          // Helper to check object
           const checkPrice = (obj: any) => {
             if (obj.offers?.price) {
               price = parseFloat(obj.offers.price)
@@ -202,14 +179,13 @@ export async function GET(request: Request) {
     return NextResponse.json({
       title: title.trim(),
       description: description.trim(),
-      imageUrl: image || '', // Returns empty string if still nothing found
+      imageUrl: image || '',
       price: priceString,
     })
 
   } catch (error: any) {
     console.error('Metadata fetch error:', error)
     
-    // Handle specific error cases
     if (error.name === 'AbortError') {
       return NextResponse.json({ error: 'Request timeout' }, { status: 408 })
     }
@@ -219,4 +195,3 @@ export async function GET(request: Request) {
     }, { status: 500 })
   }
 }
-
