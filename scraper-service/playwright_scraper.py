@@ -117,6 +117,16 @@ def scrape_with_playwright(url):
             if 'amazon' in domain:
                 result = extract_amazon(page, url)
             elif 'etsy' in domain:
+                # Etsy often needs more time to load JavaScript
+                print("   [Playwright] Etsy detected - waiting extra time for JS...")
+                page.wait_for_timeout(5000)  # Extra 5 seconds for Etsy
+                
+                # Try to wait for the title element to appear
+                try:
+                    page.wait_for_selector('h1', timeout=10000)
+                except:
+                    print("   [Playwright] Could not find h1 element")
+                
                 result = extract_etsy(page, url)
             elif any(store in domain for store in ['bestbuy', 'target', 'walmart']):
                 result = extract_major_retailer(page, url, domain)
@@ -276,6 +286,10 @@ def extract_etsy(page, url):
         print(f"   [Playwright] Page title: {page_title}")
         page_url = page.url
         print(f"   [Playwright] Current URL: {page_url}")
+        
+        # Check if page looks blocked
+        body_preview = page.inner_text('body')[:200] if page.query_selector('body') else ''
+        print(f"   [Playwright] Body preview: {body_preview[:100]}...")
     except Exception as e:
         print(f"   [Playwright] Could not get page info: {e}")
     
