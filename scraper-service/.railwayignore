@@ -1,30 +1,11 @@
-# Ignore files not needed for deployment
-.dockerignore
-package.json
-package-lock.json
-node_modules/
-.git/
-*.md
+# Files not needed for Railway deployment
 __pycache__/
 *.pyc
-.next/
-app/
-components/
-pages/
-public/
-lib/
-hooks/
-utils/
-types/
-styles/
-middleware.ts
-next.config.js
-tsconfig.json
-tailwind.config.js
-postcss.config.js
-vercel.json
+*.pyo
+.git/
 .env
 .env.local
 START_SERVICE.bat
 START_SERVICE.ps1
 test_service.py
+nixpacks.toml.backup

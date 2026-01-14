@@ -1,12 +1,12 @@
-# Include everything needed for Docker build
-*
-!Dockerfile
-!requirements.txt
-!app.py
-!playwright_scraper.py
-!scrapy_scraper.py
-!pipelines.py
-!settings.py
-!scrapy.cfg
-!spiders/
-!spiders/*.py
+# Ignore only dev/test files during Docker build
+__pycache__/
+*.pyc
+*.pyo
+.git/
+.env
+.env.local
+*.md
+START_SERVICE.bat
+START_SERVICE.ps1
+test_service.py
+nixpacks.toml.backup
