@@ -4,7 +4,7 @@ Flask microservice for product scraping with Scrapy
 Uses crochet to manage Scrapy's Twisted reactor lifecycle
 CRITICAL: Let Scrapy use whatever reactor crochet sets up (SelectReactor)
 """
-print("🚀🚀🚀 WIST SCRAPER v2026-01-14-v10 STARTING 🚀🚀🚀")
+print("🚀🚀🚀 WIST SCRAPER v2026-01-14-v11 STARTING 🚀🚀🚀")
 import os
 
 # 1. IMPORT CROCHET FIRST - MUST BE BEFORE ANY OTHER IMPORTS
@@ -111,10 +111,13 @@ def try_playwright_fallback(job_id, url):
         # Run the scraping logic
         result = scrape_with_playwright(url)
         
-        if result and result.get('title') and "amazon.com" not in result.get('title', '').lower():
+        # Get title safely (handle None values)
+        title = (result.get('title') or '') if result else ''
+        
+        if result and title and "amazon.com" not in title.lower():
             # SUCCESS - Check for captcha trap one more time
             if not detect_captcha_trap(result):
-                print(f"✅ Job {job_id}: Playwright fallback succeeded! Title: {result['title'][:50]}...")
+                print(f"✅ Job {job_id}: Playwright fallback succeeded! Title: {title[:50]}...")
                 JOBS[job_id]["status"] = STATUS_COMPLETED
                 JOBS[job_id]["data"] = result
                 JOBS[job_id]["completed_at"] = time.time()
@@ -126,8 +129,8 @@ def try_playwright_fallback(job_id, url):
                 JOBS[job_id]["completed_at"] = time.time()
         else:
             # FAILED - No title or generic title
-            title = result.get('title', 'None') if result else 'None'
-            print(f"❌ Job {job_id}: Playwright also failed (title: '{title[:50]}')")
+            display_title = title[:50] if title else 'None'
+            print(f"❌ Job {job_id}: Playwright also failed (title: '{display_title}')")
             JOBS[job_id]["status"] = STATUS_FAILED
             JOBS[job_id]["error"] = "All scraping methods failed"
             JOBS[job_id]["completed_at"] = time.time()
@@ -158,7 +161,8 @@ def detect_captcha_trap(data):
     if not data:
         return True
     
-    title = data.get('title', '').lower().strip()
+    # Use 'or' to handle None values (key exists but value is None)
+    title = (data.get('title') or '').lower().strip()
     price = data.get('price')
     priceRaw = data.get('priceRaw')
     image = data.get('image')
