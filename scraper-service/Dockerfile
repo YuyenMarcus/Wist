@@ -55,7 +55,7 @@ ENV PATH=/root/.local/bin:$PATH
 RUN playwright install chromium --with-deps
 
 # Force cache invalidation for COPY step
-ARG CACHE_BUST=2026-01-14-v5-no-preload
+ARG CACHE_BUST=2026-01-14-v6-no-docker-healthcheck
 RUN echo "Cache bust: $CACHE_BUST"
 
 # Copy application code
@@ -68,9 +68,8 @@ ENV PYTHONDONTWRITEBYTECODE=1
 # Expose port
 EXPOSE 8080
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT:-8080}/health || exit 1
+# No HEALTHCHECK here - let Railway handle it via railway.json
+# This avoids startup issues with Docker's internal healthcheck
 
 # Start Gunicorn with optimized settings
 # -w 1: 1 worker (reduce startup time)
