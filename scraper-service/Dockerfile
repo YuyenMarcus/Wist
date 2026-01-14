@@ -54,6 +54,10 @@ ENV PATH=/root/.local/bin:$PATH
 # Install Playwright browsers (Chromium only to save space)
 RUN playwright install chromium --with-deps
 
+# Force cache invalidation for COPY step
+ARG CACHE_BUST=2026-01-14-v3-force-rebuild
+RUN echo "Cache bust: $CACHE_BUST"
+
 # Copy application code
 COPY . .
 
