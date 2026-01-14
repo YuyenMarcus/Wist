@@ -55,7 +55,7 @@ ENV PATH=/root/.local/bin:$PATH
 RUN playwright install chromium --with-deps
 
 # Force cache invalidation for COPY step
-ARG CACHE_BUST=2026-01-14-v3-force-rebuild
+ARG CACHE_BUST=2026-01-14-v4-startup-fix
 RUN echo "Cache bust: $CACHE_BUST"
 
 # Copy application code
@@ -73,7 +73,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT:-8080}/health || exit 1
 
 # Start Gunicorn with optimized settings
-# -w 2: 2 workers (enough for scraping, saves RAM)
+# -w 1: 1 worker (reduce startup time)
+# --preload: Preload app before forking
 # --timeout 120: 2 min timeout for slow scrapes
-# --keep-alive 5: Keep connections alive
-CMD ["sh", "-c", "gunicorn -w 2 -b 0.0.0.0:${PORT:-8080} app:app --timeout 120 --keep-alive 5"]
+CMD ["sh", "-c", "gunicorn -w 1 --preload -b 0.0.0.0:${PORT:-8080} app:app --timeout 120 --keep-alive 5 --log-level info"]

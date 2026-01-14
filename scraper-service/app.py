@@ -4,6 +4,7 @@ Flask microservice for product scraping with Scrapy
 Uses crochet to manage Scrapy's Twisted reactor lifecycle
 CRITICAL: Let Scrapy use whatever reactor crochet sets up (SelectReactor)
 """
+print("🚀🚀🚀 WIST SCRAPER v2026-01-14-v4 STARTING 🚀🚀🚀")
 import os
 
 # 1. IMPORT CROCHET FIRST - MUST BE BEFORE ANY OTHER IMPORTS
