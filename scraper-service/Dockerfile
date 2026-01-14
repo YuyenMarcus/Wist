@@ -55,7 +55,7 @@ ENV PATH=/root/.local/bin:$PATH
 RUN playwright install chromium --with-deps
 
 # Force cache invalidation for COPY step
-ARG CACHE_BUST=2026-01-14-v6-no-docker-healthcheck
+ARG CACHE_BUST=2026-01-14-v7-no-railway-healthcheck
 RUN echo "Cache bust: $CACHE_BUST"
 
 # Copy application code
