@@ -294,24 +294,26 @@ def extract_etsy(page, url):
                 
                 if isinstance(data, dict) and data.get('@type') in ['Product', 'IndividualProduct']:
                     result['title'] = data.get('name')
-                    result['description'] = data.get('description', '')[:500]
+                    desc = data.get('description') or ''
+                    result['description'] = desc[:500] if desc else ''
                     
                     # Image
                     img = data.get('image')
-                    if isinstance(img, list):
+                    if isinstance(img, list) and len(img) > 0:
                         img = img[0]
                     if isinstance(img, dict):
                         img = img.get('url') or img.get('contentUrl')
-                    result['image'] = img
+                    result['image'] = img if img else None
                     
                     # Price
-                    offers = data.get('offers', {})
-                    if isinstance(offers, list):
+                    offers = data.get('offers') or {}
+                    if isinstance(offers, list) and len(offers) > 0:
                         offers = offers[0]
-                    price_val = offers.get('price') or offers.get('lowPrice')
-                    if price_val:
-                        result['price'] = float(price_val)
-                        result['priceRaw'] = f"${result['price']:.2f}"
+                    if isinstance(offers, dict):
+                        price_val = offers.get('price') or offers.get('lowPrice')
+                        if price_val:
+                            result['price'] = float(price_val)
+                            result['priceRaw'] = f"${result['price']:.2f}"
                     break
             except:
                 continue
@@ -477,31 +479,32 @@ def extract_generic(page, url):
                 items = data if isinstance(data, list) else [data]
                 
                 for item in items:
-                    if item.get('@type') in ['Product', 'Offer', 'IndividualProduct']:
+                    if isinstance(item, dict) and item.get('@type') in ['Product', 'Offer', 'IndividualProduct']:
                         if not result['title']:
                             result['title'] = item.get('name')
                         if not result['description']:
-                            result['description'] = (item.get('description') or '')[:500]
+                            desc = item.get('description') or ''
+                            result['description'] = desc[:500] if desc else ''
                         
                         # Image
                         if not result['image']:
                             img = item.get('image')
-                            if isinstance(img, list):
+                            if isinstance(img, list) and len(img) > 0:
                                 img = img[0]
                             if isinstance(img, dict):
                                 img = img.get('url') or img.get('contentUrl')
-                            result['image'] = img
+                            result['image'] = img if img else None
                         
                         # Price
                         if not result['price']:
-                            offers = item.get('offers', item)
-                            if isinstance(offers, list):
+                            offers = item.get('offers') or item
+                            if isinstance(offers, list) and len(offers) > 0:
                                 offers = offers[0]
-                            price_val = offers.get('price') or offers.get('lowPrice')
-                            if price_val:
-                                result['price'] = float(price_val)
-                                currency = offers.get('priceCurrency', 'USD')
-                                result['priceRaw'] = f"${result['price']:.2f}"
+                            if isinstance(offers, dict):
+                                price_val = offers.get('price') or offers.get('lowPrice')
+                                if price_val:
+                                    result['price'] = float(price_val)
+                                    result['priceRaw'] = f"${result['price']:.2f}"
             except:
                 continue
     except:
