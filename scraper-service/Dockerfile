@@ -1,5 +1,6 @@
 # Optimized Dockerfile for Wist Scraper Service
 # Uses multi-stage build to reduce final image size
+# Cache bust: 2026-01-14-v2
 
 FROM python:3.11-slim AS builder
 
