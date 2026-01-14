@@ -4,7 +4,7 @@ Flask microservice for product scraping with Scrapy
 Uses crochet to manage Scrapy's Twisted reactor lifecycle
 CRITICAL: Let Scrapy use whatever reactor crochet sets up (SelectReactor)
 """
-print("🚀🚀🚀 WIST SCRAPER v2026-01-14-v15 STARTING 🚀🚀🚀")
+print("🚀🚀🚀 WIST SCRAPER v2026-01-14-v16 STARTING 🚀🚀🚀")
 import os
 
 # 1. IMPORT CROCHET FIRST - MUST BE BEFORE ANY OTHER IMPORTS
@@ -132,7 +132,15 @@ def try_playwright_fallback(job_id, url):
             display_title = title[:50] if title else 'None'
             print(f"❌ Job {job_id}: Playwright also failed (title: '{display_title}')")
             JOBS[job_id]["status"] = STATUS_FAILED
-            JOBS[job_id]["error"] = "All scraping methods failed"
+            
+            # Provide helpful error message based on the URL
+            from urllib.parse import urlparse
+            domain = urlparse(url).netloc.lower()
+            if 'etsy' in domain:
+                JOBS[job_id]["error"] = "Etsy is blocking automated access. Please add this item manually."
+            else:
+                JOBS[job_id]["error"] = "Could not extract product data. The site may be blocking scrapers."
+            
             JOBS[job_id]["completed_at"] = time.time()
             
     except ImportError:
