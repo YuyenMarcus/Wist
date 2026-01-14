@@ -11,7 +11,7 @@ export default function Footer() {
           <p className="text-[var(--color-text-muted)] text-sm mb-4">
             Data fetched from source — prices may change.
           </p>
-          <div className="flex justify-center gap-6 text-sm">
+          <div className="flex justify-center gap-6 text-sm mb-6">
             <a href="/affiliate-disclosure" className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">
               Affiliate Disclosure
             </a>
@@ -22,6 +22,9 @@ export default function Footer() {
               Privacy
             </a>
           </div>
+          <p className="text-[var(--color-text-muted)] text-xs">
+            © 2026 Wist Inc. All rights reserved.
+          </p>
         </div>
       </Container>
     </footer>
