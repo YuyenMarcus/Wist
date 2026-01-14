@@ -368,7 +368,9 @@ export default function DashboardPage() {
       if (viewMode !== 'grouped' || !user) return
       
       try {
-        const res = await fetch('/api/items/auto-categorize')
+        const res = await fetch('/api/items/auto-categorize', {
+          credentials: 'include'
+        })
         const data = await res.json()
         if (data.success && data.stats) {
           setAutoOrganizeStats({
@@ -393,6 +395,7 @@ export default function DashboardPage() {
       const previewRes = await fetch('/api/items/auto-categorize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ preview: true, minConfidence: 'medium' })
       })
       const previewData = await previewRes.json()
@@ -424,6 +427,7 @@ export default function DashboardPage() {
       const applyRes = await fetch('/api/items/auto-categorize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ preview: false, minConfidence: 'medium' })
       })
       const applyData = await applyRes.json()

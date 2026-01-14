@@ -3,7 +3,8 @@
 import { motion } from 'framer-motion'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { User } from 'lucide-react'
+import { User, ShoppingBag } from 'lucide-react'
+import Link from 'next/link'
 import AddItemForm from '@/components/dashboard/AddItemForm'
 import ShareButton from '@/components/dashboard/ShareButton'
 import { Profile } from '@/lib/supabase/profile'
@@ -63,6 +64,12 @@ export default function ProfileHeader({ user, profile, itemCount, onRefreshPrice
             <div className="text-lg font-bold text-zinc-900">{itemCount}</div>
             <div className="text-xs text-zinc-400 uppercase tracking-wider font-semibold">Items</div>
           </div>
+          <Link href="/dashboard/purchased" className="group">
+            <div className="text-lg font-bold text-zinc-900 group-hover:text-green-600 transition-colors flex items-center gap-1">
+              <ShoppingBag className="w-4 h-4" />
+            </div>
+            <div className="text-xs text-zinc-400 uppercase tracking-wider font-semibold group-hover:text-green-600 transition-colors">Purchased</div>
+          </Link>
         </div>
       </div>
 
