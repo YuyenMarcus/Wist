@@ -7,7 +7,8 @@
     "activeTab",
     "scripting",
     "storage",
-    "cookies"
+    "cookies",
+    "notifications"
   ],
   "host_permissions": [
     "https://wishlist.nuvio.cloud/*",
@@ -57,6 +58,17 @@
     {
       "matches": ["<all_urls>"],
       "js": ["content.js"]
+    },
+    {
+      "matches": ["https://wishlist.nuvio.cloud/*", "https://*.nuvio.cloud/*", "http://localhost:3000/*"],
+      "js": ["detect.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["lordicon-animation.json"],
+      "matches": ["<all_urls>"]
     }
   ]
 }

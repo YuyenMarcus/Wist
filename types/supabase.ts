@@ -87,6 +87,7 @@ export interface Database {
           updated_at: string
           username: string | null
           username_set_at: string | null
+          username_changed_at: string | null
         }
         Insert: {
           id: string
@@ -96,6 +97,7 @@ export interface Database {
           updated_at?: string
           username?: string | null
           username_set_at?: string | null
+          username_changed_at?: string | null
         }
         Update: {
           id?: string
@@ -105,6 +107,7 @@ export interface Database {
           updated_at?: string
           username?: string | null
           username_set_at?: string | null
+          username_changed_at?: string | null
         }
       }
     }

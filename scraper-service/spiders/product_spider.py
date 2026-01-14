@@ -1,24 +1,12 @@
 """
-ProductSpider for Scrapy
-Extracts product data from e-commerce sites
+Enhanced ProductSpider for Scrapy
+Supports: Amazon, Etsy, Best Buy, Target, Walmart, and generic sites
 Uses callback mechanism to pass data back to Flask
 """
 import json
 import re
 from urllib.parse import urlparse
 from scrapy import Request, Spider
-from scrapy import Item, Field
-
-
-class ProductItem(Item):
-    """Scrapy Item for product data"""
-    title = Field()
-    price = Field()
-    priceRaw = Field()
-    currency = Field()
-    image = Field()
-    description = Field()
-    url = Field()
 
 
 class ProductSpider(Spider):
@@ -28,81 +16,287 @@ class ProductSpider(Spider):
         super(ProductSpider, self).__init__(*args, **kwargs)
         self.url = url
         self.start_urls = [url] if url else []
-        self.on_item_scraped = on_item_scraped  # Store the callback function
-        self.user_id = user_id  # Save user_id to the class
+        self.on_item_scraped = on_item_scraped
+        self.user_id = user_id
         
     def start_requests(self):
-        """
-        Start request with stealth headers
-        Note: DEFAULT_REQUEST_HEADERS from settings.py will be merged automatically
-        Additional headers here will override defaults if needed
-        """
+        """Start request with stealth headers"""
         yield Request(
             url=self.url,
             callback=self.parse,
             headers={
-                # These will be merged with DEFAULT_REQUEST_HEADERS from settings.py
-                # User-Agent will be rotated by RandomUserAgentMiddleware
-                'Referer': 'https://www.google.com/',  # Pretend we came from Google search
-                'Sec-Fetch-User': '?1',  # Indicates user-initiated request
+                'Referer': 'https://www.google.com/',
+                'Sec-Fetch-User': '?1',
             },
             dont_filter=True,
             meta={'dont_redirect': True}
         )
     
     def parse(self, response):
-        print(f"👀 SPIDER SUCCESS: Landed on {response.url}")
+        print(f"👀 SPIDER: Received response from {response.url}")
         
-        final_product = {}
         domain = urlparse(self.url).netloc.lower()
-
-        # STRATEGY: Try Domain-Specific Extractor FIRST (It sees the sale price)
+        final_product = {}
+        
+        # Route to appropriate extractor
         if 'amazon' in domain:
-            print("🛒 Detected Amazon - Using visual extractor first")
+            print("🛒 Detected Amazon")
             final_product = self.extract_amazon(response)
+        elif 'etsy' in domain:
+            print("🎨 Detected Etsy")
+            final_product = self.extract_etsy(response)
         elif 'bestbuy' in domain:
+            print("🛍️ Detected Best Buy")
             final_product = self.extract_bestbuy(response)
         elif 'target' in domain:
+            print("🎯 Detected Target")
             final_product = self.extract_target(response)
-
-        # FALLBACK: If Amazon extractor failed (or it's a generic site), try JSON-LD
-        if not final_product or not final_product.get('price'):
-            print("⚠️ Visual extraction failed/incomplete, trying JSON-LD...")
-            json_ld_data = self.extract_json_ld(response)
-            if json_ld_data:
-                final_product = self.normalize_json_ld(json_ld_data, response.url)
-
-        # YIELD (Standard Logic)
+        elif 'walmart' in domain:
+            print("🏪 Detected Walmart")
+            final_product = self.extract_walmart(response)
+        else:
+            print("🌐 Using generic extractor")
+            final_product = self.extract_generic(response)
+        
+        # Fallback to JSON-LD if extraction incomplete
+        if not final_product.get('price') or not final_product.get('title'):
+            print("⚠️ Trying JSON-LD fallback...")
+            json_ld = self.extract_json_ld(response)
+            if json_ld:
+                normalized = self.normalize_json_ld(json_ld, response.url)
+                # Merge - keep existing data, fill gaps from JSON-LD
+                for key, value in normalized.items():
+                    if not final_product.get(key) and value:
+                        final_product[key] = value
+        
+        # Yield result
         if final_product and final_product.get('title'):
             item = {
                 'title': final_product.get('title', ''),
                 'price': final_product.get('price'),
+                'priceRaw': final_product.get('priceRaw'),
                 'image': final_product.get('image', ''),
+                'description': final_product.get('description', ''),
                 'url': final_product.get('url', self.url),
-                'user_id': self.user_id  # 👇 CRITICAL: Attach the ID here!
+                'user_id': self.user_id,
+                'domain': domain.replace('www.', '')
             }
             
             if self.on_item_scraped:
                 self.on_item_scraped(item)
-
-            print(f"📦 HANDING TO PIPELINE: {item['title']} (Price: {item['price']})")
+            
+            print(f"📦 RESULT: {item['title'][:50]}... | ${item.get('price', 'N/A')}")
             yield item
         else:
-            print("❌ FAILED: Could not find product data.")
+            print("❌ FAILED: Could not extract product data")
+    
+    def extract_amazon(self, response):
+        """Amazon extraction with multiple fallbacks"""
+        product = {'url': response.url}
+        
+        # Title
+        title_selectors = [
+            '#productTitle::text',
+            '#title span::text',
+            'h1.product-title-word-break::text',
+        ]
+        for sel in title_selectors:
+            title = response.css(sel).get()
+            if title and title.strip():
+                product['title'] = title.strip()
+                break
+        
+        # Price - try multiple selectors
+        price_selectors = [
+            '.a-price .a-offscreen::text',
+            '#corePrice_desktop span.a-offscreen::text',
+            '#corePriceDisplay_desktop_feature_div span.a-offscreen::text',
+            '.priceToPay span.a-offscreen::text',
+            '#priceblock_ourprice::text',
+            '#priceblock_dealprice::text',
+            '#kindle-price::text',
+            '.a-price-whole::text',
+        ]
+        for sel in price_selectors:
+            price_text = response.css(sel).get()
+            if price_text:
+                price = self.clean_price(price_text)
+                if price:
+                    product['price'] = price
+                    product['priceRaw'] = f"${price:.2f}"
+                    break
+        
+        # Image
+        img = response.css('#landingImage::attr(src)').get()
+        if not img:
+            img = response.css('#imgBlkFront::attr(src)').get()
+        if not img:
+            img = response.css('#ebooksImgBlkFront::attr(src)').get()
+        product['image'] = img
+        
+        # Description
+        desc = response.css('#productDescription p::text').get()
+        if desc:
+            product['description'] = desc.strip()[:500]
+        
+        return product
+    
+    def extract_etsy(self, response):
+        """Etsy extraction"""
+        product = {'url': response.url}
+        
+        # Try JSON-LD first (most reliable for Etsy)
+        json_ld = self.extract_json_ld(response)
+        if json_ld:
+            product = self.normalize_json_ld(json_ld, response.url)
+            if product.get('title'):
+                return product
+        
+        # CSS fallback
+        title_selectors = [
+            'h1[data-buy-box-listing-title]::text',
+            'h1.listing-page-title::text',
+            'h1.wt-text-body-01::text',
+        ]
+        for sel in title_selectors:
+            title = response.css(sel).get()
+            if title and title.strip():
+                product['title'] = title.strip()
+                break
+        
+        # Price
+        price_selectors = [
+            'p.wt-text-title-03 .currency-value::text',
+            '[data-buy-box-region="price"] .currency-value::text',
+        ]
+        for sel in price_selectors:
+            price_text = response.css(sel).get()
+            if price_text:
+                price = self.clean_price(price_text)
+                if price:
+                    product['price'] = price
+                    product['priceRaw'] = f"${price:.2f}"
+                    break
+        
+        # Image - try og:image
+        img = response.css('meta[property="og:image"]::attr(content)').get()
+        product['image'] = img
+        
+        return product
+    
+    def extract_bestbuy(self, response):
+        """Best Buy extraction"""
+        product = {'url': response.url}
+        
+        title = response.css('h1.heading-5::text').get()
+        if not title:
+            title = response.css('[data-testid="product-title"]::text').get()
+        product['title'] = title.strip() if title else ''
+        
+        price = response.css('.priceView-customer-price span::text').get()
+        if price:
+            product['price'] = self.clean_price(price)
+            product['priceRaw'] = price.strip()
+        
+        image = response.css('[data-testid="product-image"] img::attr(src)').get()
+        product['image'] = image
+        
+        return product
+    
+    def extract_target(self, response):
+        """Target extraction"""
+        product = {'url': response.url}
+        
+        title = response.css('h1[data-test="product-title"]::text').get()
+        product['title'] = title.strip() if title else ''
+        
+        price = response.css('[data-test="product-price"]::text').get()
+        if price:
+            product['price'] = self.clean_price(price)
+            product['priceRaw'] = price.strip()
+        
+        image = response.css('[data-test="product-image"] img::attr(src)').get()
+        product['image'] = image
+        
+        return product
+    
+    def extract_walmart(self, response):
+        """Walmart extraction"""
+        product = {'url': response.url}
+        
+        title = response.css('h1.prod-ProductTitle::text').get()
+        if not title:
+            title = response.css('[data-testid="product-title"]::text').get()
+        product['title'] = title.strip() if title else ''
+        
+        price = response.css('[itemprop="price"]::attr(content)').get()
+        if not price:
+            price = response.css('[data-testid="price"]::text').get()
+        if price:
+            product['price'] = self.clean_price(price)
+            product['priceRaw'] = f"${product['price']:.2f}" if product['price'] else None
+        
+        image = response.css('[data-testid="product-image"] img::attr(src)').get()
+        product['image'] = image
+        
+        return product
+    
+    def extract_generic(self, response):
+        """Generic extraction for independent websites"""
+        product = {'url': response.url}
+        
+        # Title - try multiple sources
+        title = (
+            response.css('meta[property="og:title"]::attr(content)').get() or
+            response.css('[itemprop="name"]::text').get() or
+            response.css('h1::text').get() or
+            response.css('title::text').get()
+        )
+        product['title'] = title.strip() if title else ''
+        
+        # Price - try multiple sources
+        price = (
+            response.css('[itemprop="price"]::attr(content)').get() or
+            response.css('meta[property="product:price:amount"]::attr(content)').get() or
+            response.css('.price::text').get() or
+            response.css('.product-price::text').get()
+        )
+        if price:
+            product['price'] = self.clean_price(price)
+            product['priceRaw'] = price.strip()
+        
+        # Image
+        image = (
+            response.css('meta[property="og:image"]::attr(content)').get() or
+            response.css('[itemprop="image"]::attr(src)').get() or
+            response.css('.product-image img::attr(src)').get()
+        )
+        product['image'] = image
+        
+        # Description
+        desc = (
+            response.css('meta[property="og:description"]::attr(content)').get() or
+            response.css('meta[name="description"]::attr(content)').get() or
+            response.css('[itemprop="description"]::text').get()
+        )
+        product['description'] = desc.strip()[:500] if desc else ''
+        
+        return product
     
     def extract_json_ld(self, response):
-        """Extract from JSON-LD structured data (schema.org)"""
+        """Extract JSON-LD structured data"""
         try:
-            # Look for JSON-LD scripts
             scripts = response.xpath('//script[@type="application/ld+json"]/text()').getall()
             for script in scripts:
                 try:
                     data = json.loads(script)
-                    # Handle list of JSON-LD objects
+                    # Handle arrays
                     if isinstance(data, list):
-                        data = data[0] if data else {}
-                    # Check if it's a Product
-                    if data.get('@type') == 'Product' or 'Product' in str(data.get('@type', '')):
+                        for item in data:
+                            if item.get('@type') in ['Product', 'IndividualProduct', 'Offer']:
+                                return item
+                    # Handle single object
+                    if data.get('@type') in ['Product', 'IndividualProduct', 'Offer']:
                         return data
                 except json.JSONDecodeError:
                     continue
@@ -111,169 +305,33 @@ class ProductSpider(Spider):
         return None
     
     def normalize_json_ld(self, data, url):
-        """Normalize Amazon/Schema.org data to simple interface"""
-        price = None
-        currency = "USD"
-        priceRaw = None
+        """Normalize JSON-LD data to product format"""
+        result = {'url': url}
         
-        offers = data.get('offers', {})
-        if isinstance(offers, list) and offers:
-            offer = offers[0]
-            price = offer.get('price')
-            currency = offer.get('priceCurrency', 'USD')
-            priceRaw = f"{currency} {price}" if price else None
-        elif isinstance(offers, dict):
-            price = offers.get('price')
-            currency = offers.get('priceCurrency', 'USD')
-            priceRaw = f"{currency} {price}" if price else None
+        result['title'] = data.get('name') or data.get('title', '')
+        result['description'] = data.get('description', '')[:500]
         
-        # Handle image (can be string, list, or dict)
+        # Image
         image = data.get('image', '')
         if isinstance(image, list):
             image = image[0] if image else ''
-        elif isinstance(image, dict):
-            image = image.get('url', '')
-        
-        return {
-            "title": data.get('name') or data.get('title', '').strip(),
-            "price": float(price) if price else None,
-            "priceRaw": priceRaw or (str(price) if price else None),
-            "currency": currency,
-            "image": image,
-            "url": url,
-            "description": data.get('description', '')
-        }
-    
-    def extract_opengraph(self, response):
-        """Extract from OpenGraph meta tags"""
-        return {
-            "title": response.css('meta[property="og:title"]::attr(content)').get() or '',
-            "price": None,
-            "priceRaw": None,
-            "currency": "USD",
-            "image": response.css('meta[property="og:image"]::attr(content)').get() or '',
-            "url": response.url,
-            "description": response.css('meta[property="og:description"]::attr(content)').get() or ''
-        }
-    
-    def extract_amazon(self, response):
-        """
-        Robust Amazon extraction that looks for the 'Deal Price' first.
-        """
-        product = {}
-        
-        # 1. TITLE extraction
-        title = response.css('#productTitle::text').get()
-        if title:
-            product['title'] = title.strip()
-            
-        # 2. PRICE extraction (The tricky part)
-        # We check these specific classes in order of accuracy
-        price_selectors = [
-            '.a-price.a-text-price.a-size-medium .a-offscreen::text',  # Deal price text
-            '.a-price .a-offscreen::text',                            # Standard price text
-            '#priceblock_ourprice::text',                             # Old style
-            '#priceblock_dealprice::text',                            # Old style deal
-            '.a-price-whole::text',                                   # Last resort (might miss cents)
-        ]
-        
-        for selector in price_selectors:
-            price_text = response.css(selector).get()
-            if price_text:
-                # Clean the price (remove currency symbol and whitespace)
-                cleaned_price = price_text.replace('$', '').replace(',', '').strip()
-                try:
-                    product['price'] = float(cleaned_price)
-                    # If we found a valid price, STOP looking
-                    break 
-                except ValueError:
-                    continue
-
-        # 3. IMAGE extraction
-        # Amazon often hides the hi-res image in a JSON object, but the simple ID works too
-        img = response.css('#landingImage::attr(src)').get()
-        if not img:
-            img = response.css('#imgBlkFront::attr(src)').get()
-        product['image'] = img
-
-        return product
-    
-    def extract_bestbuy(self, response):
-        """Best Buy specific extraction"""
-        result = {}
-        
-        # Title
-        title = response.css('h1.heading-5::text').get() or \
-                response.css('h1.sr-only + h1::text').get() or \
-                response.css('h1[data-testid="product-title"]::text').get()
-        result['title'] = title.strip() if title else ''
+        if isinstance(image, dict):
+            image = image.get('url') or image.get('contentUrl', '')
+        result['image'] = image
         
         # Price
-        price = response.css('.priceView-customer-price span::text').get() or \
-                response.css('[data-testid="customer-price"]::text').get() or \
-                response.css('.pricing-price__value::text').get()
+        offers = data.get('offers', {})
+        if isinstance(offers, list):
+            offers = offers[0] if offers else {}
+        
+        price = offers.get('price') or offers.get('lowPrice') or data.get('price')
         if price:
-            result['priceRaw'] = price.strip()
-            result['price'] = self.clean_price(price.strip())
-        
-        # Image
-        image = response.css('img.product-image::attr(src)').get() or \
-                response.css('[data-testid="product-image"]::attr(src)').get()
-        result['image'] = image or ''
-        result['currency'] = 'USD'
-        
-        return result
-    
-    def extract_target(self, response):
-        """Target specific extraction"""
-        result = {}
-        
-        # Title
-        title = response.css('h1[data-test="product-title"]::text').get() or \
-                response.css('h1::text').get()
-        result['title'] = title.strip() if title else ''
-        
-        # Price
-        price = response.css('[data-test="product-price"]::text').get() or \
-                response.css('.h-padding-r-tiny::text').get()
-        if price:
-            result['priceRaw'] = price.strip()
-            result['price'] = self.clean_price(price.strip())
-        
-        # Image
-        image = response.css('[data-test="product-image"]::attr(src)').get()
-        result['image'] = image or ''
-        result['currency'] = 'USD'
-        
-        return result
-    
-    def extract_generic(self, response):
-        """Generic extraction using meta tags and common selectors"""
-        result = {}
-        
-        # Title from meta tags
-        title = response.css('meta[property="og:title"]::attr(content)').get() or \
-                response.css('meta[name="title"]::attr(content)').get() or \
-                response.css('title::text').get()
-        result['title'] = title.strip() if title else ''
-        
-        # Price from meta tags
-        price = response.css('meta[property="product:price:amount"]::attr(content)').get() or \
-                response.css('meta[property="og:price:amount"]::attr(content)').get()
-        if price:
-            result['priceRaw'] = price.strip()
-            result['price'] = self.clean_price(price.strip())
-        
-        # Image from meta tags
-        image = response.css('meta[property="og:image"]::attr(content)').get() or \
-                response.css('meta[name="image"]::attr(content)').get()
-        result['image'] = image or ''
-        
-        # Description
-        desc = response.css('meta[property="og:description"]::attr(content)').get() or \
-               response.css('meta[name="description"]::attr(content)').get()
-        result['description'] = desc or ''
-        result['currency'] = 'USD'
+            try:
+                result['price'] = float(price)
+                currency = offers.get('priceCurrency', 'USD')
+                result['priceRaw'] = f"${result['price']:.2f}"
+            except (ValueError, TypeError):
+                pass
         
         return result
     
@@ -283,7 +341,7 @@ class ProductSpider(Spider):
             return None
         
         # Remove currency symbols and extract numbers
-        price_clean = re.sub(r'[^\d.,]', '', price_str)
+        price_clean = re.sub(r'[^\d.,]', '', str(price_str))
         price_clean = price_clean.replace(',', '')
         
         try:

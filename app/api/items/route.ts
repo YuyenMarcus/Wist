@@ -294,14 +294,14 @@ export async function POST(request: Request) {
     // 7. Insert Item into items table (user's personal wishlist)
     // This allows multiple users to have the same product in their wishlist
     const insertData: any = {
-      title,
-      current_price: currentPrice,
-      url,
-      image_url,
-      retailer: retailer || 'Amazon',
-      status: status || 'active', // 'active' (Wishlist) or 'purchased' (Just Got It)
-      user_id: user.id,
-      wishlist_id: wishlistId
+        title,
+        current_price: currentPrice,
+        url,
+        image_url,
+        retailer: retailer || 'Amazon',
+        status: status || 'active', // 'active' (Wishlist) or 'purchased' (Just Got It)
+        user_id: user.id,
+        wishlist_id: wishlistId
     };
 
     // Add collection_id if provided
@@ -321,10 +321,8 @@ export async function POST(request: Request) {
       }
     }
 
-    // Add is_public if provided (for future use with public wishlists)
-    if (is_public !== undefined) {
-      insertData.is_public = Boolean(is_public);
-    }
+    // Note: is_public is not stored in items table - visibility is controlled by wishlist visibility
+    // The is_public parameter from the extension is ignored for now
 
     const { data, error } = await supabaseClient
       .from('items')

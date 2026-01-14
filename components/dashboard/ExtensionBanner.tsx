@@ -8,27 +8,32 @@ export default function ExtensionBanner() {
   const [isVisible, setIsVisible] = useState(false) // Default to false to prevent flicker
 
   useEffect(() => {
-    // 1. Check if user permanently dismissed it
-    const isDismissed = localStorage.getItem('wist_extension_dismissed')
-    if (isDismissed) return
-
-    // 2. Check if extension is installed
+    // Check if extension is installed
     // We poll for a few seconds because extensions load asynchronously
     const checkExtension = () => {
       const isInstalled = document.documentElement.getAttribute('data-wist-installed') === 'true'
-      if (isInstalled) {
-        setIsVisible(false)
-        return true // Found it
-      }
-      return false // Not found yet
+      return isInstalled
     }
 
+    // Check if banner was dismissed in this session (temporary dismissal)
+    const isDismissedThisSession = sessionStorage.getItem('wist_extension_dismissed_session') === 'true'
+
     // Run immediate check
-    if (checkExtension()) return
+    const isInstalled = checkExtension()
+    
+    // If extension is installed, always hide the banner
+    if (isInstalled) {
+      setIsVisible(false)
+      return
+    }
 
-    // If not found immediately, show banner, but keep checking briefly
-    setIsVisible(true)
+    // If extension is NOT installed, show banner unless dismissed this session
+    // This allows the banner to reappear on next page load if extension is still not installed
+    if (!isDismissedThisSession) {
+      setIsVisible(true)
+    }
 
+    // Keep checking for extension installation for a few seconds
     const intervalId = setInterval(() => {
       if (checkExtension()) {
         setIsVisible(false) // Hide immediately if detected later
@@ -45,13 +50,15 @@ export default function ExtensionBanner() {
 
   const handleDismiss = () => {
     setIsVisible(false)
-    localStorage.setItem('wist_extension_dismissed', 'true')
+    // Store dismissal in sessionStorage (not localStorage) so it only persists for this session
+    // This allows the banner to reappear on next page load if extension is still not installed
+    sessionStorage.setItem('wist_extension_dismissed_session', 'true')
   }
 
   if (!isVisible) return null
 
   return (
-    <div className="relative bg-gradient-to-r from-violet-50 to-pink-50 border-b border-violet-100 px-4 py-3 sm:flex sm:items-center sm:justify-between sm:px-6 lg:px-8">
+    <div className="ExtensionBanner relative bg-gradient-to-r from-violet-50 to-pink-50 border-b border-violet-100 px-4 py-3 sm:flex sm:items-center sm:justify-between sm:px-6 lg:px-8">
       <div className="flex items-center gap-3">
         <div className="flex p-2 bg-violet-600 rounded-lg">
           <Chrome className="h-5 w-5 text-white" />

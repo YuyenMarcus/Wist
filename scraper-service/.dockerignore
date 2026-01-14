@@ -1,13 +1,12 @@
+# Include everything needed for Docker build
 *
-!.railwayignore
-!nixpacks.toml
-!railway.toml
-!railway.json
-!runtime.txt
+!Dockerfile
 !requirements.txt
 !app.py
-!*.py
-!spiders/
-!scrapy.cfg
-!settings.py
+!playwright_scraper.py
+!scrapy_scraper.py
 !pipelines.py
+!settings.py
+!scrapy.cfg
+!spiders/
+!spiders/*.py

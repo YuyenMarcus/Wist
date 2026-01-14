@@ -1,16 +1,13 @@
 /**
  * Smart retry scraper with Supabase integration
- * Tries: Playwright → Static → Manual fallback
- * Automatically saves to Supabase wishlist_items
+ * Primary: Python scraper service → Fallback: Static scraping
  */
 import * as cheerio from 'cheerio';
-
 import { createClient } from '@supabase/supabase-js';
-import { playwrightScrape } from './playwright-scraper';
 import { staticScrape } from './static-scraper';
 import { extractDomain } from './utils';
-import { extractAll, extractStructuredData, extractMetaData } from './structured-data';
-import { extractStructuredDataFromUrl, extractFromGoogleCache } from './google-cache';
+import { extractStructuredData } from './structured-data';
+import { scrapeSync, checkServiceHealth } from '../scraper-service-client';
 
 // Supabase client
 function getSupabase() {
@@ -28,9 +25,6 @@ function getSupabase() {
     },
   });
 }
-
-// Helper: Delay function
-const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 // Helper: Normalize price
 function cleanPrice(raw: string | number | null): number | null {
@@ -58,58 +52,6 @@ function cleanDomain(url: string): string {
   }
 }
 
-// Helper: Extract JSON-LD from HTML
-function extractJsonLD($: ReturnType<typeof cheerio.load>): any | null {
-  const scripts = $('script[type="application/ld+json"]');
-  for (let i = 0; i < scripts.length; i++) {
-    try {
-      const data = JSON.parse($(scripts[i]).html() || '');
-      if (data?.offers?.price || data?.price) {
-        return data;
-      }
-    } catch {}
-  }
-  return null;
-}
-
-// Helper: Static fetch scrape (fallback)
-async function staticFetchScrape(url: string): Promise<{
-  title: string | null;
-  image: string | null;
-  price: string | number | null;
-  description: string | null;
-} | null> {
-  try {
-    const html = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
-      },
-    }).then(r => r.text());
-
-    const $ = cheerio.load(html);
-
-    const title = $('meta[property="og:title"]').attr('content') ||
-                  $('title').text() ||
-                  null;
-
-    const image = $('meta[property="og:image"]').attr('content') ||
-                  $('img').first().attr('src') ||
-                  null;
-
-    const jsonLd = extractJsonLD($);
-    const price = jsonLd?.offers?.price || jsonLd?.price || null;
-
-    const description = $('meta[property="og:description"]').attr('content') ||
-                       $('meta[name="description"]').attr('content') ||
-                       null;
-
-    return { title, image, price, description };
-  } catch (err) {
-    console.error('Static scrape failed:', err);
-    return null;
-  }
-}
-
 /**
  * Simple scraper function - just returns product data without saving
  * This is the main function to use in API routes
@@ -131,79 +73,60 @@ export async function scrapeAndSave(url: string): Promise<{
     description: string | null;
   } | null = null;
 
-  // --- Try 1: Lightweight Structured Data Extraction (Fast, Legal, No Bot Detection) ---
+  // --- Try 1: Python Scraper Service (Most Reliable) ---
   try {
-    const structured = await extractStructuredDataFromUrl(url);
+    const serviceAvailable = await checkServiceHealth();
     
-    if (structured && structured.title && structured.title !== 'Unknown Item') {
-      productData = {
-        title: structured.title,
-        image: structured.image,
-        price: structured.price,
-        description: structured.description,
-      };
-      console.log('✅ Extracted from structured data (fast, legal)');
+    if (serviceAvailable) {
+      console.log('[scrape-and-save] Using Python scraper service...');
+      const response = await scrapeSync(url);
+      
+      if (response.success && response.result) {
+        productData = {
+          title: response.result.title,
+          image: response.result.image,
+          price: response.result.price || response.result.priceRaw,
+          description: response.result.description,
+        };
+        console.log('✅ Extracted via Python scraper service');
+      }
     }
   } catch (err: any) {
-    console.warn('Structured data extraction failed:', err.message);
+    console.warn('Python scraper service failed:', err.message);
   }
 
-  // --- Try 2: Google Cached Results (Legal Fallback) ---
-  if (!productData || !productData.title || productData.title === 'Unknown Item') {
-    await delay(1000);
-    try {
-      const cached = await extractFromGoogleCache(url);
-      if (cached && cached.title && cached.title !== 'Unknown Item') {
-        productData = {
-          title: cached.title,
-          image: cached.image,
-          price: cached.price,
-          description: cached.description,
-        };
-        console.log('✅ Extracted from Google cache (legal fallback)');
-      }
-    } catch (err: any) {
-      console.warn('Google cache extraction failed:', err.message);
-    }
-  }
-
-  // --- Try 3: Playwright with Stealth (Only if structured data fails) ---
+  // --- Try 2: Static Scraping (Lightweight Fallback) ---
   if (!productData || !productData.title || productData.title === 'Unknown Item') {
     try {
-      const playwrightResult = await playwrightScrape(url, false);
+      console.log('[scrape-and-save] Using static scraper fallback...');
+      const staticResult = await staticScrape(url);
       
-      productData = {
-        title: playwrightResult.title,
-        image: playwrightResult.image,
-        price: playwrightResult.priceRaw,
-        description: playwrightResult.description,
-      };
-
-      // Try structured data extraction from Playwright HTML if direct extraction failed
-      if ((!productData.title || productData.title === 'Unknown Item') && playwrightResult.html) {
-        const structured = extractStructuredData(playwrightResult.html);
-        if (structured && structured.title && structured.title !== 'Unknown Item') {
-          productData = {
-            title: structured.title,
-            image: structured.image,
-            price: structured.price,
-            description: structured.description,
-          };
+      if (staticResult && staticResult.title) {
+        productData = {
+          title: staticResult.title,
+          image: staticResult.image,
+          price: staticResult.priceRaw,
+          description: staticResult.description,
+        };
+        
+        // Try structured data extraction from HTML
+        if (staticResult.html && (!productData.title || productData.title === 'Unknown Item')) {
+          const structured = extractStructuredData(staticResult.html);
+          if (structured && structured.title && structured.title !== 'Unknown Item') {
+            productData = {
+              title: structured.title,
+              image: structured.image || productData.image,
+              price: structured.price || productData.price,
+              description: structured.description || productData.description,
+            };
+          }
         }
-      }
-
-      if (productData.title && productData.title !== 'Unknown Item') {
-        console.log('✅ Extracted with Playwright (full scrape)');
+        
+        console.log('✅ Extracted via static scraper');
       }
     } catch (err: any) {
-      console.warn('Playwright blocked or failed:', err.message);
+      console.warn('Static scraper failed:', err.message);
     }
-  }
-
-  // --- Try 4: Static fetch fallback ---
-  if (!productData || !productData.title || productData.title === 'Unknown Item') {
-    await delay(1500);
-    productData = await staticFetchScrape(url);
   }
 
   // --- Final fallback (manual input) ---
@@ -240,7 +163,6 @@ export async function scrapeAndSave(url: string): Promise<{
 
 /**
  * Main function: Scrape and save product to Supabase
- * Smart retry: Playwright → Static → Manual fallback
  */
 export async function scrapeAndSaveProduct(
   url: string,

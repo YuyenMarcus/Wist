@@ -1,0 +1,394 @@
+# Wist - Product Scraper & Wishlist Manager
+
+## Project Overview
+
+Wist is a production-ready product scraper and wishlist management application built with Next.js, Playwright, and Supabase. It features anti-bot hardening, smart fallbacks, caching, and rate limiting for reliable product data extraction from major retailers.
+
+**Repository Structure:**
+- Main Next.js app (root) - Frontend + API routes, deployed on Vercel
+- Wist-scraper-service/ - TypeScript Express microservice with Playwright, deployed on Railway
+- scraper-service/ - Python Flask service with Scrapy (legacy/alternative)
+- wist-extension/ - Chrome browser extension for client-side scraping
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Next.js Frontend                         │
+│                    (Vercel Deployment)                      │
+│                                                              │
+│  - Pages: /dashboard, /account, /settings, /extension       │
+│  - API Routes: /api/metadata, /api/items, /api/collections  │
+│  - Components: Product cards, forms, dashboards            │
+└──────────────┬──────────────────────────────────────────────┘
+               │
+               ├──────────────────────┐
+               │                      │
+               ▼                      ▼
+┌──────────────────────────┐  ┌──────────────────────────┐
+│  Wist-scraper-service    │  │  Chrome Extension        │
+│  (Railway Deployment)    │  │  (Client-side)           │
+│                          │  │                          │
+│  - Express + TypeScript  │  │  - Background script     │
+│  - Playwright + Stealth  │  │  - Content script        │
+│  - Metascraper fallback  │  │  - Popup UI              │
+│  - Caching & Rate Limit  │  │  - Direct DOM scraping  │
+└──────────────┬───────────┘  └──────────────────────────┘
+               │
+               ▼
+┌──────────────────────────┐
+│      Supabase Database   │
+│                          │
+│  - wishlist_items        │
+│  - collections           │
+│  - price_history         │
+│  - users (auth)          │
+│  - RLS policies          │
+└──────────────────────────┘
+```
+
+## Key Technologies
+
+- **Frontend**: Next.js 14, React 18, TypeScript, Tailwind CSS, Framer Motion
+- **Scraping**: Playwright (with stealth), Metascraper, Cheerio
+- **Database**: Supabase (PostgreSQL with RLS)
+- **Deployment**: Vercel (frontend), Railway (scraper service)
+- **Browser Extension**: Chrome Extension Manifest V3
+
+## Directory Structure
+
+```
+wist/
+├── app/                          # Next.js App Router
+│   ├── api/                      # API routes
+│   │   ├── metadata/             # Product metadata fetching
+│   │   ├── items/                # Wishlist items CRUD
+│   │   ├── collections/          # Collections management
+│   │   ├── preview-link/         # Link preview generation
+│   │   └── cron/                 # Scheduled tasks (price checks)
+│   ├── dashboard/                # Main dashboard page
+│   ├── account/                  # User account page
+│   ├── settings/                 # Settings page
+│   ├── extension/                # Extension info page
+│   └── layout.tsx                # Root layout
+├── components/                   # React components
+│   ├── dashboard/                # Dashboard-specific components
+│   ├── products/                 # Product display components
+│   ├── wishlist/                 # Wishlist components
+│   ├── layout/                   # Layout components (header, nav)
+│   └── ui/                       # Reusable UI components
+├── lib/                          # Utility libraries
+│   ├── scraper/                  # Scraping logic
+│   │   ├── playwright-scraper.ts    # Playwright-based scraper
+│   │   ├── static-scraper.ts         # Static HTML scraper
+│   │   └── utils.ts                   # Scraper utilities
+│   ├── supabase/                 # Supabase client & helpers
+│   ├── cache.ts                  # Caching utilities
+│   └── rate-limit.ts             # Rate limiting
+├── Wist-scraper-service/         # TypeScript scraper microservice
+│   ├── src/
+│   │   ├── server.ts             # Express server
+│   │   ├── scrapers.ts           # Playwright + metascraper
+│   │   ├── utils.ts              # Utilities (domain, price parsing)
+│   │   ├── cache.ts              # In-memory cache
+│   │   ├── rate-limit.ts         # Rate limiting
+│   │   └── supabase.ts           # Supabase integration
+│   ├── Dockerfile                # Docker configuration
+│   └── railway.toml              # Railway deployment config
+├── scraper-service/              # Python Flask service (legacy)
+│   ├── app.py                    # Flask application
+│   └── spiders/                  # Scrapy spiders
+├── wist-extension/               # Chrome extension
+│   ├── manifest.json             # Extension manifest
+│   ├── background.js             # Background service worker
+│   ├── content.js                # Content script
+│   └── popup.html/js             # Extension popup
+├── supabase/                     # Database schema
+│   └── schema.sql                # Main schema file
+└── types/                        # TypeScript type definitions
+    └── supabase.ts               # Generated Supabase types
+```
+
+## Core API Endpoints
+
+### Main Next.js App (Vercel)
+
+**POST /api/metadata**
+- Fetches product metadata from URL
+- Uses Railway scraper service for dynamic sites
+- Falls back to static scraping for simple sites
+- Returns normalized product data
+
+**POST /api/items**
+- Creates/updates wishlist items
+- Requires authenticated user
+- Validates product data
+
+**GET /api/items**
+- Retrieves user's wishlist items
+- Supports filtering and pagination
+- Includes price history
+
+**POST /api/collections**
+- Creates product collections
+- Supports custom colors and icons
+
+**POST /api/preview-link**
+- Generates link previews
+- Used for sharing wishlists
+
+**POST /api/cron/check-prices**
+- Scheduled price checking
+- Updates price history
+- Sends notifications for price drops
+
+### Scraper Service (Railway)
+
+**POST /api/fetch-product**
+- Main scraping endpoint
+- Accepts: `{ url, save?, user_id? }`
+- Returns: `{ ok: true, data: NormalizedProduct }`
+- Errors: 400 (invalid), 403 (blocked), 429 (rate limit), 500 (error)
+
+**GET /health**
+- Health check endpoint
+- Returns: `{ status: 'ok', service: 'wist-scraper-service' }`
+
+## Key Files & Their Purposes
+
+### Scraping Logic
+
+**lib/scraper/playwright-scraper.ts**
+- Playwright-based scraper for dynamic sites (Amazon, BestBuy, Target, Walmart, eBay)
+- Uses stealth techniques to avoid bot detection
+- Platform-specific selectors for price extraction
+- Handles JavaScript-rendered content
+
+**lib/scraper/static-scraper.ts**
+- Fast static HTML scraping using Metascraper
+- Fallback for non-dynamic sites
+- Extracts Open Graph and JSON-LD metadata
+
+**Wist-scraper-service/src/scrapers.ts**
+- Main scraper implementation for Railway service
+- Combines Playwright and Metascraper
+- Includes dynamic Chromium path detection for Railway
+- Stealth plugin integration
+
+### Database & Auth
+
+**lib/supabase/client.ts**
+- Supabase client initialization
+- Server and client-side clients
+
+**supabase/schema.sql**
+- Complete database schema
+- Tables: wishlist_items, collections, price_history, users
+- Row Level Security (RLS) policies
+- Indexes for performance
+
+### Frontend Components
+
+**components/dashboard/**
+- Dashboard layout and widgets
+- Product grid displays
+- Collection management UI
+
+**components/products/**
+- Product card components
+- Product preview modals
+- Price display components
+
+**app/dashboard/page.tsx**
+- Main dashboard page
+- Displays user's wishlist items
+- Collection filtering
+
+## Environment Variables
+
+### Next.js App (Vercel)
+```
+NEXT_PUBLIC_SUPABASE_URL=          # Supabase project URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY=     # Supabase anon key
+MAIN_SCRAPER_URL=                  # Railway scraper service URL (optional)
+SCRAPER_SERVICE_URL=               # Alternative scraper URL (fallback)
+PRICE_TRACKER_URL=                 # Price tracking service URL
+```
+
+### Scraper Service (Railway)
+```
+PORT=3000                          # Server port
+SUPABASE_URL=                      # Supabase URL (optional)
+SUPABASE_SERVICE_ROLE_KEY=         # Service role key (optional)
+CACHE_TTL_MS=21600000             # Cache TTL (6 hours default)
+DOMAIN_MIN_INTERVAL_MS=5000        # Rate limit interval (5s default)
+PLAYWRIGHT_BROWSERS_PATH=          # Playwright browser path (auto-detected)
+```
+
+## Deployment Configuration
+
+### Railway (Scraper Service)
+- Uses Dockerfile for containerization
+- Installs Playwright Chromium with dependencies
+- Builds TypeScript to JavaScript
+- Runs Express server on port 3000
+
+### Vercel (Frontend)
+- Next.js build and deployment
+- Serverless functions for API routes
+- Environment variables configured in dashboard
+
+## Important Implementation Details
+
+### Scraping Strategy
+1. **Dynamic Sites** (Amazon, BestBuy, Target, Walmart, eBay):
+   - Uses Playwright with stealth plugin
+   - Realistic browser fingerprinting
+   - Human-like delays and interactions
+   - Platform-specific price selectors
+
+2. **Static Sites**:
+   - Uses Metascraper for fast extraction
+   - Relies on Open Graph / JSON-LD metadata
+   - No browser automation needed
+
+3. **Fallback Chain**:
+   - Playwright → Static scraper → Error with manual add option
+
+### Bot Detection Evasion
+- Stealth plugin (puppeteer-extra-plugin-stealth)
+- Realistic user agents
+- Browser fingerprint overrides (navigator.webdriver, permissions API)
+- Randomized delays (700-1500ms)
+- Human-like viewport and locale settings
+
+### Caching Strategy
+- In-memory cache (6-hour TTL default)
+- Cache key: normalized URL
+- Reduces duplicate requests
+- Can be upgraded to Redis for multi-instance
+
+### Rate Limiting
+- Per-domain rate limiting
+- 5-second minimum interval between requests
+- Prevents overwhelming target sites
+- Returns 429 with retry-after header
+
+### Price Tracking
+- Stores price history in Supabase
+- Cron job checks prices periodically
+- Sends notifications for price drops
+- Supports price alerts
+
+## Database Schema
+
+**wishlist_items**
+- id (uuid, primary key)
+- user_id (uuid, foreign key)
+- title, description, price, price_raw, currency
+- image, url, domain
+- collection_id (optional)
+- status (available, unavailable, reserved)
+- created_at, updated_at
+
+**collections**
+- id (uuid, primary key)
+- user_id (uuid, foreign key)
+- name, description
+- color, icon (customization)
+- position (sorting)
+
+**price_history**
+- id (uuid, primary key)
+- item_id (uuid, foreign key)
+- price, currency
+- tracked_at (timestamp)
+
+## Browser Extension
+
+**wist-extension/**
+- Chrome Extension Manifest V3
+- Background service worker for scraping
+- Content script for DOM interaction
+- Popup UI for quick access
+- Syncs with main app via API
+
+## Common Tasks & How-To
+
+### Adding a New Scraping Target
+1. Add domain to `DYNAMIC_HOSTS` in `lib/scraper/utils.ts`
+2. Add platform-specific selectors in `DOMAIN_SELECTORS` (playwright-scraper.ts)
+3. Test with sample URLs
+4. Update documentation
+
+### Debugging Scraper Issues
+1. Check Railway logs for scraper service
+2. Verify Playwright browser installation
+3. Test with `/health` endpoint
+4. Check rate limiting (429 errors)
+5. Verify bot detection (403 errors)
+
+### Adding a New API Endpoint
+1. Create route file in `app/api/[endpoint]/route.ts`
+2. Export GET/POST/PUT/DELETE handlers
+3. Add authentication if needed
+4. Update API documentation
+
+### Database Changes
+1. Create migration SQL file in `supabase/`
+2. Run in Supabase SQL editor
+3. Update `types/supabase.ts` if schema changes
+4. Test RLS policies
+
+## Testing
+
+### Local Development
+```bash
+# Frontend
+npm run dev
+
+# Scraper Service
+cd Wist-scraper-service
+npm run dev
+
+# Test scraping
+curl -X POST http://localhost:3000/api/fetch-product \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://www.amazon.com/dp/B08N5WRWNW"}'
+```
+
+### Production Testing
+- Health check: `GET https://wist-app-production.up.railway.app/health`
+- Scraper test: `POST /api/fetch-product` with product URL
+- Monitor Railway logs for errors
+- Check Vercel function logs
+
+## Known Issues & Limitations
+
+1. **Amazon Bot Detection**: Amazon aggressively blocks automated access. Extension fallback recommended.
+2. **Playwright on Vercel**: Not supported. Use Railway scraper service instead.
+3. **Rate Limiting**: Per-domain limits may be too aggressive for some use cases.
+4. **Caching**: In-memory cache doesn't persist across restarts. Upgrade to Redis for production.
+
+## Future Improvements
+
+- [ ] Redis cache for multi-instance deployments
+- [ ] Proxy rotation for better bot evasion
+- [ ] Enhanced monitoring and alerting
+- [ ] GraphQL API option
+- [ ] Mobile app support
+- [ ] Advanced price tracking algorithms
+
+## Documentation Files
+
+- `README.md` - Project overview and quick start
+- `PROJECT_SUMMARY.md` - Complete rebuild summary
+- `ARCHITECTURE.md` - System architecture details
+- `DATABASE_SCHEMA.md` - Database schema documentation
+- `RUNBOOK.md` - Operational troubleshooting guide
+- `VERCEL_DEPLOYMENT.md` - Vercel deployment guide
+- `SUPABASE_SETUP.md` - Supabase configuration
+
+## Contact & Support
+
+For deployment issues, see `RUNBOOK.md`. For architecture questions, see `ARCHITECTURE.md`.

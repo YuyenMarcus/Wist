@@ -29,6 +29,53 @@ function showState(state) {
   if (state === 'error') errorDiv.classList.remove('hidden');
 }
 
+// Lordicon Animation Function
+// Loads the animation JSON from lordicon-animation.json file
+async function playLordiconAnimation() {
+  const animationContainer = document.getElementById('lordicon-animation');
+  if (!animationContainer) {
+    console.warn('Animation container not found');
+    return;
+  }
+
+  try {
+    // Load the JSON animation file
+    const response = await fetch(chrome.runtime.getURL('lordicon-animation.json'));
+    if (!response.ok) {
+      throw new Error(`Failed to load animation: ${response.status}`);
+    }
+    const animationJson = await response.json();
+
+    // Wait for Lordicon library to be available
+    let retries = 0;
+    const maxRetries = 10;
+    while (typeof lordicon === 'undefined' && retries < maxRetries) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      retries++;
+    }
+
+    if (typeof lordicon === 'undefined') {
+      console.error('Lordicon library not loaded after waiting');
+      return;
+    }
+
+    // Initialize Lordicon with the JSON
+    lordicon.load({
+      element: animationContainer,
+      src: animationJson,
+      colors: {
+        primary: '#7c3aed', // Violet color to match your brand
+        secondary: '#a855f7'
+      },
+      size: 80
+    });
+  } catch (error) {
+    console.error('Error loading Lordicon animation:', error);
+    // Fallback: show a simple checkmark if animation fails
+    animationContainer.innerHTML = '<div style="width: 80px; height: 80px; background: #dcfce7; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; color: #16a34a;">✓</div>';
+  }
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
   try {
@@ -157,6 +204,8 @@ async function handleSave(item) {
 
       if (response && response.success) {
         showState('success');
+        // Initialize and play Lordicon animation
+        playLordiconAnimation();
         setTimeout(() => {
           window.close();
         }, 2000);
@@ -372,14 +421,56 @@ function scrapeProductData() {
     }
   }
   
-  // Clean and parse price
+  // Clean and parse price (robust parsing similar to server-side)
   if (priceString) {
-    const cleanPrice = priceString.replace(/[^0-9.]/g, '');
-    price = parseFloat(cleanPrice) || 0;
+    // Handle price ranges (e.g., "$19.99 - $29.99" -> take first price)
+    if (priceString.includes('-') || priceString.includes('–')) {
+      const parts = priceString.split(/[-–]/);
+      priceString = parts[0].trim();
+    }
     
-    if (price > 1000000) {
-      const match = cleanPrice.match(/(\d+\.?\d*)/);
-      if (match) price = parseFloat(match[1]) || 0;
+    // Remove currency symbols and whitespace, keep digits, dots, and commas
+    const normalized = priceString.replace(/[^\d.,]/g, '').trim();
+    
+    if (normalized) {
+      // Handle formats like "1,234.56" (US) or "1.234,56" (European)
+      if (normalized.indexOf(',') > -1 && normalized.indexOf('.') > -1) {
+        // Determine which is decimal separator based on last separator position
+        if (normalized.lastIndexOf(',') > normalized.lastIndexOf('.')) {
+          // European format: "1.234,56" -> "1234.56"
+          price = parseFloat(normalized.replace(/\./g, '').replace(',', '.')) || 0;
+        } else {
+          // US format: "1,234.56" -> "1234.56"
+          price = parseFloat(normalized.replace(/,/g, '')) || 0;
+        }
+      } else if (normalized.indexOf(',') > -1) {
+        // Only commas: could be thousands separator or decimal separator
+        // If comma is followed by 2 digits, treat as decimal (e.g., "19,99")
+        const commaIndex = normalized.indexOf(',');
+        const afterComma = normalized.substring(commaIndex + 1);
+        if (afterComma.length === 2 && /^\d{2}$/.test(afterComma)) {
+          // Decimal separator: "19,99" -> "19.99"
+          price = parseFloat(normalized.replace(',', '.')) || 0;
+        } else {
+          // Thousands separator: "1,234" -> "1234"
+          price = parseFloat(normalized.replace(/,/g, '')) || 0;
+        }
+      } else {
+        // Only dots or no separators
+        price = parseFloat(normalized) || 0;
+      }
+      
+      // Sanity check: if price seems too large, try to extract a more reasonable value
+      if (price > 1000000) {
+        // Try to find a reasonable price pattern (e.g., extract first reasonable number)
+        const match = normalized.match(/(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/);
+        if (match) {
+          const reasonablePrice = match[1].replace(/,/g, '');
+          price = parseFloat(reasonablePrice) || 0;
+        }
+      }
+    } else {
+      price = 0;
     }
   } else {
     price = 0;
@@ -430,6 +521,188 @@ function scrapeProductData() {
          || null;
   }
   
+  // Strategy 3.5: Etsy-specific selectors (IMPROVED)
+  if (!image) {
+    // Check if we're on Etsy
+    const isEtsy = window.location.hostname.includes('etsy.com');
+    if (isEtsy) {
+      // Helper function to get image URL from element (handles lazy loading and background images)
+      const getImageUrl = (img) => {
+        if (!img) return null;
+        // Check src first
+        let url = img.src || img.getAttribute('src');
+        // Check data-src for lazy-loaded images
+        if (!url || url.includes('placeholder') || url.includes('loading')) {
+          url = img.getAttribute('data-src') || img.getAttribute('data-lazy-src');
+        }
+        // Check data-image-url
+        if (!url || url.includes('placeholder') || url.includes('loading')) {
+          url = img.getAttribute('data-image-url');
+        }
+        // Check for background-image CSS (Etsy sometimes uses divs with background images)
+        if (!url && img.style && img.style.backgroundImage) {
+          const bgMatch = img.style.backgroundImage.match(/url\(['"]?([^'"]+)['"]?\)/);
+          if (bgMatch && bgMatch[1]) {
+            url = bgMatch[1];
+          }
+        }
+        // Check parent element for background-image
+        if (!url && img.parentElement) {
+          const computedStyle = window.getComputedStyle(img.parentElement);
+          if (computedStyle.backgroundImage && computedStyle.backgroundImage !== 'none') {
+            const bgMatch = computedStyle.backgroundImage.match(/url\(['"]?([^'"]+)['"]?\)/);
+            if (bgMatch && bgMatch[1] && bgMatch[1].includes('etsystatic.com')) {
+              url = bgMatch[1];
+            }
+          }
+        }
+        return url;
+      };
+      
+      // Try Etsy-specific selectors (expanded list)
+      const etsySelectors = [
+        // Main product image containers
+        '.listing-page-image img',
+        '.listing-page-image-carousel img',
+        '.listing-page-image-container img',
+        '[data-carousel-first-image] img',
+        '.image-carousel img',
+        '.listing-image img',
+        '#listing-page-cart img',
+        // Etsy-specific classes
+        '.wt-max-width-full img[src*="etsystatic.com"]',
+        '.wt-display-block img[src*="etsystatic.com"]',
+        '.wt-width-full img[src*="etsystatic.com"]',
+        // Direct image selectors
+        'img[src*="etsystatic.com"][src*="/il/"]', // Etsy image URLs contain /il/ pattern
+        'img[data-src*="etsystatic.com"]', // Lazy-loaded images
+        'img[data-image-url*="etsystatic.com"]',
+        // Picture element sources
+        'picture source[srcset*="etsystatic.com"]',
+        'picture img[src*="etsystatic.com"]',
+        // Carousel images
+        '.carousel img[src*="etsystatic.com"]',
+        '[data-carousel] img[src*="etsystatic.com"]',
+        // Gallery images
+        '.gallery img[src*="etsystatic.com"]',
+        '.image-gallery img[src*="etsystatic.com"]'
+      ];
+      
+      for (const selector of etsySelectors) {
+        const img = document.querySelector(selector);
+        if (!img) continue;
+        
+        // Handle picture/source elements
+        let imgUrl = null;
+        if (img.tagName === 'SOURCE') {
+          imgUrl = img.getAttribute('srcset') || img.getAttribute('src');
+          if (imgUrl && imgUrl.includes(',')) {
+            // srcset can have multiple URLs, take the first one
+            imgUrl = imgUrl.split(',')[0].trim().split(' ')[0];
+          }
+        } else {
+          imgUrl = getImageUrl(img);
+        }
+        
+        if (imgUrl && imgUrl.includes('etsystatic.com') && 
+            !imgUrl.includes('placeholder') && 
+            !imgUrl.includes('loading') &&
+            !imgUrl.includes('avatar') &&
+            !imgUrl.includes('logo') &&
+            !imgUrl.includes('icon')) {
+          // Get the full resolution image URL (remove size parameters)
+          image = imgUrl.replace(/\/\d+x\d+\//, '/').replace(/\/\d+x\d+\./, '.').split('?')[0];
+          break;
+        }
+      }
+      
+      // If still no image, try finding the first Etsy image in common containers
+      if (!image) {
+        const etsyContainers = [
+          '.listing-page-image',
+          '.image-carousel-container',
+          '.listing-image-container',
+          '[data-carousel-first-image]',
+          '[data-carousel-container]',
+          '.carousel-container',
+          '.gallery-container',
+          '[data-listing-image]'
+        ];
+        
+        for (const containerSelector of etsyContainers) {
+          const container = document.querySelector(containerSelector);
+          if (container) {
+            // Try direct img first
+            let img = container.querySelector('img[src*="etsystatic.com"]');
+            if (!img) {
+              img = container.querySelector('img[data-src*="etsystatic.com"]');
+            }
+            if (!img) {
+              img = container.querySelector('img[data-image-url*="etsystatic.com"]');
+            }
+            if (!img) {
+              img = container.querySelector('picture img[src*="etsystatic.com"]');
+            }
+            // Check for background-image on container
+            if (!img) {
+              const computedStyle = window.getComputedStyle(container);
+              if (computedStyle.backgroundImage && computedStyle.backgroundImage !== 'none') {
+                const bgMatch = computedStyle.backgroundImage.match(/url\(['"]?([^'"]+)['"]?\)/);
+                if (bgMatch && bgMatch[1] && bgMatch[1].includes('etsystatic.com')) {
+                  image = bgMatch[1].replace(/\/\d+x\d+\//, '/').replace(/\/\d+x\d+\./, '.').split('?')[0];
+                  break;
+                }
+              }
+            }
+            
+            if (img) {
+              const imgUrl = getImageUrl(img);
+              if (imgUrl && !imgUrl.includes('placeholder') && !imgUrl.includes('avatar') && !imgUrl.includes('logo')) {
+                image = imgUrl.replace(/\/\d+x\d+\//, '/').replace(/\/\d+x\d+\./, '.').split('?')[0];
+                break;
+              }
+            }
+          }
+        }
+      }
+      
+      // Last resort: find any Etsy image on the page (improved)
+      if (!image) {
+        const allImages = document.querySelectorAll('img[src*="etsystatic.com"], img[data-src*="etsystatic.com"], img[data-image-url*="etsystatic.com"], picture source[srcset*="etsystatic.com"]');
+        const candidates = [];
+        
+        for (const img of allImages) {
+          let imgUrl = null;
+          if (img.tagName === 'SOURCE') {
+            const srcset = img.getAttribute('srcset');
+            if (srcset) {
+              imgUrl = srcset.split(',')[0].trim().split(' ')[0];
+            }
+          } else {
+            imgUrl = getImageUrl(img);
+          }
+          
+          if (imgUrl && imgUrl.includes('/il/') && // Etsy product images have /il/ in path
+              !imgUrl.includes('placeholder') && 
+              !imgUrl.includes('loading') &&
+              !imgUrl.includes('avatar') &&
+              !imgUrl.includes('logo') &&
+              !imgUrl.includes('icon')) {
+            // Prefer larger images
+            const width = img.naturalWidth || img.width || 0;
+            candidates.push({ url: imgUrl, width });
+          }
+        }
+        
+        // Sort by width and pick the largest
+        if (candidates.length > 0) {
+          candidates.sort((a, b) => b.width - a.width);
+          image = candidates[0].url.replace(/\/\d+x\d+\//, '/').replace(/\/\d+x\d+\./, '.').split('?')[0];
+        }
+      }
+    }
+  }
+  
   // Strategy 4: Generic product image selectors
   if (!image) {
     const genericImageSelectors = [
@@ -465,6 +738,42 @@ function scrapeProductData() {
       }
     }
   }
+
+  // --- ETSY PATCH START ---
+  // Etsy lazy-loads images, which often breaks standard scrapers.
+  // We force it to grab the "Social Share" image which is always high-res and available.
+  if (window.location.hostname.includes('etsy.com')) {
+    const etsyMeta = document.querySelector('meta[property="og:image"]');
+    if (etsyMeta && etsyMeta.content) {
+      // Always override with og:image for Etsy - it's the most reliable source
+      image = etsyMeta.content.trim();
+      console.log('[Etsy Patch] Using og:image:', image);
+    } else {
+      // Fallback: try to find any etsystatic.com image in meta tags or structured data
+      const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
+      for (const script of jsonLdScripts) {
+        try {
+          const data = JSON.parse(script.textContent);
+          const items = Array.isArray(data) ? data : [data];
+          for (const item of items) {
+            if (item['@type'] === 'Product' && item.image) {
+              let imgUrl = Array.isArray(item.image) ? item.image[0] : item.image;
+              if (typeof imgUrl === 'object' && imgUrl.url) {
+                imgUrl = imgUrl.url;
+              }
+              if (imgUrl && typeof imgUrl === 'string' && imgUrl.includes('etsystatic.com')) {
+                image = imgUrl;
+                console.log('[Etsy Patch] Using JSON-LD image:', image);
+                break;
+              }
+            }
+          }
+          if (image) break;
+        } catch (e) {}
+      }
+    }
+  }
+  // --- ETSY PATCH END ---
 
   // Extract retailer from URL
   const urlObj = new URL(window.location.href);

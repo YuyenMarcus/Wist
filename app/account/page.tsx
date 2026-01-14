@@ -176,8 +176,10 @@ export default function AccountPage() {
       })
 
       if (updateError) {
-        // Check for unique constraint violation
-        if (updateError.code === '23505' || updateError.message.includes('unique')) {
+        // Check for username change lock
+        if (updateError.code === 'USERNAME_CHANGE_LOCKED') {
+          setError(updateError.message || 'Username can only be changed once every 30 days.')
+        } else if (updateError.code === '23505' || updateError.message.includes('unique')) {
           setError('Username is already taken. Please choose another.')
         } else {
           throw updateError
@@ -360,22 +362,38 @@ export default function AccountPage() {
               <label htmlFor="username" className="block text-xs font-medium text-zinc-500 mb-2">
                 Username
               </label>
-              <div className="relative">
-                <span className="absolute left-4 top-3.5 text-zinc-400 font-medium text-sm">@</span>
-                <input
-                  type="text"
-                  id="username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s/g, ''))}
-                  className={`w-full pl-9 pr-10 py-3 bg-zinc-50 border rounded-xl focus:outline-none focus:ring-2 transition-all text-sm text-zinc-900 placeholder-zinc-400 ${
-                    username !== currentUsername && username.length > 0
-                      ? isValid
-                        ? 'border-violet-300 focus:ring-violet-200 focus:border-violet-400'
-                        : 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30'
-                      : 'border-zinc-200 focus:ring-violet-200 focus:border-violet-300'
-                  }`}
-                  placeholder="marcus"
-                />
+              {(() => {
+                const isLocked = profile?.username_changed_at && profile.username_changed_at !== null;
+                let daysRemaining = 0;
+                if (isLocked) {
+                  const lastChanged = new Date(profile.username_changed_at);
+                  const now = new Date();
+                  const daysSinceChange = (now.getTime() - lastChanged.getTime()) / (1000 * 60 * 60 * 24);
+                  daysRemaining = Math.ceil(30 - daysSinceChange);
+                }
+                const canChange = !isLocked || daysRemaining <= 0;
+                
+                return (
+                  <>
+                    <div className="relative">
+                      <span className="absolute left-4 top-3.5 text-zinc-400 font-medium text-sm">@</span>
+                      <input
+                        type="text"
+                        id="username"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s/g, ''))}
+                        disabled={!canChange && username === currentUsername}
+                        className={`w-full pl-9 pr-10 py-3 bg-zinc-50 border rounded-xl focus:outline-none focus:ring-2 transition-all text-sm text-zinc-900 placeholder-zinc-400 ${
+                          !canChange && username === currentUsername
+                            ? 'opacity-60 cursor-not-allowed'
+                            : username !== currentUsername && username.length > 0
+                            ? isValid
+                              ? 'border-violet-300 focus:ring-violet-200 focus:border-violet-400'
+                              : 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30'
+                            : 'border-zinc-200 focus:ring-violet-200 focus:border-violet-300'
+                        }`}
+                        placeholder="username"
+                      />
                 
                 {/* Status Indicator Icon */}
                 <div className="absolute right-3 top-3.5">
@@ -390,6 +408,15 @@ export default function AccountPage() {
                   ) : null}
                 </div>
               </div>
+              
+              {/* Lock Message */}
+              {!canChange && username === currentUsername && (
+                <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-xs text-amber-700">
+                    Username can only be changed once every 30 days. You can change it again in {daysRemaining} day{daysRemaining !== 1 ? 's' : ''}.
+                  </p>
+                </div>
+              )}
               
               {/* Validation Message */}
               <div className="h-5 mt-1 ml-1">
@@ -407,6 +434,9 @@ export default function AccountPage() {
                   </>
                 )}
               </div>
+                  </>
+                );
+              })()}
             </div>
 
             {/* Bio Input */}
@@ -446,46 +476,58 @@ export default function AccountPage() {
               >
                 Cancel
               </button>
-              <button
-                type="submit"
-                disabled={saving || (username !== currentUsername && !isValid)}
-                className="px-6 py-2.5 bg-violet-500 text-white rounded-full text-sm font-medium hover:bg-violet-600 focus:outline-none focus:ring-2 focus:ring-violet-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-              >
-                {saving ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Saving...
-                  </>
-                ) : (
-                  'Save Changes'
-                )}
-              </button>
+              {(() => {
+                const isUsernameChanging = username !== currentUsername;
+                const isUsernameLocked = profile?.username_changed_at && isUsernameChanging && (() => {
+                  const lastChanged = new Date(profile.username_changed_at);
+                  const now = new Date();
+                  const daysSinceChange = (now.getTime() - lastChanged.getTime()) / (1000 * 60 * 60 * 24);
+                  return daysSinceChange < 30;
+                })();
+                const isDisabled = saving || (isUsernameChanging && !isValid) || isUsernameLocked;
+                
+                return (
+                  <button
+                    type="submit"
+                    disabled={isDisabled}
+                    className="px-6 py-2.5 bg-violet-500 text-white rounded-full text-sm font-medium hover:bg-violet-600 focus:outline-none focus:ring-2 focus:ring-violet-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                  >
+                    {saving ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Saving...
+                      </>
+                    ) : (
+                      'Save Changes'
+                    )}
+                  </button>
+                );
+              })()}
             </div>
           </form>
 
-          {/* Sign Out Section */}
+          {/* Back to Dashboard Section */}
           <div className="mt-8 pt-8 border-t border-zinc-200">
-            <button
-              onClick={async () => {
-                await supabase.auth.signOut()
-                router.push('/login')
-                router.refresh()
-              }}
-              className="w-full flex items-center justify-center gap-2 rounded-lg bg-red-50 px-4 py-3 text-red-600 font-semibold hover:bg-red-100 transition-colors"
+            <button 
+              onClick={() => router.push('/dashboard')}
+              className="w-full flex items-center justify-center gap-2 rounded-lg bg-zinc-50 px-4 py-3 text-zinc-600 font-semibold hover:bg-zinc-100 transition-colors"
             >
-              <LogOut size={18} />
-              Sign Out
+              <ArrowLeft size={18} /> Back to Dashboard
             </button>
           </div>
         </div>
 
-        {/* Footer Link */}
+        {/* Footer Link - Sign Out */}
         <div className="bg-zinc-50 p-4 text-center border-t border-zinc-200">
-          <button 
-            onClick={() => router.push('/dashboard')}
-            className="text-sm text-zinc-600 hover:text-violet-600 font-medium flex items-center justify-center gap-2 mx-auto"
+          <button
+            onClick={async () => {
+              await supabase.auth.signOut()
+              router.push('/login')
+              router.refresh()
+            }}
+            className="text-sm text-red-600 hover:text-red-700 font-medium flex items-center justify-center gap-2 mx-auto"
           >
-            <ArrowLeft size={16} /> Back to Dashboard
+            <LogOut size={16} /> Sign Out
           </button>
         </div>
       </div>

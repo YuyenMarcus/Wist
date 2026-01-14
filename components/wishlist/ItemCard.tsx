@@ -86,26 +86,46 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
         throw new Error('Not authenticated')
       }
 
-      // Update in database and get the updated row back
-      const { data: updatedData, error } = await supabase
-        .from('products')
+      // Try updating items table first (primary table for user wishlist items)
+      let updatedData = null
+      let updateError = null
+
+      const { data: itemsData, error: itemsError } = await supabase
+        .from('items')
         .update({ title: trimmedTitle || null })
         .eq('id', item.id)
         .eq('user_id', user.id)
         .select()
         .single()
 
-      if (error) {
-        console.error('Supabase update error:', error)
-        throw error
+      if (itemsData && !itemsError) {
+        // Successfully updated items table
+        updatedData = itemsData
+        console.log('✅ Title updated in items table:', updatedData.title)
+      } else {
+        // Try products table as fallback
+        const { data: productsData, error: productsError } = await supabase
+          .from('products')
+          .update({ title: trimmedTitle || null })
+          .eq('id', item.id)
+          .eq('user_id', user.id)
+          .select()
+          .single()
+
+        if (productsData && !productsError) {
+          // Successfully updated products table
+          updatedData = productsData
+          console.log('✅ Title updated in products table:', updatedData.title)
+        } else {
+          // Both updates failed
+          updateError = productsError || itemsError
+          console.error('❌ Failed to update in both tables:', { itemsError, productsError })
+        }
       }
 
-      // Verify the update worked
-      if (!updatedData) {
-        throw new Error('Update failed: No data returned')
+      if (updateError || !updatedData) {
+        throw new Error(updateError?.message || 'Update failed: No data returned')
       }
-
-      console.log('✅ Title updated successfully:', updatedData.title)
 
       // Update local state immediately with the response from DB
       if (onUpdate) {

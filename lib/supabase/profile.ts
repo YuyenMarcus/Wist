@@ -12,6 +12,11 @@ export interface Profile {
   updated_at: string; // timestamp
   username: string | null; // NEW: for public sharing
   username_set_at: string | null; // NEW: when username was set
+  username_changed_at: string | null; // NEW: when username was last changed
+  website: string | null;
+  instagram_handle: string | null;
+  tiktok_handle: string | null;
+  amazon_affiliate_id: string | null;
 }
 
 /**
@@ -96,6 +101,10 @@ export async function updateProfile(
     avatar_url?: string | null;
     username?: string | null;
     bio?: string | null;
+    website?: string | null;
+    instagram_handle?: string | null;
+    tiktok_handle?: string | null;
+    amazon_affiliate_id?: string | null;
   }
 ): Promise<{
   data: Profile | null;
@@ -118,6 +127,24 @@ export async function updateProfile(
     // Check if username is available (unless it's their current username)
     const { data: currentProfile } = await getProfile(userId);
     if (currentProfile?.username !== updates.username) {
+      // Check if username change is locked (30 days)
+      if (currentProfile?.username_changed_at) {
+        const lastChanged = new Date(currentProfile.username_changed_at);
+        const now = new Date();
+        const daysSinceChange = (now.getTime() - lastChanged.getTime()) / (1000 * 60 * 60 * 24);
+        
+        if (daysSinceChange < 30) {
+          const daysRemaining = Math.ceil(30 - daysSinceChange);
+          return {
+            data: null,
+            error: { 
+              message: `Username can only be changed once every 30 days. You can change it again in ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''}.`,
+              code: 'USERNAME_CHANGE_LOCKED'
+            },
+          };
+        }
+      }
+
       const { available, error: checkError } = await isUsernameAvailable(updates.username);
       if (checkError) {
         return { data: null, error: checkError };
@@ -125,11 +152,18 @@ export async function updateProfile(
       if (!available) {
         return { data: null, error: { message: 'Username is already taken' } };
       }
+
+      // Update username_changed_at when username is actually changed
+      updateData.username_changed_at = new Date().toISOString();
     }
 
     // If this is the first time setting username
     if (!currentProfile?.username_set_at) {
       updateData.username_set_at = new Date().toISOString();
+      // Also set username_changed_at for first-time setting
+      if (!updateData.username_changed_at) {
+        updateData.username_changed_at = new Date().toISOString();
+      }
     }
   }
 

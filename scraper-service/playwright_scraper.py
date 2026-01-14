@@ -1,137 +1,131 @@
 """
-Playwright-based scraper for product extraction
-Used as fallback when Scrapy fails (authentic TLS fingerprint)
-Includes stealth settings to avoid bot detection
-Enhanced with playwright-stealth for Etsy and other hard targets
+Enhanced Playwright-based scraper for product extraction
+Supports: Amazon, Etsy, and independent/generic websites
+Uses stealth settings to avoid bot detection
 """
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
 import time
 import random
 import json
 import re
+import os
 from urllib.parse import urlparse
 
-# Import stealth plugin (if available)
+# Import stealth plugin
 try:
     from playwright_stealth import stealth_sync
     STEALTH_AVAILABLE = True
 except ImportError:
     STEALTH_AVAILABLE = False
-    print("[Playwright] Warning: playwright-stealth not installed. Run: pip install playwright-stealth")
+    print("[Playwright] Warning: playwright-stealth not installed")
+
+# User agents for rotation
+USER_AGENTS = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
+]
+
+
+def get_random_user_agent():
+    return random.choice(USER_AGENTS)
 
 
 def scrape_with_playwright(url):
     """
-    Scrapes a product URL using Playwright with enhanced stealth settings.
-    Returns a normalized product dict or None on failure.
-    
-    CRITICAL: Uses playwright-stealth plugin + browser args to avoid bot detection.
-    Enhanced for Etsy and other hard targets while maintaining Amazon compatibility.
+    Main entry point for Playwright scraping.
+    Detects site type and uses appropriate extraction strategy.
     """
-    print(f"[Playwright] Launching Stealth Browser for {url}...")
+    print(f"[Playwright] Scraping: {url}")
+    
+    domain = urlparse(url).netloc.lower()
+    
+    # Determine headless mode from environment (default True for production)
+    headless = os.environ.get('PLAYWRIGHT_HEADLESS', 'true').lower() == 'true'
     
     with sync_playwright() as p:
-        # Launch Chromium with stealth flags
-        # Set headless=False to see browser (helpful for debugging Etsy security checks)
         browser = p.chromium.launch(
-            headless=False,  # Set to True for production (False lets you see/manually solve captchas)
+            headless=headless,
             args=[
                 '--disable-blink-features=AutomationControlled',
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
                 '--disable-infobars',
-                '--window-position=0,0',
-                '--ignore-certifcate-errors',
-                '--ignore-certifcate-errors-spki-list',
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--no-first-run',
+                '--no-zygote',
+                '--disable-gpu',
             ]
         )
         
-        # Create a context with realistic viewport and user agent
+        # Create context with realistic settings
         context = browser.new_context(
-            viewport={'width': 1280, 'height': 720},  # More realistic screen size
-            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            viewport={'width': 1920, 'height': 1080},
+            user_agent=get_random_user_agent(),
             locale='en-US',
             timezone_id='America/New_York',
+            permissions=['geolocation'],
         )
         
-        # STEALTH INJECTION: Overwrite the 'navigator.webdriver' property
-        # This is the #1 way sites detect bots
+        # Hide webdriver property
         context.add_init_script("""
-            Object.defineProperty(navigator, 'webdriver', {
-                get: () => undefined
-            });
+            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+            Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
         """)
         
         page = context.new_page()
         
-        # CRITICAL: Apply playwright-stealth plugin (the magic mask 🎭)
+        # Apply stealth if available
         if STEALTH_AVAILABLE:
             stealth_sync(page)
-            print("   [Playwright] Stealth mode activated 🎭")
-        else:
-            print("   [Playwright] Stealth plugin not available - using basic stealth")
+            print("   [Playwright] Stealth mode activated")
         
         try:
-            # 1. Navigate with a realistic timeout
-            print(f"   [Playwright] Navigating to URL...")
-            page.goto(url, timeout=60000, wait_until='domcontentloaded')
+            # Navigate with retry logic
+            for attempt in range(3):
+                try:
+                    page.goto(url, timeout=45000, wait_until='domcontentloaded')
+                    break
+                except PlaywrightTimeout:
+                    if attempt == 2:
+                        raise
+                    print(f"   [Playwright] Timeout, retrying... ({attempt + 1}/3)")
+                    time.sleep(2)
             
-            # 2. Wait for page to settle (especially important for Etsy security checks)
-            page.wait_for_timeout(3000)  # Give it 3 seconds to "settle"
+            # Wait for page to settle
+            page.wait_for_timeout(2000 + random.randint(0, 1000))
             
-            # 3. Random mouse movements (proves we're human)
-            try:
-                page.mouse.move(100, 100)
-                page.mouse.move(200, 200)
-            except:
-                pass
+            # Human-like behavior
+            page.mouse.move(random.randint(100, 300), random.randint(100, 300))
             
-            # 4. Random human delay
-            delay = random.uniform(1, 3)
-            print(f"   [Playwright] Waiting {delay:.1f}s (human behavior)...")
-            time.sleep(delay)
+            # Check for blocks/captchas
+            page_title = page.title().lower()
+            blocked_indicators = ['robot', 'captcha', 'verify', 'security check', 'access denied', 'unusual traffic']
             
-            # 5. Check for security blocks (Etsy, etc.)
-            page_title = page.title()
-            print(f"   [Playwright] Page Title: '{page_title}'")
-            
-            if any(blocked in page_title.lower() for blocked in ['security check', 'pardon', 'verify you are human']):
-                print("   ⚠️ [Playwright] Detected security check page")
-                # Wait a bit more - sometimes it auto-resolves
+            if any(indicator in page_title for indicator in blocked_indicators):
+                print(f"   [Playwright] Blocked detected: {page_title}")
+                # Wait and retry once
                 page.wait_for_timeout(5000)
-                page_title = page.title()
-                if any(blocked in page_title.lower() for blocked in ['security check', 'pardon', 'verify you are human']):
-                    print("   ❌ [Playwright] Still blocked by security check")
-                    # If headless=False, user can manually solve captcha here
+                page_title = page.title().lower()
+                if any(indicator in page_title for indicator in blocked_indicators):
+                    browser.close()
                     return None
             
-            # 6. Handle "Accept Cookies" banners (optional but helpful)
-            # Try to click cookie banner if present
-            try:
-                cookie_button = page.query_selector('#sp-cc-accept, #accept-cookies, button[id*="accept"], button[data-testid*="accept"]')
-                if cookie_button:
-                    cookie_button.click(timeout=2000)
-                    time.sleep(1)
-            except:
-                pass  # No cookie banner or already accepted
-            
-            # 7. Extract Data (Try JSON-LD first - the "Silver Bullet")
-            print(f"   [Playwright] Extracting product data...")
-            product = extract_data(page, url)
-            
-            # Log extraction method for debugging
-            if product and product.get('title'):
-                method = product.get('method', 'unknown')
-                print(f"   [Playwright] Extraction method: {method}")
+            # Route to appropriate extractor
+            if 'amazon' in domain:
+                result = extract_amazon(page, url)
+            elif 'etsy' in domain:
+                result = extract_etsy(page, url)
+            elif any(store in domain for store in ['bestbuy', 'target', 'walmart']):
+                result = extract_major_retailer(page, url, domain)
+            else:
+                result = extract_generic(page, url)
             
             browser.close()
-            
-            if product and product.get('title'):
-                print(f"   [Playwright] Extraction complete. Title: '{product.get('title', '')[:50]}...'")
-            else:
-                print(f"   [Playwright] Extraction failed - no title found")
-            
-            return product
+            return result
             
         except Exception as e:
             print(f"[Playwright] Error: {e}")
@@ -139,455 +133,503 @@ def scrape_with_playwright(url):
             return None
 
 
-def extract_data(page, url):
+def extract_amazon(page, url):
     """
-    Hybrid extraction strategy: JSON-LD first, then CSS fallback to fill in blanks
-    STRATEGY 1: JSON-LD structured data (most reliable)
-    STRATEGY 2: CSS selectors (fill in missing fields)
+    Amazon-specific extraction with multiple fallback selectors.
+    Handles different Amazon page layouts.
     """
-    domain = urlparse(url).netloc.lower()
+    print("   [Playwright] Using Amazon extractor")
     
-    # Initialize data container
-    extracted = {
+    result = {
         "title": None,
         "price": None,
         "priceRaw": None,
-        "currency": "USD",
         "image": None,
         "description": None,
         "url": url,
-        "method": "playwright"
+        "method": "playwright_amazon"
     }
     
-    # --- STEP 1: JSON-LD STRATEGY (Try to get everything from JSON) ---
-    print("   [Playwright] Checking JSON-LD structured data...")
+    # Wait for key elements
     try:
-        # Find all script tags (sometimes there are multiple)
-        scripts = page.locator('script[type="application/ld+json"]').all()
-        
-        for s in scripts:
+        page.wait_for_selector('#productTitle, #title, .product-title-word-break', timeout=10000)
+    except:
+        pass
+    
+    # === TITLE ===
+    title_selectors = [
+        '#productTitle',
+        '#title span',
+        'h1.product-title-word-break',
+        'h1 span#productTitle',
+    ]
+    for sel in title_selectors:
+        try:
+            el = page.query_selector(sel)
+            if el:
+                text = el.inner_text().strip()
+                if text and len(text) > 5:
+                    result['title'] = text
+                    break
+        except:
+            continue
+    
+    # === PRICE ===
+    # Amazon has many price formats - try them in order of reliability
+    price_selectors = [
+        # Current price (most common)
+        '.a-price .a-offscreen',
+        'span.a-price span.a-offscreen',
+        # Deal/Sale price
+        '#corePrice_desktop span.a-offscreen',
+        '#corePriceDisplay_desktop_feature_div span.a-offscreen',
+        '.priceToPay span.a-offscreen',
+        # Kindle/Digital
+        '#kindle-price',
+        '#price_inside_buybox',
+        '#priceblock_ourprice',
+        '#priceblock_dealprice',
+        '#priceblock_saleprice',
+        # Whole + fraction
+        '.a-price-whole',
+    ]
+    
+    for sel in price_selectors:
+        try:
+            el = page.query_selector(sel)
+            if el:
+                price_text = el.inner_text().strip()
+                # Clean price
+                price_match = re.search(r'[\$]?([\d,]+\.?\d*)', price_text)
+                if price_match:
+                    price_str = price_match.group(1).replace(',', '')
+                    result['price'] = float(price_str)
+                    result['priceRaw'] = f"${result['price']:.2f}"
+                    break
+        except:
+            continue
+    
+    # === IMAGE ===
+    image_selectors = [
+        '#landingImage',
+        '#imgBlkFront',
+        '#ebooksImgBlkFront',
+        '#main-image',
+        '.a-dynamic-image',
+        '#imageBlock img',
+    ]
+    
+    for sel in image_selectors:
+        try:
+            el = page.query_selector(sel)
+            if el:
+                # Try different attributes
+                for attr in ['src', 'data-old-hires', 'data-a-dynamic-image']:
+                    img = el.get_attribute(attr)
+                    if img and img.startswith('http'):
+                        # For data-a-dynamic-image, extract first URL
+                        if attr == 'data-a-dynamic-image':
+                            try:
+                                img_data = json.loads(img)
+                                img = list(img_data.keys())[0] if img_data else None
+                            except:
+                                continue
+                        if img:
+                            result['image'] = img
+                            break
+                if result['image']:
+                    break
+        except:
+            continue
+    
+    # === DESCRIPTION ===
+    try:
+        desc_el = page.query_selector('#productDescription p, #feature-bullets')
+        if desc_el:
+            result['description'] = desc_el.inner_text().strip()[:500]
+    except:
+        pass
+    
+    return result
+
+
+def extract_etsy(page, url):
+    """
+    Etsy-specific extraction with security check handling.
+    """
+    print("   [Playwright] Using Etsy extractor")
+    
+    result = {
+        "title": None,
+        "price": None,
+        "priceRaw": None,
+        "image": None,
+        "description": None,
+        "url": url,
+        "method": "playwright_etsy"
+    }
+    
+    # Handle Etsy security check
+    try:
+        security_check = page.query_selector('text="Please verify you are a human"')
+        if security_check:
+            print("   [Playwright] Etsy security check detected, waiting...")
+            page.wait_for_timeout(8000)
+    except:
+        pass
+    
+    # Try JSON-LD first (most reliable for Etsy)
+    try:
+        scripts = page.query_selector_all('script[type="application/ld+json"]')
+        for script in scripts:
             try:
-                content = s.inner_text()
+                content = script.inner_text()
                 data = json.loads(content)
                 
-                # Handle lists of JSON objects (Etsy format)
+                # Handle array format
                 if isinstance(data, list):
                     for item in data:
                         if item.get('@type') in ['Product', 'IndividualProduct']:
                             data = item
                             break
                 
-                # If we found a Product, extract data
                 if isinstance(data, dict) and data.get('@type') in ['Product', 'IndividualProduct']:
-                    print("   ✅ [Playwright] Found Product JSON!")
+                    result['title'] = data.get('name')
+                    result['description'] = data.get('description', '')[:500]
                     
-                    # Extract title
-                    if not extracted["title"]:
-                        extracted["title"] = data.get("name") or data.get("title")
+                    # Image
+                    img = data.get('image')
+                    if isinstance(img, list):
+                        img = img[0]
+                    if isinstance(img, dict):
+                        img = img.get('url') or img.get('contentUrl')
+                    result['image'] = img
                     
-                    # Extract image (Can be string, list, or object)
-                    if not extracted["image"]:
-                        img = data.get("image")
-                        if isinstance(img, list) and len(img) > 0:
-                            img = img[0]
-                        if isinstance(img, dict):
-                            img = img.get("url") or img.get("contentUrl") or img.get("@id")
-                        extracted["image"] = img
-                    
-                    # Extract price (The tricky part - Etsy uses lowPrice/highPrice)
-                    if not extracted["price"]:
-                        offers = data.get("offers", {})
-                        # Offers can be a list or a single object
-                        if isinstance(offers, list) and len(offers) > 0:
-                            offers = offers[0]
-                        
-                        if isinstance(offers, dict):
-                            # Etsy often uses 'lowPrice' for aggregate offers
-                            price_value = offers.get("price") or offers.get("lowPrice") or offers.get("highPrice")
-                            if price_value:
-                                # Convert to float if it's a number
-                                if isinstance(price_value, (int, float)):
-                                    extracted["price"] = float(price_value)
-                                else:
-                                    # Clean string price (remove $, USD, etc.)
-                                    price_str = str(price_value).replace("$", "").replace("USD", "").replace(",", "").strip()
-                                    try:
-                                        extracted["price"] = float(price_str)
-                                    except ValueError:
-                                        pass
-                                
-                                # Get currency
-                                currency = offers.get("priceCurrency", "USD")
-                                extracted["currency"] = currency
-                                
-                                # Create priceRaw with $ symbol
-                                if extracted["price"]:
-                                    extracted["priceRaw"] = f"${extracted['price']:.2f}"
-                    
-                    # Extract description
-                    if not extracted["description"]:
-                        extracted["description"] = data.get("description")
-                    
-                    # Mark as JSON-LD method
-                    extracted["method"] = "playwright_jsonld"
-                    
-            except Exception as e:
-                # Skip malformed JSON and continue
+                    # Price
+                    offers = data.get('offers', {})
+                    if isinstance(offers, list):
+                        offers = offers[0]
+                    price_val = offers.get('price') or offers.get('lowPrice')
+                    if price_val:
+                        result['price'] = float(price_val)
+                        result['priceRaw'] = f"${result['price']:.2f}"
+                    break
+            except:
                 continue
-                
-    except Exception as e:
-        print(f"   [Playwright] JSON-LD Error: {e}")
+    except:
+        pass
     
-    # --- STEP 2: CSS FALLBACK (Fill in the blanks) ---
-    # If JSON missed anything, look for it visually on the page
-    
-    # Fill in Title if missing
-    if not extracted["title"]:
-        print("   [Playwright] JSON missing Title, trying CSS...")
-        try:
-            title = page.title()
-            h1 = page.locator("h1").first
-            if h1.count() > 0:
-                title = h1.inner_text().strip()
-            # Validate it's not a generic site name
-            if title and title.lower() not in ['amazon.com', 'amazon', 'etsy.com', 'etsy', 'security check', 'pardon']:
-                extracted["title"] = title
-        except:
-            pass
-    
-    # Fill in Price if missing
-    if not extracted["price"]:
-        print("   [Playwright] JSON missing Price, trying CSS...")
-        try:
-            # List of known Etsy/Amazon price selectors
-            price_selectors = [
-                # Etsy
-                "p.wt-text-title-03.wt-mr-xs-2",
-                ".wt-text-title-larger",
-                "span.currency-value",
-                "p.wt-text-title-03",
-                # Amazon
-                ".a-price .a-offscreen",
-                "#price_inside_buybox",
-                "#priceblock_ourprice",
-                "#priceblock_dealprice",
-                "span.a-price-whole",
-                # Generic
-                "[data-test-id='price']",
-                "[itemprop='price']",
-                ".price-item"
-            ]
-            
-            for sel in price_selectors:
-                try:
-                    el = page.locator(sel).first
-                    if el.count() > 0:
-                        raw_price = el.inner_text().strip()
-                        # Regex to find standard price like 19.99 or 1,234.56
-                        match = re.search(r"(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)", raw_price)
-                        if match:
-                            price_str = match.group(1).replace(",", "")
-                            try:
-                                extracted["price"] = float(price_str)
-                                # Create priceRaw with $ symbol
-                                extracted["priceRaw"] = f"${extracted['price']:.2f}"
-                                print(f"   ✅ [Playwright] Found Price via CSS: {extracted['priceRaw']}")
-                                break
-                            except ValueError:
-                                continue
-                except:
-                    continue
-        except Exception as e:
-            print(f"   [Playwright] CSS Price Error: {e}")
-    
-    # Fill in Image if missing
-    if not extracted["image"]:
-        print("   [Playwright] JSON missing Image, trying CSS...")
-        try:
-            # Etsy main image is usually in a specific container
-            img_selectors = [
-                ".image-carousel-container img",
-                "#main-image-container img",
-                "img.wt-max-width-full",
-                "#landingImage",  # Amazon
-                "#imgTagWrapperId img",  # Amazon
-                "img#main-image",  # Amazon
-                "[data-testid='product-image']",  # Best Buy
-                "[data-test='product-image']"  # Target
-            ]
-            
-            for sel in img_selectors:
-                try:
-                    img = page.locator(sel).first
-                    if img.count() > 0:
-                        extracted["image"] = img.get_attribute("src") or img.get_attribute("data-src")
-                        if extracted["image"] and extracted["image"].startswith("http"):
-                            print(f"   ✅ [Playwright] Found Image via CSS")
-                            break
-                except:
-                    continue
-        except Exception as e:
-            print(f"   [Playwright] CSS Image Error: {e}")
-    
-    # Fill in Description if missing
-    if not extracted["description"]:
-        try:
-            desc_selectors = [
-                '#productDescription p',  # Amazon
-                '[data-testid="product-description"]',  # Best Buy
-                'meta[property="og:description"]'  # Open Graph
-            ]
-            for sel in desc_selectors:
-                try:
-                    if sel.startswith('meta'):
-                        el = page.query_selector(sel)
-                        if el:
-                            extracted['description'] = el.get_attribute('content')
-                    else:
-                        el = page.query_selector(sel)
-                        if el:
-                            extracted['description'] = el.inner_text().strip()
-                    if extracted['description']:
-                        break
-                except:
-                    continue
-        except:
-            pass
-    
-    # Mark method if CSS was used
-    if extracted["method"] == "playwright":
-        extracted["method"] = "playwright_css"
-    
-    # Ensure priceRaw has $ symbol if we have a price
-    if extracted["price"] and not extracted["priceRaw"]:
-        extracted["priceRaw"] = f"${extracted['price']:.2f}"
-    
-    # Final logging
-    title_preview = extracted['title'][:30] if extracted['title'] else 'None'
-    price_preview = extracted['priceRaw'] or (f"${extracted['price']:.2f}" if extracted['price'] else 'N/A')
-    img_status = 'Yes' if extracted['image'] else 'No'
-    print(f"   [Playwright] Final Data: '{title_preview}...' | {price_preview} | Img: {img_status}")
-    
-    return extracted
-    
-    # --- STRATEGY 2: CSS FALLBACK (If JSON-LD failed or incomplete) ---
-    print("   [Playwright] Using CSS selectors as fallback...")
-    
-    # Attempt to grab the Title (if not already extracted)
-    if not extracted["title"]:
-        title = page.title()
-        
-        # Refine title for Amazon
-        try:
-            title_el = page.query_selector('#productTitle')
-            if title_el:
-                title = title_el.inner_text().strip()
-        except:
-            pass
-        
-        # Try other title selectors (including Etsy-specific)
-        if not title or title.lower() in ['amazon.com', 'amazon', 'etsy.com', 'etsy', 'security check', 'pardon']:
-            title_selectors = [
-                '#productTitle',  # Amazon
-                'h1[data-testid="product-title"]',  # Best Buy
-                'h1[data-test="product-title"]',    # Target
-                'h1.wt-text-body-01',  # Etsy
-                'h1.wt-text-title-01',  # Etsy (alternative)
-                'h1[data-buy-box-listing-title]',  # Etsy
-                'h1.product-title',
-                'h1'  # Generic fallback
-            ]
-            for selector in title_selectors:
-                try:
-                    el = page.query_selector(selector)
-                    if el:
-                        title = el.inner_text().strip()
-                        # Check if it's a real product title (not generic site name)
-                        if title and title.lower() not in ['amazon.com', 'amazon', 'etsy.com', 'etsy', 'security check', 'pardon']:
-                            break
-                except:
-                    continue
-        
-        extracted['title'] = title if title else None
-    
-    # Attempt to grab Price (if not already extracted from JSON-LD)
-    if not extracted["price"]:
-        price = None
-        priceRaw = None
-        price_selectors = [
-            '.a-price .a-offscreen',  # Amazon
-            '#priceblock_ourprice',   # Amazon Old
-            '#priceblock_dealprice',  # Amazon Deal
-            'span.a-price-whole',     # Amazon (parts)
-            '.priceView-customer-price span',  # Best Buy
-            '[data-testid="customer-price"]',  # Best Buy
-            '[data-test="product-price"]',      # Target
-            'p.wt-text-title-03.wt-mr-xs-2',  # Etsy
-            'p.wt-text-title-larger',  # Etsy (alternative)
-            'span.currency-value',  # Etsy
-            '.wt-text-title-03',  # Etsy (generic)
-            '.price-item',                     # Generic
-            '[itemprop="price"]'               # Schema.org
+    # CSS fallback if JSON-LD failed
+    if not result['title']:
+        title_selectors = [
+            'h1[data-buy-box-listing-title]',
+            'h1.listing-page-title',
+            'h1.wt-text-body-01',
         ]
-        
+        for sel in title_selectors:
+            try:
+                el = page.query_selector(sel)
+                if el:
+                    result['title'] = el.inner_text().strip()
+                    break
+            except:
+                continue
+    
+    if not result['price']:
+        price_selectors = [
+            'p.wt-text-title-03 .currency-value',
+            '[data-buy-box-region="price"] .currency-value',
+            '.wt-text-title-larger',
+        ]
         for sel in price_selectors:
             try:
                 el = page.query_selector(sel)
                 if el:
                     price_text = el.inner_text().strip()
-                    # Clean currency symbols and extract number
-                    price_clean = re.sub(r'[^\d.,]', '', price_text).replace(',', '')
-                    try:
-                        price = float(price_clean)
-                        priceRaw = price_text
-                        extracted["price"] = price
-                        extracted["priceRaw"] = priceRaw
+                    price_match = re.search(r'([\d,]+\.?\d*)', price_text)
+                    if price_match:
+                        result['price'] = float(price_match.group(1).replace(',', ''))
+                        result['priceRaw'] = f"${result['price']:.2f}"
                         break
-                    except ValueError:
-                        continue
             except:
                 continue
     
-    # Attempt to grab Image (if not already extracted from JSON-LD)
-    if not extracted["image"]:
-        image = None
-        image_selectors = [
-            '#landingImage',           # Amazon
-            '#imgTagWrapperId img',   # Amazon
-            'img.wt-max-width-full',  # Etsy (main product image)
-            '.primary-image',         # Generic
-            'img#main-image',          # Amazon
-            '[data-testid="product-image"]',  # Best Buy
-            '[data-test="product-image"]',    # Target
-            'meta[property="og:image"]'       # Open Graph
-        ]
-        
-        for sel in image_selectors:
-            try:
-                if sel.startswith('meta'):
-                    el = page.query_selector(sel)
-                    if el:
-                        image = el.get_attribute('content')
-                else:
-                    el = page.query_selector(sel)
-                    if el:
-                        image = el.get_attribute('src')
-                
-                if image and image.startswith('http'):
-                    extracted["image"] = image
-                    break
-            except:
-                continue
-    
-    # Attempt to grab Description (if not already extracted from JSON-LD)
-    if not extracted["description"]:
+    if not result['image']:
+        # Try og:image first
         try:
-            desc_selectors = [
-                '#productDescription p',  # Amazon
-                '[data-testid="product-description"]',  # Best Buy
-                'meta[property="og:description"]'       # Open Graph
-            ]
-            for sel in desc_selectors:
-                try:
-                    if sel.startswith('meta'):
-                        el = page.query_selector(sel)
-                        if el:
-                            extracted['description'] = el.get_attribute('content')
-                    else:
-                        el = page.query_selector(sel)
-                        if el:
-                            extracted['description'] = el.inner_text().strip()
-                    if extracted['description']:
-                        break
-                except:
-                    continue
+            og = page.query_selector('meta[property="og:image"]')
+            if og:
+                result['image'] = og.get_attribute('content')
+        except:
+            pass
+        
+        # Fallback to page images
+        if not result['image']:
+            try:
+                img = page.query_selector('img[src*="etsystatic.com"][src*="/il/"]')
+                if img:
+                    result['image'] = img.get_attribute('src')
+            except:
+                pass
+    
+    return result
+
+
+def extract_major_retailer(page, url, domain):
+    """
+    Extraction for major retailers: Best Buy, Target, Walmart
+    """
+    print(f"   [Playwright] Using major retailer extractor for {domain}")
+    
+    result = {
+        "title": None,
+        "price": None,
+        "priceRaw": None,
+        "image": None,
+        "description": None,
+        "url": url,
+        "method": f"playwright_{domain.split('.')[0]}"
+    }
+    
+    # Site-specific selectors
+    if 'bestbuy' in domain:
+        selectors = {
+            'title': ['h1.heading-5', '[data-testid="product-title"]', 'h1'],
+            'price': ['.priceView-customer-price span', '[data-testid="price"]', '.pricing-price'],
+            'image': ['[data-testid="product-image"] img', '.product-image img', 'img.primary-image'],
+        }
+    elif 'target' in domain:
+        selectors = {
+            'title': ['h1[data-test="product-title"]', 'h1'],
+            'price': ['[data-test="product-price"]', '.pricing-current-price'],
+            'image': ['[data-test="product-image"] img', '.carousel-image img'],
+        }
+    elif 'walmart' in domain:
+        selectors = {
+            'title': ['h1.prod-ProductTitle', '[data-testid="product-title"]', 'h1'],
+            'price': ['[itemprop="price"]', '[data-testid="price"]', '.price-characteristic'],
+            'image': ['[data-testid="product-image"] img', '.prod-hero-image img'],
+        }
+    else:
+        return extract_generic(page, url)
+    
+    # Extract using selectors
+    for sel in selectors.get('title', []):
+        try:
+            el = page.query_selector(sel)
+            if el:
+                result['title'] = el.inner_text().strip()
+                break
+        except:
+            continue
+    
+    for sel in selectors.get('price', []):
+        try:
+            el = page.query_selector(sel)
+            if el:
+                price_text = el.inner_text().strip()
+                price_match = re.search(r'[\$]?([\d,]+\.?\d*)', price_text)
+                if price_match:
+                    result['price'] = float(price_match.group(1).replace(',', ''))
+                    result['priceRaw'] = f"${result['price']:.2f}"
+                    break
+        except:
+            continue
+    
+    for sel in selectors.get('image', []):
+        try:
+            el = page.query_selector(sel)
+            if el:
+                result['image'] = el.get_attribute('src')
+                if result['image']:
+                    break
+        except:
+            continue
+    
+    return result
+
+
+def extract_generic(page, url):
+    """
+    Generic extraction for independent/unknown websites.
+    Uses JSON-LD → OpenGraph → CSS heuristics
+    """
+    print("   [Playwright] Using generic extractor")
+    
+    result = {
+        "title": None,
+        "price": None,
+        "priceRaw": None,
+        "image": None,
+        "description": None,
+        "url": url,
+        "method": "playwright_generic"
+    }
+    
+    # === STRATEGY 1: JSON-LD (Most reliable) ===
+    try:
+        scripts = page.query_selector_all('script[type="application/ld+json"]')
+        for script in scripts:
+            try:
+                content = script.inner_text()
+                data = json.loads(content)
+                
+                # Handle arrays
+                items = data if isinstance(data, list) else [data]
+                
+                for item in items:
+                    if item.get('@type') in ['Product', 'Offer', 'IndividualProduct']:
+                        if not result['title']:
+                            result['title'] = item.get('name')
+                        if not result['description']:
+                            result['description'] = (item.get('description') or '')[:500]
+                        
+                        # Image
+                        if not result['image']:
+                            img = item.get('image')
+                            if isinstance(img, list):
+                                img = img[0]
+                            if isinstance(img, dict):
+                                img = img.get('url') or img.get('contentUrl')
+                            result['image'] = img
+                        
+                        # Price
+                        if not result['price']:
+                            offers = item.get('offers', item)
+                            if isinstance(offers, list):
+                                offers = offers[0]
+                            price_val = offers.get('price') or offers.get('lowPrice')
+                            if price_val:
+                                result['price'] = float(price_val)
+                                currency = offers.get('priceCurrency', 'USD')
+                                result['priceRaw'] = f"${result['price']:.2f}"
+            except:
+                continue
+    except:
+        pass
+    
+    # === STRATEGY 2: OpenGraph Meta Tags ===
+    if not result['title']:
+        try:
+            og = page.query_selector('meta[property="og:title"]')
+            if og:
+                result['title'] = og.get_attribute('content')
         except:
             pass
     
-    # Mark as CSS method if JSON-LD wasn't used
-    if extracted["method"] == "playwright":
-        extracted["method"] = "playwright_css"
+    if not result['image']:
+        try:
+            og = page.query_selector('meta[property="og:image"]')
+            if og:
+                result['image'] = og.get_attribute('content')
+        except:
+            pass
     
-    # Log final result
-    title_preview = extracted['title'][:50] if extracted['title'] else 'None'
-    price_preview = extracted['priceRaw'] or (f"${extracted['price']:.2f}" if extracted['price'] else 'N/A')
-    print(f"   [Playwright] Result: '{title_preview}...' | {price_preview}")
+    if not result['description']:
+        try:
+            og = page.query_selector('meta[property="og:description"]')
+            if og:
+                result['description'] = og.get_attribute('content')
+        except:
+            pass
     
-    return extracted
+    # Price from meta
+    if not result['price']:
+        try:
+            meta = page.query_selector('meta[property="product:price:amount"], meta[property="og:price:amount"]')
+            if meta:
+                price_val = meta.get_attribute('content')
+                result['price'] = float(price_val)
+                result['priceRaw'] = f"${result['price']:.2f}"
+        except:
+            pass
+    
+    # === STRATEGY 3: CSS Heuristics ===
+    if not result['title']:
+        title_selectors = ['h1', '.product-title', '.product-name', '[itemprop="name"]', 'title']
+        for sel in title_selectors:
+            try:
+                el = page.query_selector(sel)
+                if el:
+                    text = el.inner_text().strip() if sel != 'title' else page.title()
+                    if text and len(text) > 3 and len(text) < 300:
+                        result['title'] = text
+                        break
+            except:
+                continue
+    
+    if not result['price']:
+        # Common price selectors
+        price_selectors = [
+            '[itemprop="price"]',
+            '.price',
+            '.product-price',
+            '.current-price',
+            '[data-price]',
+            '.amount',
+        ]
+        for sel in price_selectors:
+            try:
+                el = page.query_selector(sel)
+                if el:
+                    price_text = el.inner_text().strip()
+                    # Also try data-price attribute
+                    if not price_text:
+                        price_text = el.get_attribute('content') or el.get_attribute('data-price') or ''
+                    
+                    price_match = re.search(r'[\$€£]?\s*([\d,]+\.?\d*)', price_text)
+                    if price_match:
+                        result['price'] = float(price_match.group(1).replace(',', ''))
+                        result['priceRaw'] = f"${result['price']:.2f}"
+                        break
+            except:
+                continue
+        
+        # Last resort: regex search in page text
+        if not result['price']:
+            try:
+                body_text = page.inner_text('body')[:5000]
+                price_patterns = [
+                    r'\$\s*([\d,]+\.\d{2})',
+                    r'USD\s*([\d,]+\.\d{2})',
+                    r'Price[:\s]*([\d,]+\.\d{2})',
+                ]
+                for pattern in price_patterns:
+                    match = re.search(pattern, body_text)
+                    if match:
+                        result['price'] = float(match.group(1).replace(',', ''))
+                        result['priceRaw'] = f"${result['price']:.2f}"
+                        break
+            except:
+                pass
+    
+    if not result['image']:
+        image_selectors = [
+            '[itemprop="image"]',
+            '.product-image img',
+            '.gallery img',
+            '#product-image',
+            'img[src*="product"]',
+            'main img',
+        ]
+        for sel in image_selectors:
+            try:
+                el = page.query_selector(sel)
+                if el:
+                    img = el.get_attribute('src') or el.get_attribute('data-src')
+                    if img and img.startswith('http'):
+                        result['image'] = img
+                        break
+            except:
+                continue
+    
+    return result
 
 
-def extract_json_ld_playwright(page):
-    """
-    Extract JSON-LD structured data using Playwright
-    Handles both single objects and arrays (Etsy often uses arrays)
-    """
-    try:
-        json_ld_script = page.evaluate("""
-            () => {
-                const scripts = document.querySelectorAll('script[type="application/ld+json"]');
-                for (const script of scripts) {
-                    try {
-                        let data = JSON.parse(script.textContent);
-                        
-                        // Handle array of JSON-LD objects (common in Etsy)
-                        if (Array.isArray(data)) {
-                            for (const item of data) {
-                                if (item['@type'] === 'Product' || 
-                                    (Array.isArray(item['@type']) && item['@type'].includes('Product'))) {
-                                    return item;
-                                }
-                            }
-                        }
-                        
-                        // Handle single object
-                        if (data['@type'] === 'Product' || 
-                            (Array.isArray(data['@type']) && data['@type'].includes('Product'))) {
-                            return data;
-                        }
-                    } catch (e) {
-                        // Skip malformed JSON
-                        continue;
-                    }
-                }
-                return null;
-            }
-        """)
-        return json_ld_script
-    except Exception as e:
-        print(f"   [Playwright] JSON-LD extraction error: {e}")
-        return None
-
-
-def normalize_json_ld(data, url):
-    """Normalize JSON-LD to product format"""
-    price = None
-    currency = "USD"
-    priceRaw = None
-    
-    offers = data.get('offers', {})
-    if isinstance(offers, list) and offers:
-        offer = offers[0]
-        price = offer.get('price')
-        currency = offer.get('priceCurrency', 'USD')
-        priceRaw = f"{currency} {price}" if price else None
-    elif isinstance(offers, dict):
-        price = offers.get('price')
-        currency = offers.get('priceCurrency', 'USD')
-        priceRaw = f"{currency} {price}" if price else None
-    
-    image = data.get('image', '')
-    if isinstance(image, list):
-        image = image[0] if image else ''
-    elif isinstance(image, dict):
-        image = image.get('url', '')
-    
-    return {
-        "title": data.get('name') or data.get('title', '').strip(),
-        "price": float(price) if price else None,
-        "priceRaw": priceRaw or (str(price) if price else None),
-        "currency": currency,
-        "image": image,
-        "url": url,
-        "description": data.get('description', ''),
-        "method": "playwright"
-    }
+# For testing
+if __name__ == '__main__':
+    import sys
+    if len(sys.argv) > 1:
+        test_url = sys.argv[1]
+        result = scrape_with_playwright(test_url)
+        print(json.dumps(result, indent=2))

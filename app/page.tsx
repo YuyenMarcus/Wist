@@ -135,16 +135,16 @@ export default function LandingPage() {
           className="mt-10 flex flex-col w-full items-center gap-4"
         >
           <div className="flex w-full items-center justify-center gap-4 flex-wrap">
-            {isLoggedIn ? (
+          {isLoggedIn ? (
               <>
-                <Link
-                  href="/dashboard"
-                  className="group flex h-12 items-center gap-2 rounded-full bg-violet-500 px-8 text-sm font-semibold text-white transition-all hover:bg-violet-600 hover:pr-6"
-                >
-                  <LayoutDashboard className="h-4 w-4" />
-                  Go to Dashboard
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </Link>
+            <Link
+              href="/dashboard"
+              className="group flex h-12 items-center gap-2 rounded-full bg-violet-500 px-8 text-sm font-semibold text-white transition-all hover:bg-violet-600 hover:pr-6"
+            >
+              <LayoutDashboard className="h-4 w-4" />
+              Go to Dashboard
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Link>
                 {/* Extension CTA - Visible for logged-in users */}
                 <Link
                   href="/extension"
@@ -155,23 +155,23 @@ export default function LandingPage() {
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1 text-violet-600" />
                 </Link>
               </>
-            ) : (
-              <>
-                <Link
-                  href="/signup"
-                  className="group flex h-12 items-center gap-2 rounded-full bg-violet-500 px-8 text-sm font-semibold text-white transition-all hover:bg-violet-600 hover:pr-6"
-                >
-                  Get Started
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </Link>
-                <Link
-                  href="/login"
-                  className="flex h-12 items-center rounded-full bg-white px-8 text-sm font-semibold text-zinc-900 shadow-sm ring-1 ring-zinc-200 transition-all hover:bg-zinc-50 hover:ring-zinc-300"
-                >
-                  Log in
-                </Link>
-              </>
-            )}
+          ) : (
+            <>
+              <Link
+                href="/signup"
+                className="group flex h-12 items-center gap-2 rounded-full bg-violet-500 px-8 text-sm font-semibold text-white transition-all hover:bg-violet-600 hover:pr-6"
+              >
+                Get Started
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </Link>
+              <Link
+                href="/login"
+                className="flex h-12 items-center rounded-full bg-white px-8 text-sm font-semibold text-zinc-900 shadow-sm ring-1 ring-zinc-200 transition-all hover:bg-zinc-50 hover:ring-zinc-300"
+              >
+                Log in
+              </Link>
+            </>
+          )}
           </div>
 
           {/* Extension CTA - Always visible below buttons */}
@@ -184,7 +184,7 @@ export default function LandingPage() {
             {!isLoggedIn && (
               <Link
                 href="/extension"
-                className="group flex h-12 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-violet-50 to-pink-50 border border-violet-200 px-6 text-sm font-semibold text-violet-700 transition-all hover:from-violet-100 hover:to-pink-100 hover:border-violet-300 hover:shadow-md"
+                className="download-extension-btn group flex h-12 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-violet-50 to-pink-50 border border-violet-200 px-6 text-sm font-semibold text-violet-700 transition-all hover:from-violet-100 hover:to-pink-100 hover:border-violet-300 hover:shadow-md"
               >
                 <Chrome className="h-5 w-5 text-violet-600" />
                 <span>Get the Browser Button</span>
@@ -207,6 +207,21 @@ export default function LandingPage() {
            {/* You can add a preview image here later */}
         </motion.div>
       </div>
+
+      {/* Footer - Lordicon Credit */}
+      <footer className="absolute bottom-0 left-0 right-0 z-10 pb-6 text-center">
+        <p className="text-xs opacity-50 text-zinc-500">
+          Animated icons by{' '}
+          <a 
+            href="https://lordicon.com/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="hover:text-violet-600 transition-colors underline"
+          >
+            Lordicon
+          </a>
+        </p>
+      </footer>
     </main>
   )
 }

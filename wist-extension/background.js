@@ -164,8 +164,11 @@ async function getValidToken() {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "PREVIEW_LINK") {
     console.log("🔒 WIST: Preview requested for", request.url);
-    handlePreviewLink(request.url, sendResponse);
-    return true;
+    handlePreviewLink(request.url, sendResponse).catch(error => {
+      console.error("❌ [Background] Preview error:", error);
+      sendResponse({ success: false, error: error.message });
+    });
+    return true; // Keep channel open for async response
   }
 
   if (request.action === "TRIGGER_PURCHASE_POPUP") {
@@ -173,28 +176,53 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       action: "TRIGGER_PURCHASE_POPUP",
       url: request.url
     }).catch(() => {});
+    // No response needed for this action
+    return false;
   }
 
   if (request.action === "GET_USER_TOKEN" || request.type === "GET_TOKEN") {
     // Content script or popup is asking for the token
     getValidToken()
-      .then(token => sendResponse({ success: true, token }))
-      .catch(error => sendResponse({ success: false, error: error.message }));
-    return true;
+      .then(token => {
+        sendResponse({ success: true, token });
+      })
+      .catch(error => {
+        sendResponse({ success: false, error: error.message });
+      });
+    return true; // Keep channel open for async response
   }
 
   // Handle SAVE_ITEM from popup.js (uses request.action and request.data)
   if (request.action === "SAVE_ITEM") {
     console.log("💾 WIST: Save Request", request.data);
-    handleSaveItem(request.data, sendResponse);
-    return true;
+    handleSaveItem(request.data, sendResponse).catch(error => {
+      console.error("❌ [Background] Save error (unhandled):", error);
+      sendResponse({ success: false, error: error.message || 'Unknown error' });
+    });
+    return true; // Keep channel open for async response
   }
 
   // Handle SAVE_ITEM from content.js (uses request.type and request.payload)
   if (request.type === 'SAVE_ITEM') {
-    handleSaveItem(request.payload, sendResponse);
-    return true;
+    handleSaveItem(request.payload, sendResponse).catch(error => {
+      console.error("❌ [Background] Save error (unhandled):", error);
+      sendResponse({ success: false, error: error.message || 'Unknown error' });
+    });
+    return true; // Keep channel open for async response
   }
+
+  // Handle PRICE_DROP_NOTIFICATION from website
+  if (request.type === 'PRICE_DROP_NOTIFICATION') {
+    console.log("🔔 [Background] Price drop notification received:", request.notifications);
+    handlePriceDropNotifications(request.notifications).catch(error => {
+      console.error("❌ [Background] Notification error:", error);
+    });
+    // No response needed for notifications
+    return false;
+  }
+  
+  // If no handler matched, return false
+  return false;
 });
 
 // ============================================================================
@@ -218,7 +246,11 @@ async function handlePreviewLink(productUrl, sendResponse) {
     sendResponse({ success: true, data: data.data || data });
   } catch (error) {
     console.error("❌ WIST: Error", error);
-    sendResponse({ success: false, error: error.message });
+    // Ensure sendResponse is always called, even on unexpected errors
+    if (sendResponse) {
+      sendResponse({ success: false, error: error.message || 'Unknown error' });
+    }
+    throw error; // Re-throw so outer catch can handle it
   }
 }
 
@@ -280,13 +312,141 @@ async function handleSaveItem(payload, sendResponse) {
 
     console.log("✅ [Background] Item saved successfully");
     console.log("✅ [Extension] Save Success:", result);
-    sendResponse({ success: true, data: result });
+    
+    // Ensure sendResponse is called
+    if (sendResponse) {
+      sendResponse({ success: true, data: result });
+    }
 
   } catch (error) {
     console.error("❌ [Background] Save failed:", error.message);
     console.error("❌ [Extension] Failed:", error.message);
     console.error("❌ [Extension] Full error:", error);
-    sendResponse({ success: false, error: error.message });
+    
+    // Ensure sendResponse is always called, even on unexpected errors
+    if (sendResponse) {
+      sendResponse({ success: false, error: error.message || 'Unknown error' });
+    }
+    
+    // Re-throw so outer catch can handle it if needed
+    throw error;
+  }
+}
+
+// ============================================================================
+// PRICE DROP NOTIFICATION HANDLER
+// ============================================================================
+
+async function handlePriceDropNotifications(notifications) {
+  try {
+    console.log("🔔 [Background] Processing", notifications.length, "price drop notification(s)");
+
+    // Request notification permission if not already granted
+    if (chrome.notifications && chrome.notifications.create) {
+      // Show individual notifications or bundled notification
+      if (notifications.length === 1) {
+        // Single notification
+        const notif = notifications[0];
+        await showPriceDropNotification(notif);
+      } else {
+        // Bundle multiple notifications
+        await showBundledNotification(notifications);
+      }
+    } else {
+      console.warn("⚠️ [Background] Notifications API not available");
+    }
+  } catch (error) {
+    console.error("❌ [Background] Failed to show notifications:", error);
+  }
+}
+
+async function showPriceDropNotification(notification) {
+  const { itemTitle, itemImage, itemUrl, oldPrice, newPrice, priceChange } = notification;
+  
+  const priceChangeText = priceChange 
+    ? `${Math.abs(priceChange).toFixed(1)}% ${priceChange < 0 ? 'drop' : 'increase'}`
+    : 'price change';
+  
+  const notificationId = `price-drop-${Date.now()}`;
+  
+  const options = {
+    type: 'basic',
+    iconUrl: itemImage || chrome.runtime.getURL('icons/icon128.png'),
+    title: '💰 Price Drop Alert!',
+    message: `${itemTitle}\n$${oldPrice?.toFixed(2)} → $${newPrice?.toFixed(2)} (${priceChangeText})`,
+    buttons: [
+      { title: 'View Item' }
+    ],
+    requireInteraction: false,
+    priority: 2
+  };
+
+  try {
+    await chrome.notifications.create(notificationId, options);
+    console.log("✅ [Background] Notification shown:", notificationId);
+    
+    // Handle notification click
+    chrome.notifications.onButtonClicked.addListener((id, buttonIndex) => {
+      if (id === notificationId && buttonIndex === 0 && itemUrl) {
+        chrome.tabs.create({ url: itemUrl });
+        chrome.notifications.clear(id);
+      }
+    });
+    
+    chrome.notifications.onClicked.addListener((id) => {
+      if (id === notificationId && itemUrl) {
+        chrome.tabs.create({ url: itemUrl });
+        chrome.notifications.clear(id);
+      }
+    });
+  } catch (error) {
+    console.error("❌ [Background] Failed to create notification:", error);
+  }
+}
+
+async function showBundledNotification(notifications) {
+  const count = notifications.length;
+  const totalSavings = notifications.reduce((sum, n) => {
+    const savings = (n.oldPrice || 0) - (n.newPrice || 0);
+    return sum + (savings > 0 ? savings : 0);
+  }, 0);
+  
+  const notificationId = `price-drop-bundle-${Date.now()}`;
+  
+  const options = {
+    type: 'basic',
+    iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+    title: `💰 ${count} Price Drop${count > 1 ? 's' : ''}!`,
+    message: totalSavings > 0 
+      ? `You could save $${totalSavings.toFixed(2)} on ${count} item${count > 1 ? 's' : ''}`
+      : `${count} item${count > 1 ? 's' : ''} have price changes`,
+    buttons: [
+      { title: 'View Wishlist' }
+    ],
+    requireInteraction: false,
+    priority: 1
+  };
+
+  try {
+    await chrome.notifications.create(notificationId, options);
+    console.log("✅ [Background] Bundled notification shown:", notificationId);
+    
+    // Handle notification click
+    chrome.notifications.onButtonClicked.addListener((id, buttonIndex) => {
+      if (id === notificationId && buttonIndex === 0) {
+        chrome.tabs.create({ url: `${API_BASE_URL}/dashboard` });
+        chrome.notifications.clear(id);
+      }
+    });
+    
+    chrome.notifications.onClicked.addListener((id) => {
+      if (id === notificationId) {
+        chrome.tabs.create({ url: `${API_BASE_URL}/dashboard` });
+        chrome.notifications.clear(id);
+      }
+    });
+  } catch (error) {
+    console.error("❌ [Background] Failed to create bundled notification:", error);
   }
 }
 

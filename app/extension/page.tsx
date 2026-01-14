@@ -131,7 +131,7 @@ export default function ExtensionLandingPage() {
             href="https://chrome.google.com/webstore"
             target="_blank"
             rel="noopener noreferrer"
-            className="group flex h-14 items-center gap-3 rounded-full bg-zinc-900 px-8 text-base font-semibold text-white transition-all hover:bg-zinc-800 hover:shadow-xl hover:-translate-y-1"
+            className="download-extension-btn group flex h-14 items-center gap-3 rounded-full bg-zinc-900 px-8 text-base font-semibold text-white transition-all hover:bg-zinc-800 hover:shadow-xl hover:-translate-y-1"
           >
             <Download className="h-5 w-5" />
             Add to Chrome - It's Free

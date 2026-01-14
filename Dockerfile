@@ -1,36 +1,66 @@
-# --- Base image with Node & Playwright browsers ---
-FROM mcr.microsoft.com/playwright:v1.47.0-jammy
+# Optimized Dockerfile for Wist Next.js App
+# Lighter build - scraping handled by separate Python service
 
-# --- Install Python 3 and pip ---
-RUN apt-get update && \
-    apt-get install -y python3 python3-pip && \
-    rm -rf /var/lib/apt/lists/*
+FROM node:20-slim AS base
 
-# --- Set working directory ---
+# Install only essential dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
-# --- Copy package files ---
+# --- Dependencies Stage ---
+FROM base AS deps
+
+# Copy package files
 COPY package*.json ./
 
-# --- Install Node.js dependencies ---
-# Note: Playwright browsers are already included in Microsoft's image at /ms-playwright
-RUN npm install
+# Install dependencies
+RUN npm ci --only=production && npm cache clean --force
 
-# --- Copy Python requirements and install Scrapy ---
-COPY requirements.txt ./
-RUN pip3 install --no-cache-dir -r requirements.txt
+# --- Builder Stage ---
+FROM base AS builder
 
-# --- Copy app source ---
+WORKDIR /app
+
+# Copy dependencies
+COPY --from=deps /app/node_modules ./node_modules
+COPY package*.json ./
+
+# Install all dependencies including devDependencies for build
+RUN npm ci
+
+# Copy source
 COPY . .
 
-# --- Expose the port Next.js will use ---
+# Build the application
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN npm run build
+
+# --- Runner Stage ---
+FROM base AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Create non-root user
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+# Copy built application
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+
 EXPOSE 3000
 
-# --- Set environment for production ---
-ENV NODE_ENV=production
 ENV PORT=3000
-ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+ENV HOSTNAME="0.0.0.0"
 
-# --- Build and start app ---
-RUN npm run build
-CMD ["npm", "start"]
+CMD ["node", "server.js"]

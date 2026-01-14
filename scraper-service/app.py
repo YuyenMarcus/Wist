@@ -149,12 +149,11 @@ def detect_captcha_trap(data):
     Detect if we got a captcha/robot check page instead of product data
     Returns True if this looks like a captcha trap
     
-    Amazon often returns 200 OK even when blocking, so we check for:
+    Checks for:
     1. Empty/missing data
-    2. Generic titles (soft blocks)
-    3. Missing price (blocked pages rarely have prices)
+    2. Generic/blocked titles
+    3. Captcha keywords
     """
-    # 1. Check for empty data
     if not data:
         return True
     
@@ -163,8 +162,7 @@ def detect_captcha_trap(data):
     priceRaw = data.get('priceRaw')
     image = data.get('image')
     
-    # 2. Check for "Soft Blocks" (Generic Titles)
-    # Amazon returns these when blocking but still gives 200 OK
+    # Suspicious titles that indicate blocking
     suspicious_titles = [
         "amazon.com",
         "amazon.com: online shopping",
@@ -173,36 +171,38 @@ def detect_captcha_trap(data):
         "page not found",
         "access denied",
         "unusual traffic",
-        "verify you're not a robot"
+        "verify you're not a robot",
+        "pardon our interruption",  # Etsy
+        "security check",
+        "please verify you are a human",  # Etsy
+        "etsy - shop for handmade",  # Generic Etsy blocked
+        "just a moment",  # Cloudflare
     ]
     
-    # Check if title matches any suspicious pattern
     if any(suspicious in title for suspicious in suspicious_titles):
         return True
     
-    # 3. Check for missing price (often happens on blocked pages)
-    # Real product pages almost always have a price
-    if not price and not priceRaw:
-        # Exception: Some products legitimately have no price (out of stock, coming soon)
-        # But if title is also generic, it's likely a block
-        if not title or len(title) < 10 or title in ['amazon.com', 'amazon', 'target.com', 'best buy']:
-            return True
-    
-    # 4. Check for captcha keywords in title
+    # Captcha keywords
     captcha_keywords = [
         'robot', 'captcha', 'verify', 'unusual traffic',
         'access denied', 'blocked', 'suspicious activity',
-        'automated access', 'bot detected'
+        'automated access', 'bot detected', 'security check',
+        'pardon', 'just a moment', 'checking your browser'
     ]
     
     for keyword in captcha_keywords:
         if keyword in title:
             return True
     
-    # 5. If title is just the site name and no price/image, it's likely a trap
-    if title in ['amazon.com', 'amazon', 'target.com', 'best buy', 'target', 'bestbuy']:
-        if price is None and not image:
-            return True
+    # Site-only titles with no data
+    site_only_titles = ['amazon.com', 'amazon', 'target.com', 'best buy', 'target', 
+                       'bestbuy', 'etsy', 'etsy.com', 'walmart', 'walmart.com']
+    if title in site_only_titles and not price and not image:
+        return True
+    
+    # Very short titles often indicate blocks
+    if title and len(title) < 5 and not price:
+        return True
     
     return False
 

@@ -1,23 +1,21 @@
-const webpack = require('webpack');
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Important: Playwright needs to run in Node.js runtime
-  // This config ensures API routes use Node.js
+  
+  // Output configuration for standalone deployment
+  // Enable for Docker/Railway deployment, comment out for Vercel
+  output: 'standalone',
+  
   experimental: {
     serverActions: {
       bodySizeLimit: '2mb',
     },
   },
-  // Output configuration for standalone deployment (helps with Docker)
-  // Note: Commented out for Vercel deployment (Vercel handles this automatically)
-  // output: 'standalone',
+  
   // CORS Headers for Chrome Extension
   async headers() {
     return [
       {
-        // Allow the Extension to talk to the API
         source: "/api/:path*",
         headers: [
           { key: "Access-Control-Allow-Credentials", value: "true" },
@@ -28,16 +26,9 @@ const nextConfig = {
       }
     ]
   },
-  // Exclude separate services from webpack compilation
+  
+  // Webpack configuration
   webpack: (config, { isServer }) => {
-    // Ignore Wist-scraper-service and other separate services
-    config.plugins.push(
-      new webpack.IgnorePlugin({
-        resourceRegExp: /^\.\/Wist-scraper-service/,
-        contextRegExp: /\.$/,
-      })
-    );
-    
     // Exclude server-only dependencies from client bundle
     if (!isServer) {
       config.resolve.fallback = {
@@ -47,56 +38,7 @@ const nextConfig = {
         tls: false,
         child_process: false,
       };
-      
-      // Ignore native modules and server-only packages in client bundle
-      config.plugins.push(
-        new webpack.IgnorePlugin({
-          resourceRegExp: /^(playwright|playwright-extra|puppeteer-extra-plugin-stealth|clone-deep|re2)$/,
-        })
-      );
     }
-    
-    // Handle dynamic requires in clone-deep and other packages
-    config.module = config.module || {};
-    config.module.rules = config.module.rules || [];
-    
-    // Add rule to ignore .node files
-    const existingNodeRules = config.module.rules.filter(
-      rule => rule && rule.test && rule.test.toString().includes('.node')
-    );
-    
-    if (existingNodeRules.length === 0) {
-      config.module.rules.push({
-        test: /\.node$/,
-        use: 'ignore-loader',
-      });
-    }
-    
-    // Configure webpack to handle dynamic requires in problematic packages
-    // This allows webpack to bundle these packages without trying to statically analyze them
-    config.module.rules.push({
-      test: /node_modules[\\/](clone-deep|merge-deep)[\\/]/,
-      parser: {
-        requireEnsure: false,
-      },
-    });
-    
-    // Only ignore clone-deep from client bundle, not server bundle
-    // Server-side code needs it for puppeteer-extra-plugin-stealth
-    if (!isServer) {
-      config.plugins.push(
-        new webpack.IgnorePlugin({
-          resourceRegExp: /^clone-deep$/,
-          contextRegExp: /node_modules/,
-        })
-      );
-    }
-    
-    // Also exclude from module resolution
-    config.resolve = config.resolve || {};
-    config.resolve.alias = {
-      ...config.resolve.alias,
-    };
     
     return config;
   },

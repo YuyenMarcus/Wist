@@ -1,10 +1,10 @@
 /**
- * Main scraper orchestrator with caching and normalization
+ * Main scraper orchestrator
+ * Prefers Python Flask scraper service, falls back to static scraping
  */
-import { isDynamic, extractDomain, cleanPrice, detectBlock, NormalizedProduct } from './utils';
+import { extractDomain, cleanPrice, NormalizedProduct } from './utils';
 import { staticScrape } from './static-scraper';
-import { playwrightScrape } from './playwright-scraper';
-import { scrapyScrape, checkScrapyAvailable } from './scrapy-scraper';
+import { scrapeSync, checkServiceHealth } from '../scraper-service-client';
 
 export interface ScrapeOptions {
   url: string;
@@ -34,60 +34,36 @@ export async function scrapeProduct(
   try {
     let data;
 
-    if (isDynamic(domain)) {
-      // For Amazon and other bot-detection-heavy sites, try Scrapy first
-      const isAmazon = domain.includes('amazon');
-      const scrapyAvailable = await checkScrapyAvailable();
-      
-      if (isAmazon && scrapyAvailable) {
-        try {
-          console.log('Trying Scrapy for Amazon product...');
-          data = await scrapyScrape({ url });
-          if (data.title && data.title !== 'Unknown Item') {
-            console.log('✅ Scrapy extraction successful');
-          } else {
-            throw new Error('Scrapy returned insufficient data');
-          }
-        } catch (scrapyErr: any) {
-          console.warn('Scrapy failed, falling back to Playwright:', scrapyErr.message);
-          // Fall through to Playwright
+    // Try Python scraper service first (most reliable)
+    const serviceAvailable = await checkServiceHealth();
+    
+    if (serviceAvailable) {
+      try {
+        console.log('[Scraper] Using Python scraper service...');
+        const response = await scrapeSync(url);
+        
+        if (response.success && response.result) {
+          data = response.result;
+          console.log('[Scraper] Python service succeeded:', data.title?.substring(0, 50));
         }
+      } catch (serviceErr: any) {
+        console.warn('[Scraper] Python service failed:', serviceErr.message);
+        // Fall through to static scraper
       }
-      
-      // If Scrapy didn't work or wasn't tried, use Playwright
-      if (!data || !data.title || data.title === 'Unknown Item') {
-        try {
-          data = await playwrightScrape(url, false);
-        } catch (err: any) {
-          console.error('Playwright desktop failed, trying mobile', err.message);
-          // Try mobile user agent (often bypasses bot detection)
-          try {
-            data = await playwrightScrape(url, true);
-          } catch (mobileErr: any) {
-            console.error('Playwright mobile failed, trying static fallback', mobileErr.message);
-            // Fallback to static scraping
-            data = await staticScrape(url);
-          }
-        }
-      }
-    } else {
+    }
+
+    // Fallback to static scraping (metascraper - lightweight, no browser)
+    if (!data || !data.title || data.title === 'Unknown Item') {
+      console.log('[Scraper] Using static scraper fallback...');
       data = await staticScrape(url);
     }
 
-    // Block detection
-    if (data.html && detectBlock(data.html)) {
-      return {
-        ok: false,
-        error: 'Site blocking automated access; try again or use manual add.',
-      };
-    }
-
-    // Normalize
+    // Normalize the result
     const title =
       data.title && typeof data.title === 'string'
         ? data.title.trim()
         : null;
-    const price = data.priceRaw ? cleanPrice(data.priceRaw) : null;
+    const price = data.priceRaw ? cleanPrice(data.priceRaw) : (data.price || null);
 
     // Extract currency from priceRaw
     const currencyMatch = data.priceRaw?.match(/[A-Z]{3}/);
@@ -109,7 +85,7 @@ export async function scrapeProduct(
       data: normalized,
     };
   } catch (err: any) {
-    console.error('fetch-product error', err);
+    console.error('[Scraper] Error:', err.message);
     return {
       ok: false,
       error: 'Unable to fetch product',

@@ -109,3 +109,25 @@
     overflow: hidden;
   }
 }
+
+/* Extension Detection: Hide download buttons when user is logged in AND extension is installed */
+/* Logic: Both 'user-logged-in' (from website) AND 'has-extension' (from extension) must be present */
+/* Works with classes on either html or body element */
+.user-logged-in.has-extension .download-extension-btn,
+.user-logged-in.has-extension a[href="/extension"],
+.user-logged-in.has-extension a[href*="/extension"],
+html.user-logged-in.has-extension .download-extension-btn,
+html.user-logged-in.has-extension a[href="/extension"],
+html.user-logged-in.has-extension a[href*="/extension"],
+body.user-logged-in.has-extension .download-extension-btn,
+body.user-logged-in.has-extension a[href="/extension"],
+body.user-logged-in.has-extension a[href*="/extension"] {
+  display: none !important;
+}
+
+/* Also hide the ExtensionBanner when both conditions are met */
+.user-logged-in.has-extension .ExtensionBanner,
+html.user-logged-in.has-extension .ExtensionBanner,
+body.user-logged-in.has-extension .ExtensionBanner {
+  display: none !important;
+}
