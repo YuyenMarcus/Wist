@@ -41,12 +41,10 @@ def scrape_with_playwright(url):
     
     domain = urlparse(url).netloc.lower()
     
-    # Determine headless mode from environment (default True for production)
-    headless = os.environ.get('PLAYWRIGHT_HEADLESS', 'true').lower() == 'true'
-    
     with sync_playwright() as p:
+        # ALWAYS use headless mode on server (no display available)
         browser = p.chromium.launch(
-            headless=headless,
+            headless=True,
             args=[
                 '--disable-blink-features=AutomationControlled',
                 '--no-sandbox',
@@ -57,6 +55,7 @@ def scrape_with_playwright(url):
                 '--no-first-run',
                 '--no-zygote',
                 '--disable-gpu',
+                '--single-process',
             ]
         )
         
