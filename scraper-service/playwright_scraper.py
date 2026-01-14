@@ -270,14 +270,29 @@ def extract_etsy(page, url):
         "method": "playwright_etsy"
     }
     
+    # Log current page state
+    try:
+        page_title = page.title()
+        print(f"   [Playwright] Page title: {page_title}")
+        page_url = page.url
+        print(f"   [Playwright] Current URL: {page_url}")
+    except Exception as e:
+        print(f"   [Playwright] Could not get page info: {e}")
+    
     # Handle Etsy security check
     try:
         security_check = page.query_selector('text="Please verify you are a human"')
         if security_check:
             print("   [Playwright] Etsy security check detected, waiting...")
             page.wait_for_timeout(8000)
-    except:
-        pass
+        
+        # Also check for other blocking indicators
+        body_text = page.inner_text('body')[:500] if page.query_selector('body') else ''
+        if 'please verify' in body_text.lower() or 'security check' in body_text.lower():
+            print("   [Playwright] Detected security verification in body text")
+            page.wait_for_timeout(10000)
+    except Exception as e:
+        print(f"   [Playwright] Security check error: {e}")
     
     # Try JSON-LD first (most reliable for Etsy)
     try:
@@ -328,25 +343,37 @@ def extract_etsy(page, url):
     
     # CSS fallback if JSON-LD failed
     if not result['title']:
+        print("   [Playwright] Trying CSS selectors for title...")
         title_selectors = [
             'h1[data-buy-box-listing-title]',
             'h1.listing-page-title',
             'h1.wt-text-body-01',
+            'h1[data-listing-page-title]',
+            '[data-testid="listing-title"]',
+            'h1',  # Last resort - any h1
         ]
         for sel in title_selectors:
             try:
                 el = page.query_selector(sel)
                 if el:
-                    result['title'] = el.inner_text().strip()
-                    break
-            except:
+                    text = el.inner_text().strip()
+                    if text and len(text) > 3:
+                        result['title'] = text
+                        print(f"   [Playwright] Found title via '{sel}': {text[:50]}...")
+                        break
+            except Exception as e:
+                print(f"   [Playwright] Title selector '{sel}' failed: {e}")
                 continue
     
     if not result['price']:
+        print("   [Playwright] Trying CSS selectors for price...")
         price_selectors = [
             'p.wt-text-title-03 .currency-value',
             '[data-buy-box-region="price"] .currency-value',
             '.wt-text-title-larger',
+            '[data-testid="listing-price"]',
+            '.wt-text-title-01',
+            '[data-selector="price"]',
         ]
         for sel in price_selectors:
             try:
@@ -357,16 +384,20 @@ def extract_etsy(page, url):
                     if price_match:
                         result['price'] = float(price_match.group(1).replace(',', ''))
                         result['priceRaw'] = f"${result['price']:.2f}"
+                        print(f"   [Playwright] Found price via '{sel}': ${result['price']}")
                         break
             except:
                 continue
     
     if not result['image']:
+        print("   [Playwright] Trying to find image...")
         # Try og:image first
         try:
             og = page.query_selector('meta[property="og:image"]')
             if og:
                 result['image'] = og.get_attribute('content')
+                if result['image']:
+                    print(f"   [Playwright] Found image via og:image")
         except:
             pass
         
@@ -376,9 +407,11 @@ def extract_etsy(page, url):
                 img = page.query_selector('img[src*="etsystatic.com"][src*="/il/"]')
                 if img:
                     result['image'] = img.get_attribute('src')
+                    print(f"   [Playwright] Found image via Etsy image selector")
             except:
                 pass
     
+    print(f"   [Playwright] Etsy extraction result: title={bool(result['title'])}, price={result['price']}, image={bool(result['image'])}")
     return result
 
 
