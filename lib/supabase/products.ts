@@ -93,6 +93,7 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
   
   const [itemsResult, productsResult] = await Promise.all([
     // Query items table (limited to 100 most recent) - include last_price_check
+    // Only fetch active items (not purchased)
     supabase
       .from('items')
       .select(`
@@ -110,6 +111,7 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
         last_price_check
       `)
       .eq('user_id', userId)
+      .eq('status', 'active')
       .order('created_at', { ascending: false })
       .limit(ITEMS_LIMIT),
     
@@ -257,8 +259,24 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
     });
   }
 
+  // Deduplicate by URL - items table takes priority (has collection_id)
+  const seenUrls = new Set<string>();
+  const deduplicatedItems: any[] = [];
+  
+  // Process items first (they have collection_id, price tracking, etc.)
+  allItems.forEach(item => {
+    const normalizedUrl = item.url?.toLowerCase().trim();
+    if (normalizedUrl && !seenUrls.has(normalizedUrl)) {
+      seenUrls.add(normalizedUrl);
+      deduplicatedItems.push(item);
+    } else if (!normalizedUrl) {
+      // Keep items without URLs (shouldn't happen, but just in case)
+      deduplicatedItems.push(item);
+    }
+  });
+
   // Sort by created_at descending (newest first)
-  allItems.sort((a, b) => {
+  deduplicatedItems.sort((a, b) => {
     const dateA = new Date(a.created_at).getTime();
     const dateB = new Date(b.created_at).getTime();
     return dateB - dateA;
@@ -266,7 +284,7 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
 
   const error = itemsResult.error || productsResult.error;
 
-  return { data: allItems, error: error || null };
+  return { data: deduplicatedItems, error: error || null };
 }
 
 /**
