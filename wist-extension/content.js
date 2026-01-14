@@ -18,27 +18,42 @@ document.addEventListener('keydown', (e) => {
   if (e.shiftKey && e.altKey && (e.key === 'p' || e.key === 'P')) {
     console.log("🛠️ Simulating Purchase Event...");
 
-    // --- NEW: AGGRESSIVE PRICE FINDER ---
+    // --- IMPROVED PRICE FINDER (prioritizes "price to pay") ---
     function findPrice() {
-      // Priority 1: The standard "Current Price" block
+      // Priority order: actual price to pay > deal prices > generic prices
       const selectors = [
-        '.a-price .a-offscreen',                // Standard items
-        '#price_inside_buybox',                 // Buy box
-        '#corePrice_feature_div .a-offscreen',  // Feature div
-        '#price',                               // eBooks / Digital
-        '.header-price',                        // Fresh / Grocery
-        '#newBuyBoxPrice',                      // Books
-        '.offer-price',                         // 3rd party
-        '#kindle-price',                        // Kindle specific
-        '.apexPriceToPay .a-offscreen'          // Mobile/Apparel
+        // Price to pay (most accurate)
+        '.priceToPay .a-offscreen',
+        '.priceToPay span.a-offscreen',
+        '#corePrice_desktop .priceToPay .a-offscreen',
+        '.apexPriceToPay .a-offscreen',
+        // Deal/sale prices
+        '#priceblock_dealprice',
+        '#priceblock_saleprice',
+        '#priceblock_ourprice',
+        '#price_inside_buybox',
+        // Standard price blocks
+        '#corePrice_feature_div .a-price:not(.a-text-price) .a-offscreen',
+        '#corePriceDisplay_desktop_feature_div .a-price:not(.a-text-price) .a-offscreen',
+        // Kindle/Digital
+        '#kindle-price',
+        '#price',
+        // Generic fallback
+        '.a-price:not(.a-text-price) .a-offscreen',
+        '.header-price',
+        '#newBuyBoxPrice',
+        '.offer-price'
       ];
 
       for (let sel of selectors) {
         const el = document.querySelector(sel);
         if (el) {
-          const text = el.innerText.trim();
+          const text = el.innerText?.trim() || el.textContent?.trim();
           // Check if it actually looks like money (contains number)
-          if (text && /\d/.test(text)) return text;
+          if (text && /\d/.test(text)) {
+            console.log('[Wist] Found price via:', sel, '=', text);
+            return text;
+          }
         }
       }
       return "$0.00"; // Give up

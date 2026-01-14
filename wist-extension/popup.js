@@ -29,8 +29,8 @@ function showState(state) {
   if (state === 'error') errorDiv.classList.remove('hidden');
 }
 
-// Lordicon Animation Function
-// Loads the animation JSON from lordicon-animation.json file
+// Success Animation Function
+// Uses lottie-web for smooth animation playback
 async function playLordiconAnimation() {
   const animationContainer = document.getElementById('lordicon-animation');
   if (!animationContainer) {
@@ -46,34 +46,49 @@ async function playLordiconAnimation() {
     }
     const animationJson = await response.json();
 
-    // Wait for Lordicon library to be available
-    let retries = 0;
-    const maxRetries = 10;
-    while (typeof lordicon === 'undefined' && retries < maxRetries) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-      retries++;
+    // Check if lottie is available (loaded dynamically)
+    if (typeof lottie !== 'undefined') {
+      // Use lottie-web for animation
+      animationContainer.innerHTML = ''; // Clear any existing content
+      const anim = lottie.loadAnimation({
+        container: animationContainer,
+        renderer: 'svg',
+        loop: false,
+        autoplay: true,
+        animationData: animationJson
+      });
+      console.log('[Wist] Lottie animation started');
+    } else {
+      // Fallback: Create a simple animated checkmark with CSS
+      console.log('[Wist] Lottie not available, using CSS animation');
+      showAnimatedCheckmark(animationContainer);
     }
-
-    if (typeof lordicon === 'undefined') {
-      console.error('Lordicon library not loaded after waiting');
-      return;
-    }
-
-    // Initialize Lordicon with the JSON
-    lordicon.load({
-      element: animationContainer,
-      src: animationJson,
-      colors: {
-        primary: '#7c3aed', // Violet color to match your brand
-        secondary: '#a855f7'
-      },
-      size: 80
-    });
   } catch (error) {
-    console.error('Error loading Lordicon animation:', error);
-    // Fallback: show a simple checkmark if animation fails
-    animationContainer.innerHTML = '<div style="width: 80px; height: 80px; background: #dcfce7; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; color: #16a34a;">✓</div>';
+    console.error('Error loading animation:', error);
+    // Fallback: show a simple animated checkmark
+    showAnimatedCheckmark(animationContainer);
   }
+}
+
+// Animated checkmark fallback
+function showAnimatedCheckmark(container) {
+  container.innerHTML = `
+    <div class="success-checkmark">
+      <svg viewBox="0 0 52 52" class="checkmark-svg">
+        <circle class="checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
+        <path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+      </svg>
+    </div>
+    <style>
+      .success-checkmark { width: 80px; height: 80px; }
+      .checkmark-svg { width: 80px; height: 80px; border-radius: 50%; display: block; stroke-width: 2; stroke: #7c3aed; stroke-miterlimit: 10; box-shadow: inset 0px 0px 0px #7c3aed; animation: checkmark-fill .4s ease-in-out .4s forwards, checkmark-scale .3s ease-in-out .9s both; }
+      .checkmark-circle { stroke-dasharray: 166; stroke-dashoffset: 166; stroke-width: 2; stroke-miterlimit: 10; stroke: #7c3aed; fill: none; animation: checkmark-stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards; }
+      .checkmark-check { transform-origin: 50% 50%; stroke-dasharray: 48; stroke-dashoffset: 48; animation: checkmark-stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards; }
+      @keyframes checkmark-stroke { 100% { stroke-dashoffset: 0; } }
+      @keyframes checkmark-scale { 0%, 100% { transform: none; } 50% { transform: scale3d(1.1, 1.1, 1); } }
+      @keyframes checkmark-fill { 100% { box-shadow: inset 0px 0px 0px 30px #f3e8ff; } }
+    </style>
+  `;
 }
 
 // Initialize
@@ -341,28 +356,32 @@ function scrapeProductData() {
   }
   
   // Strategy 3: Amazon-specific selectors
+  // IMPORTANT: Order matters - prioritize "price to pay" (actual current price) over "was" prices
   if (!price) {
     const amazonPriceSelectors = [
-      '.a-price .a-offscreen',
-      '#corePrice_feature_div .a-offscreen',
-      '#corePriceDisplay_desktop_feature_div .a-offscreen',
-      '#apex_desktop .a-offscreen',
-      '.a-price-whole',
-      '.a-price .a-price-whole',
-      '#priceblock_ourprice',
+      // Actual price to pay (most accurate - the price you'd actually pay)
+      '.priceToPay .a-offscreen',
+      '.priceToPay span.a-offscreen',
+      '#corePrice_desktop .priceToPay .a-offscreen',
+      '#corePriceDisplay_desktop_feature_div .priceToPay .a-offscreen',
+      '#apex_desktop .priceToPay .a-offscreen',
+      // Deal/sale prices  
       '#priceblock_dealprice',
       '#priceblock_saleprice',
+      '#priceblock_ourprice',
+      // Desktop price display (more specific to avoid "was" prices)
+      '#corePrice_feature_div .a-price:not(.a-text-price) .a-offscreen',
+      '#corePriceDisplay_desktop_feature_div .a-price:not(.a-text-price) .a-offscreen',
+      // Kindle/Digital
+      '#kindle-price',
+      '#price_inside_buybox',
+      // Generic price (less reliable - may get wrong price)
+      '.a-price:not(.a-text-price) .a-offscreen',
       '#price',
       '.a-color-price',
-      '.a-size-medium.a-color-price',
-      '.a-price-range .a-offscreen',
       'input#twister-plus-price-data-price',
-      '#priceblock_usedprice',
-      '#priceblock_newprice',
       '.a-mobile .a-price .a-offscreen',
-      '#mobile-price .a-offscreen',
-      '.a-price.a-text-price .a-offscreen',
-      '.a-price-range .a-offscreen:first-child'
+      '#mobile-price .a-offscreen'
     ];
     
     for (const selector of amazonPriceSelectors) {
@@ -370,11 +389,25 @@ function scrapeProductData() {
       if (element) {
         priceString = element.innerText?.trim() || element.textContent?.trim() || element.getAttribute('value');
         if (priceString && priceString !== '0.00' && priceString !== '$0.00') {
+          console.log('[Wist] Found Amazon price via:', selector, '=', priceString);
           break;
         }
       }
     }
     
+    // Fallback: try whole + fraction combo
+    if (!priceString) {
+      const wholeEl = document.querySelector('#corePriceDisplay_desktop_feature_div .a-price-whole');
+      const fractionEl = document.querySelector('#corePriceDisplay_desktop_feature_div .a-price-fraction');
+      if (wholeEl) {
+        const whole = wholeEl.innerText?.trim().replace(/[^\d]/g, '') || '0';
+        const fraction = fractionEl?.innerText?.trim() || '00';
+        priceString = `$${whole}.${fraction}`;
+        console.log('[Wist] Found Amazon price via whole+fraction:', priceString);
+      }
+    }
+    
+    // Last resort: data attributes
     if (!priceString) {
       const priceData = document.querySelector('[data-asin-price]')?.getAttribute('data-asin-price')
                      || document.querySelector('[data-price]')?.getAttribute('data-price');
