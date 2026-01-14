@@ -118,14 +118,21 @@ def scrape_with_playwright(url):
                 result = extract_amazon(page, url)
             elif 'etsy' in domain:
                 # Etsy often needs more time to load JavaScript
-                print("   [Playwright] Etsy detected - waiting extra time for JS...")
-                page.wait_for_timeout(5000)  # Extra 5 seconds for Etsy
-                
-                # Try to wait for the title element to appear
+                print("   [Playwright] Etsy detected - waiting for network idle...")
                 try:
-                    page.wait_for_selector('h1', timeout=10000)
+                    page.wait_for_load_state('networkidle', timeout=15000)
                 except:
-                    print("   [Playwright] Could not find h1 element")
+                    print("   [Playwright] Network idle timeout, continuing anyway...")
+                
+                # Also wait a bit more for JS to render
+                page.wait_for_timeout(3000)
+                
+                # Log page HTML length for debugging
+                html = page.content()
+                print(f"   [Playwright] Page HTML length: {len(html)} chars")
+                if len(html) < 5000:
+                    print(f"   [Playwright] WARNING: Page seems too short, might be blocked")
+                    # Take a screenshot for debugging (if we had that capability)
                 
                 result = extract_etsy(page, url)
             elif any(store in domain for store in ['bestbuy', 'target', 'walmart']):
