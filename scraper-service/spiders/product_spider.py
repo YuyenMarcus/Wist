@@ -106,24 +106,36 @@ class ProductSpider(Spider):
                 product['title'] = title.strip()
                 break
         
-        # Price - try multiple selectors
+        # Price - prioritize "price to pay" selectors (actual current price)
+        # IMPORTANT: Order matters - put most reliable first
         price_selectors = [
-            '.a-price .a-offscreen::text',
-            '#corePrice_desktop span.a-offscreen::text',
-            '#corePriceDisplay_desktop_feature_div span.a-offscreen::text',
+            # Actual price to pay (most accurate)
             '.priceToPay span.a-offscreen::text',
-            '#priceblock_ourprice::text',
+            '#corePrice_desktop .priceToPay span.a-offscreen::text',
+            # Deal/sale prices
             '#priceblock_dealprice::text',
+            '#priceblock_saleprice::text',
+            '#priceblock_ourprice::text',
+            # Desktop price display (avoid "was" prices by being specific)
+            '#corePriceDisplay_desktop_feature_div .priceToPay span.a-offscreen::text',
+            '#corePriceDisplay_desktop_feature_div .a-price:not(.a-text-price) span.a-offscreen::text',
+            # Mobile/alternative layouts
+            '#corePrice_feature_div .a-price span.a-offscreen::text',
+            '#apex_desktop .priceToPay span.a-offscreen::text',
+            # Kindle/Digital
             '#kindle-price::text',
-            '.a-price-whole::text',
+            '#price_inside_buybox::text',
+            # Fallback - first non-struck price (less accurate)
+            '.a-price:not(.a-text-price) span.a-offscreen::text',
         ]
         for sel in price_selectors:
             price_text = response.css(sel).get()
             if price_text:
                 price = self.clean_price(price_text)
-                if price:
+                if price and price > 0:  # Make sure it's a valid price
                     product['price'] = price
                     product['priceRaw'] = f"${price:.2f}"
+                    print(f"   💵 Found price via '{sel}': ${price:.2f}")
                     break
         
         # Image

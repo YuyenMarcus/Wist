@@ -242,23 +242,25 @@ def extract_amazon(page, url):
             continue
     
     # === PRICE ===
-    # Amazon has many price formats - try them in order of reliability
+    # Amazon has many price formats - prioritize "price to pay" (actual current price)
+    # IMPORTANT: Order matters - most reliable first, avoid "was" prices
     price_selectors = [
-        # Current price (most common)
-        '.a-price .a-offscreen',
-        'span.a-price span.a-offscreen',
-        # Deal/Sale price
-        '#corePrice_desktop span.a-offscreen',
-        '#corePriceDisplay_desktop_feature_div span.a-offscreen',
+        # Actual price to pay (most accurate)
         '.priceToPay span.a-offscreen',
+        '#corePrice_desktop .priceToPay span.a-offscreen',
+        # Deal/sale prices
+        '#priceblock_dealprice',
+        '#priceblock_saleprice', 
+        '#priceblock_ourprice',
+        # Desktop price display (avoid "was" prices)
+        '#corePriceDisplay_desktop_feature_div .priceToPay span.a-offscreen',
+        '#corePrice_feature_div .a-price span.a-offscreen',
+        '#apex_desktop .priceToPay span.a-offscreen',
         # Kindle/Digital
         '#kindle-price',
         '#price_inside_buybox',
-        '#priceblock_ourprice',
-        '#priceblock_dealprice',
-        '#priceblock_saleprice',
-        # Whole + fraction
-        '.a-price-whole',
+        # Fallback - combined whole + fraction
+        '#corePriceDisplay_desktop_feature_div .a-price-whole',
     ]
     
     for sel in price_selectors:
@@ -266,14 +268,26 @@ def extract_amazon(page, url):
             el = page.query_selector(sel)
             if el:
                 price_text = el.inner_text().strip()
-                # Clean price
+                
+                # If we got a-price-whole, we need to also get the fraction
+                if 'a-price-whole' in sel:
+                    fraction_el = page.query_selector('#corePriceDisplay_desktop_feature_div .a-price-fraction')
+                    if fraction_el:
+                        fraction = fraction_el.inner_text().strip()
+                        price_text = f"{price_text}.{fraction}"
+                
+                # Clean and extract price
                 price_match = re.search(r'[\$]?([\d,]+\.?\d*)', price_text)
                 if price_match:
                     price_str = price_match.group(1).replace(',', '')
-                    result['price'] = float(price_str)
-                    result['priceRaw'] = f"${result['price']:.2f}"
-                    break
-        except:
+                    price_val = float(price_str)
+                    if price_val > 0:  # Make sure it's a valid price
+                        result['price'] = price_val
+                        result['priceRaw'] = f"${result['price']:.2f}"
+                        print(f"   💵 Found price via '{sel}': ${result['price']:.2f}")
+                        break
+        except Exception as e:
+            print(f"   ⚠️ Price selector '{sel}' failed: {e}")
             continue
     
     # === IMAGE ===
