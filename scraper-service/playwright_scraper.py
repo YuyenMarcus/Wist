@@ -127,7 +127,9 @@ def scrape_with_playwright(url):
             return result
             
         except Exception as e:
+            import traceback
             print(f"[Playwright] Error: {e}")
+            print(f"[Playwright] Traceback: {traceback.format_exc()}")
             browser.close()
             return None
 
@@ -280,45 +282,49 @@ def extract_etsy(page, url):
     # Try JSON-LD first (most reliable for Etsy)
     try:
         scripts = page.query_selector_all('script[type="application/ld+json"]')
-        for script in scripts:
-            try:
-                content = script.inner_text()
-                data = json.loads(content)
-                
-                # Handle array format
-                if isinstance(data, list):
-                    for item in data:
-                        if item.get('@type') in ['Product', 'IndividualProduct']:
-                            data = item
-                            break
-                
-                if isinstance(data, dict) and data.get('@type') in ['Product', 'IndividualProduct']:
-                    result['title'] = data.get('name')
-                    desc = data.get('description') or ''
-                    result['description'] = desc[:500] if desc else ''
+        if scripts:
+            for script in scripts:
+                try:
+                    content = script.inner_text()
+                    if not content:
+                        continue
+                    data = json.loads(content)
                     
-                    # Image
-                    img = data.get('image')
-                    if isinstance(img, list) and len(img) > 0:
-                        img = img[0]
-                    if isinstance(img, dict):
-                        img = img.get('url') or img.get('contentUrl')
-                    result['image'] = img if img else None
+                    # Handle array format
+                    if isinstance(data, list):
+                        for item in data:
+                            if isinstance(item, dict) and item.get('@type') in ['Product', 'IndividualProduct']:
+                                data = item
+                                break
                     
-                    # Price
-                    offers = data.get('offers') or {}
-                    if isinstance(offers, list) and len(offers) > 0:
-                        offers = offers[0]
-                    if isinstance(offers, dict):
-                        price_val = offers.get('price') or offers.get('lowPrice')
-                        if price_val:
-                            result['price'] = float(price_val)
-                            result['priceRaw'] = f"${result['price']:.2f}"
-                    break
-            except:
-                continue
-    except:
-        pass
+                    if isinstance(data, dict) and data.get('@type') in ['Product', 'IndividualProduct']:
+                        result['title'] = data.get('name')
+                        desc = data.get('description')
+                        result['description'] = str(desc)[:500] if desc else ''
+                        
+                        # Image
+                        img = data.get('image')
+                        if isinstance(img, list) and len(img) > 0:
+                            img = img[0]
+                        if isinstance(img, dict):
+                            img = img.get('url') or img.get('contentUrl')
+                        result['image'] = str(img) if img else None
+                        
+                        # Price
+                        offers = data.get('offers')
+                        if isinstance(offers, list) and len(offers) > 0:
+                            offers = offers[0]
+                        if isinstance(offers, dict):
+                            price_val = offers.get('price') or offers.get('lowPrice')
+                            if price_val:
+                                result['price'] = float(price_val)
+                                result['priceRaw'] = f"${result['price']:.2f}"
+                        break
+                except Exception as e:
+                    print(f"   [Playwright] JSON-LD parse error: {e}")
+                    continue
+    except Exception as e:
+        print(f"   [Playwright] JSON-LD extraction error: {e}")
     
     # CSS fallback if JSON-LD failed
     if not result['title']:
