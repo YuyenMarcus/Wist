@@ -52,7 +52,7 @@ export async function scrapeProduct(
       }
     }
 
-    // Fallback to static scraping (metascraper - lightweight, no browser)
+    // Fallback to static scraping (cheerio - lightweight, no browser)
     if (!data || !data.title || data.title === 'Unknown Item') {
       console.log('[Scraper] Using static scraper fallback...');
       data = await staticScrape(url);

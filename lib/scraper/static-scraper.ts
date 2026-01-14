@@ -1,19 +1,8 @@
 /**
- * Static scraper using metascraper for non-dynamic sites
+ * Lightweight static scraper using fetch + cheerio
+ * No native dependencies - works with Vercel/Next.js
  */
-import fetch from 'node-fetch';
-import metascraper from 'metascraper';
-import msImage from 'metascraper-image';
-import msTitle from 'metascraper-title';
-import msDesc from 'metascraper-description';
-import msUrl from 'metascraper-url';
-
-const METASCRAPER = metascraper([
-  msImage(),
-  msTitle(),
-  msDesc(),
-  msUrl(),
-]);
+import * as cheerio from 'cheerio';
 
 export interface ScrapeResult {
   title: string | null;
@@ -32,44 +21,72 @@ export async function staticScrape(url: string): Promise<ScrapeResult> {
       'Accept':
         'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
       'Accept-Language': 'en-US,en;q=0.9',
-      'Accept-Encoding': 'gzip, deflate, br',
       'Connection': 'keep-alive',
-      'Upgrade-Insecure-Requests': '1',
     },
   });
 
   const html = await res.text();
-  const metadata = await METASCRAPER({ html, url });
+  const $ = cheerio.load(html);
 
-  // Extract price from JSON-LD (more reliable than metascraper-price)
+  // Title extraction
+  let title = 
+    $('meta[property="og:title"]').attr('content') ||
+    $('meta[name="title"]').attr('content') ||
+    $('title').text() ||
+    null;
+
+  // Image extraction
+  let image =
+    $('meta[property="og:image"]').attr('content') ||
+    $('meta[name="image"]').attr('content') ||
+    null;
+
+  // Description extraction
+  let description =
+    $('meta[property="og:description"]').attr('content') ||
+    $('meta[name="description"]').attr('content') ||
+    null;
+
+  // Price extraction from JSON-LD
   let priceRaw: string | null = null;
-  try {
-    const jsonLdMatch = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>(.*?)<\/script>/is);
-    if (jsonLdMatch) {
-      const jsonLd = JSON.parse(jsonLdMatch[1]);
-          const processItem = (item: any) => {
-            if (item['@type'] === 'Product' || item['@type'] === 'Offer') {
-              const price = item.price || item.offers?.price || item.aggregateOffer?.lowPrice;
-              if (price !== undefined && price !== null) {
-                priceRaw = typeof price === 'number' ? price.toString() : String(price);
-              }
-            }
-          };
-      
-      if (Array.isArray(jsonLd)) {
-        jsonLd.forEach(processItem);
-      } else {
-        processItem(jsonLd);
+  
+  $('script[type="application/ld+json"]').each((_, el) => {
+    try {
+      const jsonLd = JSON.parse($(el).html() || '');
+      const items = Array.isArray(jsonLd) ? jsonLd : [jsonLd];
+
+      for (const item of items) {
+        if (item && (item['@type'] === 'Product' || item['@type'] === 'Offer')) {
+          const price = item.offers?.price || item.price;
+          if (price !== undefined && price !== null) {
+            priceRaw = String(price);
+            return false; // Break
+          }
+        }
       }
+    } catch (e) {
+      // Ignore JSON parse errors
     }
-  } catch (e) {
-    // JSON-LD parsing failed, continue without price
+  });
+
+  // Fallback: regex search for price in meta tags
+  if (!priceRaw) {
+    const priceAmount = $('meta[property="product:price:amount"]').attr('content');
+    if (priceAmount) {
+      priceRaw = priceAmount;
+    }
   }
 
+  // Clean up
+  title = title?.replace(/\s+/g, ' ').trim() || null;
+  image = image?.startsWith('http') ? image : (image ? new URL(image, url).href : null);
+  priceRaw = priceRaw?.trim() || null;
+  description = description?.trim() || null;
+
   return {
-    title: metadata.title || null,
-    description: metadata.description || null,
-    image: metadata.image || null,
+    title,
+    description,
+    image,
     priceRaw,
     url,
     html,

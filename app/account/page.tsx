@@ -363,10 +363,11 @@ export default function AccountPage() {
                 Username
               </label>
               {(() => {
-                const isLocked = profile?.username_changed_at && profile.username_changed_at !== null;
+                const usernameChangedAt = profile?.username_changed_at;
+                const isLocked = usernameChangedAt !== null && usernameChangedAt !== undefined;
                 let daysRemaining = 0;
-                if (isLocked) {
-                  const lastChanged = new Date(profile.username_changed_at);
+                if (isLocked && usernameChangedAt) {
+                  const lastChanged = new Date(usernameChangedAt);
                   const now = new Date();
                   const daysSinceChange = (now.getTime() - lastChanged.getTime()) / (1000 * 60 * 60 * 24);
                   daysRemaining = Math.ceil(30 - daysSinceChange);
@@ -478,12 +479,14 @@ export default function AccountPage() {
               </button>
               {(() => {
                 const isUsernameChanging = username !== currentUsername;
-                const isUsernameLocked = profile?.username_changed_at && isUsernameChanging && (() => {
-                  const lastChanged = new Date(profile.username_changed_at);
+                const usernameChangedAtDate = profile?.username_changed_at;
+                let isUsernameLocked = false;
+                if (usernameChangedAtDate && isUsernameChanging) {
+                  const lastChanged = new Date(usernameChangedAtDate);
                   const now = new Date();
                   const daysSinceChange = (now.getTime() - lastChanged.getTime()) / (1000 * 60 * 60 * 24);
-                  return daysSinceChange < 30;
-                })();
+                  isUsernameLocked = daysSinceChange < 30;
+                }
                 const isDisabled = saving || (isUsernameChanging && !isValid) || isUsernameLocked;
                 
                 return (
