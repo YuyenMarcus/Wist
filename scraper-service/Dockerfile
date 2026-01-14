@@ -55,7 +55,7 @@ ENV PATH=/root/.local/bin:$PATH
 RUN playwright install chromium --with-deps
 
 # Force cache invalidation for COPY step
-ARG CACHE_BUST=2026-01-14-v4-startup-fix
+ARG CACHE_BUST=2026-01-14-v5-no-preload
 RUN echo "Cache bust: $CACHE_BUST"
 
 # Copy application code
@@ -76,4 +76,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
 # -w 1: 1 worker (reduce startup time)
 # --preload: Preload app before forking
 # --timeout 120: 2 min timeout for slow scrapes
-CMD ["sh", "-c", "gunicorn -w 1 --preload -b 0.0.0.0:${PORT:-8080} app:app --timeout 120 --keep-alive 5 --log-level info"]
+CMD ["sh", "-c", "gunicorn -w 1 -b 0.0.0.0:${PORT:-8080} app:app --timeout 120 --keep-alive 5 --log-level info"]
