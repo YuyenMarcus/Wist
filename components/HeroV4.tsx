@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { Chrome } from 'lucide-react'
 
 interface HeroV4Props {
   isLoggedIn: boolean
@@ -11,6 +12,7 @@ interface HeroV4Props {
 export default function HeroV4({ isLoggedIn }: HeroV4Props) {
   const router = useRouter()
   const [priceIndex, setPriceIndex] = useState(0)
+  const [hasExtension, setHasExtension] = useState(false)
 
   const prices = [699, 650, 620, 699, 680, 699]
 
@@ -23,6 +25,33 @@ export default function HeroV4({ isLoggedIn }: HeroV4Props) {
     return () => clearInterval(interval)
   }, [])
 
+  useEffect(() => {
+    // Check if extension is installed
+    const checkExtension = () => {
+      const isInstalled = document.documentElement.getAttribute('data-wist-installed') === 'true' ||
+                         document.documentElement.classList.contains('has-extension')
+      return isInstalled
+    }
+
+    // Run immediate check
+    const isInstalled = checkExtension()
+    setHasExtension(isInstalled)
+
+    // Keep checking for extension installation for a few seconds
+    const intervalId = setInterval(() => {
+      if (checkExtension()) {
+        setHasExtension(true)
+        clearInterval(intervalId)
+      }
+    }, 500)
+
+    // Stop checking after 3 seconds to save performance
+    setTimeout(() => clearInterval(intervalId), 3000)
+
+    // Cleanup
+    return () => clearInterval(intervalId)
+  }, [])
+
   const handlePrimaryClick = (e: React.MouseEvent) => {
     e.preventDefault()
     if (isLoggedIn) {
@@ -32,7 +61,7 @@ export default function HeroV4({ isLoggedIn }: HeroV4Props) {
     }
   }
 
-  const handleSecondaryClick = (e: React.MouseEvent) => {
+  const handleAddItemClick = (e: React.MouseEvent) => {
     e.preventDefault()
     if (isLoggedIn) {
       router.push('/dashboard')
@@ -72,7 +101,7 @@ export default function HeroV4({ isLoggedIn }: HeroV4Props) {
           {/* Headline - Playfair Display Typography */}
           <h1 className="hero-headline">
             <span className="headline-line">Stop Forgetting</span>
-            <span className="headline-line">What You Want</span>
+            <span className="headline-line">What You <span className="headline-accent">Want</span></span>
             <span className="headline-line">To Buy</span>
           </h1>
 
@@ -92,13 +121,20 @@ export default function HeroV4({ isLoggedIn }: HeroV4Props) {
               </svg>
               <span className="btn-text">{isLoggedIn ? 'Go to Dashboard' : 'Import Your Wishlist — Free'}</span>
             </button>
-            <button className="btn btn-secondary" onClick={handleSecondaryClick}>
-              <svg className="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 2L12 22"/>
-                <path d="M2 12L22 12"/>
-              </svg>
-              <span>{isLoggedIn ? 'Add New Item' : 'Add First Item'}</span>
-            </button>
+            {hasExtension ? (
+              <button className="btn btn-secondary" onClick={handleAddItemClick}>
+                <svg className="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 2L12 22"/>
+                  <path d="M2 12L22 12"/>
+                </svg>
+                <span>Add New Item</span>
+              </button>
+            ) : (
+              <Link href="/extension" className="btn btn-secondary">
+                <Chrome className="btn-icon" size={20} />
+                <span>Get the Browser Button</span>
+              </Link>
+            )}
           </div>
 
           {/* Trust Line - V2 Style */}
