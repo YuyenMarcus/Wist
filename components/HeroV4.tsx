@@ -101,7 +101,7 @@ export default function HeroV4({ isLoggedIn }: HeroV4Props) {
           {/* Headline - Playfair Display Typography */}
           <h1 className="hero-headline">
             <span className="headline-line">Stop Forgetting</span>
-            <span className="headline-line">What You <span className="headline-accent">Want</span></span>
+            <span className="headline-line headline-accent">What You Want</span>
             <span className="headline-line">To Buy</span>
           </h1>
 
