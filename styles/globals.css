@@ -223,18 +223,10 @@ body.user-logged-in.has-extension .ExtensionBanner {
   gap: 12px;
 }
 
-.logo-mark {
-  width: 36px;
-  height: 36px;
-  color: var(--violet-600);
-}
-
-.logo-text {
-  font-family: var(--font-body);
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--gray-900);
-  letter-spacing: -0.02em;
+.logo-image {
+  height: 40px;
+  width: auto;
+  object-fit: contain;
 }
 
 .nav-actions {

@@ -50,13 +50,7 @@ export default function HeroV4({ isLoggedIn }: HeroV4Props) {
       {/* Navigation */}
       <nav className="nav">
         <div className="nav-logo">
-          <div className="logo-mark">
-            <svg viewBox="0 0 32 32" fill="none">
-              <circle cx="16" cy="16" r="12" stroke="currentColor" strokeWidth="2.5"/>
-              <path d="M10 16L14 20L22 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </div>
-          <span className="logo-text">Wist</span>
+          <img src="/logo.svg" alt="Wist Logo" className="logo-image" />
         </div>
         <div className="nav-actions">
           {isLoggedIn ? (
@@ -78,7 +72,7 @@ export default function HeroV4({ isLoggedIn }: HeroV4Props) {
           {/* Headline - Playfair Display Typography */}
           <h1 className="hero-headline">
             <span className="headline-line">Stop Forgetting</span>
-            <span className="headline-line">What You <span className="headline-accent">Want</span></span>
+            <span className="headline-line">What You Want</span>
             <span className="headline-line">To Buy</span>
           </h1>
 
