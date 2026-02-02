@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Add to Wist</title>
+  <!-- Lottie Web for smooth animations -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  <style>
+    body { width: 340px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; padding: 0; margin: 0; background-color: #fafafa; letter-spacing: -0.01em; }
+    
+    /* Loading State */
+    .loading-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 200px; }
+    .spinner { width: 24px; height: 24px; border: 3px solid #e4e4e7; border-top-color: #7c3aed; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 12px; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    /* Main Content */
+    .header { background: white; padding: 12px 16px; border-bottom: 1px solid #e4e4e7; display: flex; justify-content: space-between; align-items: center; }
+    .brand { color: #7c3aed; font-weight: 700; font-size: 16px; letter-spacing: -0.5px; }
+    
+    .product-card { background: white; margin: 16px; border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); overflow: hidden; border: 1px solid #e4e4e7; }
+    .product-content { padding: 12px; display: flex; gap: 12px; }
+    .product-image { width: 72px; height: 72px; object-fit: contain; border-radius: 8px; border: 1px solid #f4f4f5; background: #fafafa; }
+    .product-info { flex: 1; min-width: 0; }
+    .retailer-badge { display: inline-block; background: #f4f4f5; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; color: #71717a; margin-bottom: 4px; }
+    .product-title { font-size: 13px; font-weight: 500; color: #18181b; margin: 0 0 4px 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4; }
+    .product-price { font-size: 16px; font-weight: 700; color: #18181b; }
+
+    /* Price Insight */
+    .insight-bar { background: #f5f3ff; padding: 8px 12px; display: flex; align-items: center; gap: 8px; border-top: 1px solid #e9d5ff; }
+    .insight-icon { color: #7c3aed; width: 14px; height: 14px; }
+    .insight-text { font-size: 11px; color: #6d28d9; font-weight: 500; }
+
+    /* Controls */
+    .controls { padding: 0 16px 16px 16px; }
+    
+    /* Toggle Switch */
+    .privacy-toggle { display: flex; justify-content: space-between; align-items: center; background: white; padding: 10px; border-radius: 8px; border: 1px solid #e4e4e7; margin-bottom: 12px; cursor: pointer; transition: all 0.2s; }
+    .privacy-toggle:hover { border-color: #d4d4d8; }
+    .toggle-label { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: #52525b; }
+    .toggle-switch { width: 36px; height: 20px; background: #d4d4d8; border-radius: 20px; position: relative; transition: background 0.2s; }
+    .toggle-switch.active { background: #7c3aed; }
+    .toggle-knob { width: 16px; height: 16px; background: white; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: transform 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+    .toggle-switch.active .toggle-knob { transform: translateX(16px); }
+
+    /* Button */
+    .save-btn { width: 100%; background: #18181b; color: white; border: none; padding: 12px; border-radius: 12px; font-weight: 600; font-size: 14px; cursor: pointer; transition: background 0.2s; }
+    .save-btn:hover { background: #27272a; }
+    .save-btn:disabled { background: #a1a1aa; cursor: not-allowed; }
+
+    /* Success State */
+    .success-container { display: none; flex-direction: column; align-items: center; justify-content: center; height: 250px; text-align: center; padding: 20px; }
+    .success-icon { width: 48px; height: 48px; background: #dcfce7; color: #16a34a; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; font-size: 24px; }
+    .success-link { color: #7c3aed; text-decoration: none; font-weight: 500; font-size: 13px; margin-top: 12px; }
+    .success-link:hover { text-decoration: underline; }
+
+    .hidden { display: none !important; }
+    
+    /* Error State */
+    .error-container { padding: 16px; text-align: center; }
+    .error-msg { color: #ef4444; font-size: 13px; }
+  </style>
+</head>
+<body>
+
+    <div id="loading" class="loading-container">
+    <div class="spinner"></div>
+    <div style="color: #71717a; font-size: 13px; font-weight: 500;">Analyzing product...</div>
+  </div>
+
+  <div id="preview" class="hidden">
+    <div class="header">
+      <span class="brand">Wist</span>
+      <div id="user-avatar" style="width: 24px; height: 24px; background: #e4e4e7; border-radius: 50%;"></div>
+    </div>
+
+    <div class="product-card">
+      <div class="product-content">
+        <img id="product-img" class="product-image" src="" alt="Product" />
+        <div class="product-info">
+          <span id="retailer-badge" class="retailer-badge">Amazon</span>
+          <h3 id="product-title" class="product-title">Loading title...</h3>
+          <div id="product-price" class="product-price">...</div>
+        </div>
+      </div>
+      <div class="insight-bar">
+        <svg class="insight-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline>
+          <polyline points="17 18 23 18 23 12"></polyline>
+        </svg>
+        <span class="insight-text">Tracking price history</span>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="privacy-toggle" id="privacy-btn">
+        <div class="toggle-label">
+          <svg id="lock-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+          <span id="privacy-text">Private Wishlist</span>
+        </div>
+        <div class="toggle-switch" id="privacy-switch">
+          <div class="toggle-knob"></div>
+        </div>
+      </div>
+
+      <button id="save-btn" class="save-btn">Save to Wist</button>
+    </div>
+  </div>
+
+  <div id="success" class="success-container">
+    <!-- Lordicon Animation Container - Replace the JSON below with your animation JSON -->
+    <div id="lordicon-animation" style="width: 80px; height: 80px; margin-bottom: 16px;"></div>
+    <h3 style="margin: 0 0 8px 0; color: #18181b; font-size: 16px; font-weight: 700;">Saved!</h3>
+    <p style="margin: 0; color: #71717a; font-size: 13px;">We'll watch the price for you.</p>
+    <a href="https://wishlist.nuvio.cloud/dashboard" target="_blank" id="view-list-link" class="success-link">View my wishlist →</a>
+  </div>
+
+  <div id="error" class="hidden error-container">
+    <p id="error-msg" class="error-msg"></p>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

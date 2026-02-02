@@ -381,14 +381,18 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
       
       {/* Logo - Top Corner */}
       <Link href="/dashboard" className="flex items-center gap-2 px-4 pt-4 pb-6 hover:opacity-80 transition-opacity border-b border-zinc-200">
-        <Image 
-          src="/logo.svg" 
-          alt="Wist Logo" 
-          width={40} 
-          height={40}
-          className="w-10 h-10"
-        />
-        <span className="font-bold text-lg tracking-tight text-zinc-900 dark:text-white">wist.</span>
+        <div className="relative flex items-center">
+          <Image 
+            src="/logo.svg" 
+            alt="Wist Logo" 
+            width={40} 
+            height={40}
+            className="w-10 h-10"
+          />
+          <span className="ml-2 px-1.5 py-0.5 text-[10px] font-semibold text-violet-600 bg-violet-50 rounded-full border border-violet-200">
+            BETA
+          </span>
+        </div>
       </Link>
       
       {/* View Switcher (Timeline / Categories) */}

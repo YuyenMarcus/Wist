@@ -80,6 +80,9 @@ export default function HeroV4({ isLoggedIn }: HeroV4Props) {
       <nav className="nav">
         <div className="nav-logo">
           <img src="/logo.png" alt="Wist Logo" className="logo-image" />
+          <span className="ml-2 px-2 py-0.5 text-xs font-semibold text-violet-600 bg-violet-50 rounded-full border border-violet-200">
+            BETA
+          </span>
         </div>
         <div className="nav-actions">
           {isLoggedIn ? (

@@ -54,8 +54,11 @@ export default function NavBar() {
     <nav className="border-b border-[var(--color-border)] bg-[var(--color-card)] backdrop-blur-md sticky top-0 z-50">
       <Container>
         <div className="flex items-center justify-between h-16">
-          <Link href="/" className="text-xl font-bold bg-gradient-to-r from-brand-blue to-brand-light bg-clip-text text-transparent">
-            Wist
+          <Link href="/" className="flex items-center gap-2 text-xl font-bold bg-gradient-to-r from-brand-blue to-brand-light bg-clip-text text-transparent">
+            <span>Wist</span>
+            <span className="px-1.5 py-0.5 text-[10px] font-semibold text-violet-600 bg-violet-50 rounded-full border border-violet-200">
+              BETA
+            </span>
           </Link>
           
           <div className="flex items-center gap-4">

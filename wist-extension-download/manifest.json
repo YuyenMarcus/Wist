@@ -1,0 +1,74 @@
+{
+  "manifest_version": 3,
+  "name": "Wist - Wishlist & Price Tracker",
+  "version": "0.1.2",
+  "description": "Save items, track prices, and build your wishlist.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "cookies",
+    "notifications"
+  ],
+  "host_permissions": [
+    "https://wishlist.nuvio.cloud/*",
+    "https://*.nuvio.cloud/*",
+    "*://*.amazon.com/*",
+    "*://*.target.com/*",
+    "*://*.etsy.com/*"
+  ],
+  "externally_connectable": {
+    "matches": [
+      "https://wishlist.nuvio.cloud/*",
+      "https://*.nuvio.cloud/*",
+      "http://localhost:3000/*"
+    ]
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "64": "icons/icon64.png",
+      "96": "icons/icon96.png",
+      "128": "icons/icon128.png",
+      "192": "icons/icon192.png",
+      "256": "icons/icon256.png",
+      "512": "icons/icon512.png",
+      "1024": "icons/icon1024.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "64": "icons/icon64.png",
+    "96": "icons/icon96.png",
+    "128": "icons/icon128.png",
+    "192": "icons/icon192.png",
+    "256": "icons/icon256.png",
+    "512": "icons/icon512.png",
+    "1024": "icons/icon1024.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    },
+    {
+      "matches": ["https://wishlist.nuvio.cloud/*", "https://*.nuvio.cloud/*", "http://localhost:3000/*"],
+      "js": ["detect.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["lordicon-animation.json"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
