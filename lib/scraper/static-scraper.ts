@@ -211,17 +211,51 @@ export async function staticScrape(url: string): Promise<ScrapeResult> {
 
   // Last resort: regex search in HTML for price patterns (for Amazon)
   if (!priceRaw && domainKey === 'amazon.') {
-    // Look for price in data attributes or hidden spans
-    const priceMatch = html.match(/\"priceAmount\":([0-9.]+)/);
-    if (priceMatch) {
-      priceRaw = priceMatch[1];
-    }
+    // Multiple regex patterns for Amazon's various price formats
+    const amazonPricePatterns = [
+      /\"priceAmount\":([0-9.]+)/,
+      /\"price\":\"?\$?([0-9.,]+)\"?/,
+      /data-asin-price="([0-9.]+)"/,
+      /"priceToPay"[^}]*"value":"?\$?([0-9.,]+)"?/,
+      /"corePriceDisplay_desktop_feature_div"[^}]*"value":"?\$?([0-9.,]+)"?/,
+      /class="a-price"[^>]*>.*?<span[^>]*>.*?\$([0-9.,]+)/s,
+      /aria-hidden="true">\$([0-9.,]+)</,
+      /"buyingPrice":\s*([0-9.]+)/,
+      /"price":\s*"?\$?([0-9.]+)"?/,
+      /\$([0-9]+\.[0-9]{2})/,
+    ];
     
-    // Also try to find price in twister data
-    if (!priceRaw) {
-      const twisterMatch = html.match(/\"price\":\"?\$?([0-9.,]+)\"?/);
-      if (twisterMatch) {
-        priceRaw = twisterMatch[1];
+    for (const pattern of amazonPricePatterns) {
+      const match = html.match(pattern);
+      if (match && match[1]) {
+        const potentialPrice = parseFloat(match[1].replace(/,/g, ''));
+        // Sanity check: price should be reasonable (between $0.01 and $100,000)
+        if (potentialPrice >= 0.01 && potentialPrice <= 100000) {
+          priceRaw = match[1];
+          console.log(`[StaticScraper] Found Amazon price via regex: ${priceRaw}`);
+          break;
+        }
+      }
+    }
+  }
+  
+  // For any site: try to find price in common JavaScript data structures
+  if (!priceRaw) {
+    const genericPricePatterns = [
+      /"price":\s*"?\$?([0-9]+\.?[0-9]*)"?/,
+      /"amount":\s*"?([0-9]+\.?[0-9]*)"?/,
+      /"salePrice":\s*"?([0-9]+\.?[0-9]*)"?/,
+      /"currentPrice":\s*"?([0-9]+\.?[0-9]*)"?/,
+    ];
+    
+    for (const pattern of genericPricePatterns) {
+      const match = html.match(pattern);
+      if (match && match[1]) {
+        const potentialPrice = parseFloat(match[1]);
+        if (potentialPrice >= 0.01 && potentialPrice <= 100000) {
+          priceRaw = match[1];
+          break;
+        }
       }
     }
   }
