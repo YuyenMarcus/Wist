@@ -377,10 +377,10 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
   };
 
   return (
-    <aside className="w-64 border-r border-zinc-200 dark:border-zinc-800 h-screen sticky top-0 hidden md:flex flex-col bg-white dark:bg-black">
+    <aside className="w-64 border-r border-zinc-200 h-screen sticky top-0 hidden md:flex flex-col bg-white">
       
       {/* Logo - Top Corner */}
-      <Link href="/dashboard" className="flex items-center gap-2 px-4 pt-4 pb-6 hover:opacity-80 transition-opacity border-b border-zinc-200 dark:border-zinc-800">
+      <Link href="/dashboard" className="flex items-center gap-2 px-4 pt-4 pb-6 hover:opacity-80 transition-opacity border-b border-zinc-200">
         <Image 
           src="/logo.svg" 
           alt="Wist Logo" 
@@ -393,13 +393,13 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
       
       {/* View Switcher (Timeline / Categories) */}
       <div className="px-4 pt-4 mb-6">
-        <div className="flex p-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-sm">
+        <div className="flex p-1 bg-white border border-zinc-200 rounded-lg shadow-sm">
           <Link 
             href="/dashboard" 
             className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
               viewMode === 'timeline' 
-                ? 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 shadow-sm' 
-                : 'text-zinc-500 hover:text-violet-600 dark:hover:text-violet-400'
+                ? 'bg-violet-50 text-violet-600 shadow-sm' 
+                : 'text-zinc-500 hover:text-violet-600'
             }`}
           >
             <LayoutGrid size={16} />
@@ -409,8 +409,8 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
             href="/dashboard?view=grouped" 
             className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
               viewMode === 'grouped' 
-                ? 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 shadow-sm' 
-                : 'text-zinc-500 hover:text-violet-600 dark:hover:text-violet-400'
+                ? 'bg-violet-50 text-violet-600 shadow-sm' 
+                : 'text-zinc-500 hover:text-violet-600'
             }`}
           >
             <Layers size={16} />

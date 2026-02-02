@@ -284,10 +284,10 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
-      className="group relative bg-white dark:bg-zinc-900 rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800 hover:border-violet-500 hover:shadow-lg transition-all duration-300"
+      className="group relative bg-white rounded-xl overflow-hidden border border-zinc-200 hover:border-violet-500 hover:shadow-lg transition-all duration-300"
     >
       {/* Image Container */}
-      <div className="relative aspect-[4/5] overflow-hidden bg-zinc-100 dark:bg-zinc-800">
+      <div className="relative aspect-[4/5] overflow-hidden bg-zinc-100">
         {imageUrl ? (
           <img
             src={imageUrl}
@@ -296,7 +296,7 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
             loading="lazy"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-50 to-pink-50 dark:from-zinc-800 dark:to-zinc-900">
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-50 to-pink-50">
             <span className="text-2xl font-medium text-zinc-400">
               {title.substring(0, 2).toUpperCase()}
             </span>
@@ -315,10 +315,10 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
 
         {/* Loading Overlay */}
         {isMoving && (
-          <div className="absolute inset-0 bg-white/80 dark:bg-black/80 flex items-center justify-center z-20 backdrop-blur-sm">
+          <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-20 backdrop-blur-sm">
             <div className="flex flex-col items-center gap-2">
               <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"/>
-              <span className="text-xs font-medium text-zinc-600 dark:text-zinc-300">Moving...</span>
+              <span className="text-xs font-medium text-zinc-600">Moving...</span>
             </div>
           </div>
         )}
@@ -328,7 +328,7 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
           <div className="relative">
             <button 
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="p-2 bg-white/90 dark:bg-black/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 transition-colors"
+              className="p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white text-zinc-600 transition-colors"
               aria-label="More options"
             >
               <MoreHorizontal size={16} />
@@ -336,15 +336,15 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
 
             {/* Dropdown Menu */}
             {isMenuOpen && (
-              <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-zinc-900 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-800 p-1 z-20">
-                <div className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 px-2 py-1.5 uppercase tracking-wider">
+              <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-xl border border-zinc-200 p-1 z-20">
+                <div className="text-xs font-semibold text-zinc-400 px-2 py-1.5 uppercase tracking-wider">
                   Move to...
                 </div>
                 
                 {/* Option to remove from collection */}
                 <button
                   onClick={() => handleMoveToCollection(null)}
-                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 transition-colors"
+                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 text-zinc-600 transition-colors"
                 >
                   <FolderInput size={14} />
                   <span>Uncategorized</span>
@@ -357,7 +357,7 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
 
                 {/* List user collections */}
                 {userCollections.length === 0 ? (
-                  <div className="px-2 py-1.5 text-xs text-zinc-400 dark:text-zinc-500">
+                  <div className="px-2 py-1.5 text-xs text-zinc-400">
                     No collections yet
                   </div>
                 ) : (
@@ -365,7 +365,7 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
                     <button
                       key={col.id}
                       onClick={() => handleMoveToCollection(col.id)}
-                      className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 transition-colors"
+                      className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 text-zinc-600 transition-colors"
                     >
                       <span className="truncate">{col.name}</span>
                       {item.collection_id === col.id && (
@@ -391,7 +391,7 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
                     <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-1" />
                     <button
                       onClick={handleDelete}
-                      className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
+                      className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-red-50 text-red-600 transition-colors"
                     >
                       <Trash2 size={14} />
                       <span>Delete</span>
@@ -418,7 +418,7 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
 
       {/* Content Section */}
       <div className="p-4">
-        <h3 className="font-medium text-zinc-900 dark:text-white text-sm mb-2 line-clamp-2">
+        <h3 className="font-medium text-zinc-900 text-sm mb-2 line-clamp-2">
           {title}
         </h3>
         
@@ -435,8 +435,8 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
             <span 
               className={`inline-flex items-center gap-0.5 text-xs font-semibold px-1.5 py-0.5 rounded-full ${
                 item.price_change < 0 
-                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
-                  : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                  ? 'bg-green-100 text-green-700' 
+                  : 'bg-red-100 text-red-700'
               }`}
               title={`Was ${formatPrice(item.previous_price || 0)}`}
             >
@@ -462,7 +462,7 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
           {/* View History Link */}
           <Link 
             href={`/dashboard/item/${item.id}`}
-            className="flex-1 inline-flex items-center justify-center gap-1 text-xs text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 px-3 py-2 rounded-lg transition-colors"
+            className="flex-1 inline-flex items-center justify-center gap-1 text-xs text-zinc-600 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200 px-3 py-2 rounded-lg transition-colors"
             onClick={(e) => e.stopPropagation()}
           >
             <BarChart3 className="w-3 h-3" />

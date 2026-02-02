@@ -468,9 +468,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50/50 pb-32">
-      {/* Background grain or gradient for the dashboard too, but lighter */}
-      <div className="fixed inset-0 z-[-1] bg-grid-pattern opacity-30 pointer-events-none" />
+    <div className="min-h-screen bg-white pb-32">
 
       {/* Extension Banner - High Visibility */}
       <ExtensionBanner />
@@ -502,16 +500,16 @@ export default function DashboardPage() {
           <div className="space-y-12">
             {/* Auto-organize Banner */}
             {autoOrganizeStats && autoOrganizeStats.canAutoCategorize > 0 && (
-              <div className="flex items-center justify-between bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-950/30 dark:to-purple-950/30 border border-violet-200 dark:border-violet-800 rounded-xl px-5 py-4">
+              <div className="flex items-center justify-between bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-200 rounded-xl px-5 py-4">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-violet-100 dark:bg-violet-900/50 rounded-lg">
-                    <Sparkles className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+                  <div className="p-2 bg-violet-100 rounded-lg">
+                    <Sparkles className="w-5 h-5 text-violet-600" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-zinc-900 dark:text-white">
+                    <p className="text-sm font-medium text-zinc-900">
                       {autoOrganizeStats.canAutoCategorize} item{autoOrganizeStats.canAutoCategorize !== 1 ? 's' : ''} can be auto-organized
                     </p>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                    <p className="text-xs text-zinc-500">
                       Based on item names and your collections
                     </p>
                   </div>
@@ -539,9 +537,9 @@ export default function DashboardPage() {
             {/* Show all items if no collections exist */}
             {collections.length === 0 && products.length > 0 && (
               <section>
-                <h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
+                <h2 className="text-xl font-bold text-zinc-900 mb-4 flex items-center gap-2">
                   All Items
-                  <span className="text-xs font-normal text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded-full">
+                  <span className="text-xs font-normal text-zinc-500 bg-zinc-100 px-2 py-1 rounded-full">
                     {products.length}
                   </span>
                 </h2>
@@ -561,7 +559,7 @@ export default function DashboardPage() {
             {/* Uncategorized Section */}
             {collections.length > 0 && uncategorizedItems.length > 0 && (
               <section>
-                <h2 className="text-lg font-bold text-zinc-900 dark:text-white mb-4 flex items-center gap-2 opacity-50">
+                <h2 className="text-lg font-bold text-zinc-900 mb-4 flex items-center gap-2 opacity-50">
                   <span className="w-2 h-2 rounded-full bg-zinc-300"></span>
                   Uncategorized
                 </h2>
@@ -581,11 +579,11 @@ export default function DashboardPage() {
             {/* Collection Sections */}
             {collections.length > 0 && groupedItems.map(group => (
               group.items.length > 0 && (
-                <section key={group.id} className="pt-8 border-t border-zinc-200 dark:border-zinc-800">
+                <section key={group.id} className="pt-8 border-t border-zinc-200">
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                    <h2 className="text-xl font-bold text-zinc-900 flex items-center gap-2">
                       {group.name}
-                      <span className="text-xs font-normal text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded-full">
+                      <span className="text-xs font-normal text-zinc-500 bg-zinc-100 px-2 py-1 rounded-full">
                         {group.items.length}
                       </span>
                     </h2>
@@ -620,7 +618,7 @@ export default function DashboardPage() {
 
             {/* Debug info in development */}
             {process.env.NODE_ENV === 'development' && viewMode === 'grouped' && (
-              <div className="mt-8 p-4 bg-zinc-100 dark:bg-zinc-800 rounded-lg text-xs">
+              <div className="mt-8 p-4 bg-zinc-100 rounded-lg text-xs">
                 <div>Debug Info:</div>
                 <div>View Mode: {viewMode}</div>
                 <div>Products Count: {products.length}</div>

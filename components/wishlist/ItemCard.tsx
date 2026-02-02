@@ -349,7 +349,7 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
             <img 
               src={imageUrl} 
               alt={title}
-              className="w-full h-auto object-cover transition-transform duration-700 group-hover:scale-105"
+              className="w-full h-auto max-h-96 object-cover transition-transform duration-700 group-hover:scale-105"
               loading="lazy"
             />
           ) : (
