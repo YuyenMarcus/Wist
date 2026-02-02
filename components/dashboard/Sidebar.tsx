@@ -396,7 +396,7 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
       </Link>
       
       {/* View Switcher (Timeline / Categories) */}
-      <div className="px-4 pt-4 mb-6">
+      <div className="px-4 pt-4 mb-4">
         <div className="flex p-1 bg-white border border-zinc-200 rounded-lg shadow-sm">
           <Link 
             href="/dashboard" 
@@ -424,13 +424,13 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
       </div>
 
       {/* Main Navigation */}
-      <div className="space-y-1 mb-8 px-4">
+      <div className="space-y-1 mb-6 px-4">
         <Link 
           href="/dashboard/purchased" 
           className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
             pathname === '/dashboard/purchased'
-              ? 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400'
-              : 'text-zinc-500 hover:text-violet-600 dark:hover:text-violet-400'
+              ? 'bg-violet-50 text-violet-600'
+              : 'text-zinc-500 hover:text-violet-600'
           }`}
         >
           <Gift size={18} />
