@@ -1,11 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Script from 'next/script'
 import { supabase } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
 
-// Extend Window interface for TypeScript
 declare global {
   interface Window {
     google?: {
@@ -29,42 +27,54 @@ declare global {
 }
 
 export default function GoogleOneTap() {
-  const router = useRouter()
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null)
 
+  const fallbackToOAuth = useCallback(async () => {
+    console.log('🔄 [OneTap] Falling back to OAuth redirect flow...')
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
+      },
+    })
+  }, [])
+
   useEffect(() => {
-    // Check if user is already logged in - don't show One Tap if they are
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       setIsLoggedIn(!!session?.user)
     }
-    
+
     checkSession()
 
-    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setIsLoggedIn(!!session?.user)
     })
 
-    // Define the callback function that Google will call upon success
     window.handleCredentialResponse = async (response) => {
       try {
-        console.log('🔑 [OneTap] Credential received, signing in...')
+        console.log('🔑 [OneTap] Credential received, attempting signInWithIdToken...')
         const { data, error } = await supabase.auth.signInWithIdToken({
           provider: 'google',
           token: response.credential,
         })
 
-        if (error) throw error
+        if (error) {
+          console.warn('⚠️ [OneTap] signInWithIdToken failed:', error.message, '— falling back to OAuth')
+          await fallbackToOAuth()
+          return
+        }
 
         if (data?.session) {
           console.log('✅ [OneTap] Sign-in successful, redirecting...')
           window.location.href = '/dashboard'
         } else {
-          console.error('❌ [OneTap] No session returned after sign-in')
+          console.warn('⚠️ [OneTap] No session returned — falling back to OAuth')
+          await fallbackToOAuth()
         }
-      } catch (error) {
-        console.error('❌ [OneTap] Sign-in error:', error)
+      } catch (error: any) {
+        console.error('❌ [OneTap] Error:', error?.message || error)
+        await fallbackToOAuth()
       }
     }
 
@@ -72,60 +82,35 @@ export default function GoogleOneTap() {
       subscription.unsubscribe()
       delete window.handleCredentialResponse
     }
-  }, [router])
+  }, [fallbackToOAuth])
 
-  // Don't render if no client ID is set or if user is logged in
   if (!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || isLoggedIn === true) {
     return null
   }
 
-  // Wait for auth check to complete
   if (isLoggedIn === null) {
     return null
   }
 
   return (
-    <>
-      <Script
-        src="https://accounts.google.com/gsi/client"
-        strategy="afterInteractive"
-        onLoad={() => {
-          if (!window.google) {
-            console.warn('Google Identity Services script failed to load')
-            return
-          }
+    <Script
+      src="https://accounts.google.com/gsi/client"
+      strategy="afterInteractive"
+      onLoad={() => {
+        if (!window.google) return
 
-          // Double-check session before initializing
-          supabase.auth.getSession().then(({ data: { session } }) => {
-            if (session?.user) {
-              return // User is logged in, don't show One Tap
-            }
-          
-            // Initialize Google One Tap
-            window.google!.accounts.id.initialize({
-              client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
-              callback: window.handleCredentialResponse!,
-              cancel_on_tap_outside: false, // Keep it open if they click away
-              // auto_select: true // Optional: Auto-logs in returning users
-            })
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session?.user) return
 
-            // Show the prompt
-            window.google!.accounts.id.prompt((notification) => {
-              if (notification.isNotDisplayed()) {
-                const reason = notification.getNotDisplayedReason()
-                console.log('One Tap not displayed reason:', reason)
-                // Common reasons:
-                // - "browser_not_supported"
-                // - "invalid_client"
-                // - "opt_out_or_no_session"
-                // - "suppressed_by_user"
-                // - "unregistered_origin"
-                // - "unknown_reason"
-              }
-            })
+          window.google!.accounts.id.initialize({
+            client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
+            callback: window.handleCredentialResponse!,
+            cancel_on_tap_outside: false,
           })
-        }}
-      />
-    </>
+
+          window.google!.accounts.id.prompt()
+        })
+      }}
+    />
   )
 }
