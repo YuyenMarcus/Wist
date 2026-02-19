@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 
 // Notification queue helper - queues price drop notifications for users
 async function queuePriceDropNotification(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   userId: string,
   itemId: string,
   oldPrice: number,
