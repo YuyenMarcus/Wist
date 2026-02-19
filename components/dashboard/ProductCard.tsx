@@ -7,7 +7,6 @@ import { supabase } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { BarChart3 } from 'lucide-react';
-import { LineChart, Line, ResponsiveContainer, YAxis } from 'recharts';
 
 interface ProductItem {
   id: string;
@@ -25,11 +24,6 @@ interface ProductItem {
   last_price_check?: string | null;
 }
 
-interface PriceHistoryPoint {
-  price: number;
-  date: string;
-}
-
 interface Collection {
   id: string;
   name: string;
@@ -45,8 +39,6 @@ interface Props {
 export default function ProductCard({ item, userCollections = [], onDelete }: Props) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMoving, setIsMoving] = useState(false); // Loading state for moving items
-  const [priceHistory, setPriceHistory] = useState<PriceHistoryPoint[]>([]);
-  const [historyLoading, setHistoryLoading] = useState(true);
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   
@@ -59,66 +51,6 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
   const price = item.current_price || item.price;
   const imageUrl = item.image_url || item.image;
   const title = item.title || 'Untitled Item';
-
-  // Fetch price history for mini chart
-  useEffect(() => {
-    async function fetchPriceHistory() {
-      setHistoryLoading(true);
-      const { data, error } = await supabase
-        .from('price_history')
-        .select('price, created_at')
-        .eq('item_id', item.id)
-        .order('created_at', { ascending: true })
-        .limit(30); // Last 30 data points for the sparkline
-
-      if (!error && data && data.length > 0) {
-        setPriceHistory(data.map(d => ({
-          price: Number(d.price),
-          date: d.created_at
-        })));
-      }
-      setHistoryLoading(false);
-    }
-
-    fetchPriceHistory();
-  }, [item.id]);
-
-  // Generate mock data for preview when no real data exists
-  const getMockOrRealData = () => {
-    if (priceHistory.length >= 2) {
-      return priceHistory;
-    }
-    
-    // Generate mock data based on current price to show what chart will look like
-    const basePrice = price || 100;
-    const mockData: PriceHistoryPoint[] = [];
-    const today = new Date();
-    
-    for (let i = 13; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      // Create slight price variations for visual effect (±5%)
-      const variation = 1 + (Math.sin(i * 0.8) * 0.05);
-      mockData.push({
-        price: Number((basePrice * variation).toFixed(2)),
-        date: date.toISOString()
-      });
-    }
-    return mockData;
-  };
-
-  const chartData = getMockOrRealData();
-  const isUsingMockData = priceHistory.length < 2;
-  
-  // Determine chart color based on price trend
-  const getChartColor = () => {
-    if (chartData.length < 2) return '#8b5cf6'; // violet for no data
-    const firstPrice = chartData[0].price;
-    const lastPrice = chartData[chartData.length - 1].price;
-    if (lastPrice < firstPrice) return '#22c55e'; // green for price drop
-    if (lastPrice > firstPrice) return '#ef4444'; // red for price increase
-    return '#8b5cf6'; // violet for no change
-  };
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -525,36 +457,6 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
           </p>
         )}
 
-        {/* Mini Price Chart */}
-        <div className="mt-3 relative">
-          <div className="h-12 w-full">
-            {historyLoading ? (
-              <div className="h-full w-full bg-zinc-100 rounded animate-pulse" />
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 4, right: 4, bottom: 4, left: 4 }}>
-                  <YAxis domain={['dataMin', 'dataMax']} hide />
-                  <Line 
-                    type="monotone" 
-                    dataKey="price" 
-                    stroke={getChartColor()}
-                    strokeWidth={2}
-                    dot={false}
-                    isAnimationActive={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-          {isUsingMockData && !historyLoading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-white/60 rounded">
-              <span className="text-[10px] text-zinc-400 font-medium px-2 py-1 bg-white/80 rounded">
-                Price tracking starts soon
-              </span>
-            </div>
-          )}
-        </div>
-        
         {/* Action Buttons */}
         <div className="mt-3 flex items-center gap-2">
           {/* View History Link */}
