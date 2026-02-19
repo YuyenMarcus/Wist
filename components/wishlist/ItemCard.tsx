@@ -335,9 +335,9 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
       exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
-      className="relative mb-6 break-inside-avoid"
+      className="relative mb-3 sm:mb-6 break-inside-avoid"
     >
-      <div className={`group relative overflow-hidden rounded-2xl bg-white border transition-all duration-300 ${
+      <div className={`group relative overflow-hidden rounded-xl sm:rounded-2xl bg-white border transition-all duration-300 ${
         isHovered 
           ? 'border-violet-500 shadow-lg -translate-y-1' 
           : 'border-zinc-100 shadow-sm'
@@ -349,13 +349,13 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
             <img 
               src={imageUrl} 
               alt={title}
-              className="w-full h-auto max-h-96 object-cover transition-transform duration-700 group-hover:scale-105"
+              className="w-full h-auto max-h-48 sm:max-h-96 object-cover transition-transform duration-700 group-hover:scale-105"
               loading="lazy"
             />
           ) : (
             // Fallback for missing image
             <div className="flex aspect-[4/3] items-center justify-center bg-gradient-to-br from-violet-50 to-pink-50 text-zinc-400 text-sm font-medium">
-              <span className="text-2xl font-medium text-zinc-300">
+              <span className="text-lg sm:text-2xl font-medium text-zinc-300">
                 {title.substring(0, 2).toUpperCase()}
               </span>
             </div>
@@ -372,7 +372,7 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
 
           {/* Hover Actions Overlay */}
           {isOwner ? (
-            <div className={`absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 transition-opacity duration-300 flex items-end justify-end p-4 gap-2 ${
+            <div className={`absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 transition-opacity duration-300 flex items-end justify-end p-2 sm:p-4 gap-1.5 sm:gap-2 ${
               isHovered && !isEditing ? 'opacity-100' : 'opacity-0'
             }`}>
               {/* Move to Collection Button */}
@@ -391,10 +391,11 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                       }
                       setIsMenuOpen(!isMenuOpen)
                     }}
-                    className="p-2.5 bg-white/90 backdrop-blur-md rounded-full text-zinc-700 hover:bg-violet-500 hover:text-white transition-colors shadow-sm"
+                    className="p-1.5 sm:p-2.5 bg-white/90 backdrop-blur-md rounded-full text-zinc-700 hover:bg-violet-500 hover:text-white transition-colors shadow-sm"
                     title="Move to Collection"
                   >
-                    <MoreHorizontal size={16} strokeWidth={2} />
+                    <MoreHorizontal size={14} className="sm:hidden" strokeWidth={2} />
+                    <MoreHorizontal size={16} className="hidden sm:block" strokeWidth={2} />
                   </button>
 
                   {/* Dropdown Menu - Using fixed positioning to avoid overflow */}
@@ -460,10 +461,11 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                   e.stopPropagation()
                   handleStartEdit()
                 }}
-                className="p-2.5 bg-white/90 backdrop-blur-md rounded-full text-zinc-700 hover:bg-violet-500 hover:text-white transition-colors shadow-sm"
+                className="p-1.5 sm:p-2.5 bg-white/90 backdrop-blur-md rounded-full text-zinc-700 hover:bg-violet-500 hover:text-white transition-colors shadow-sm"
                 title="Edit Title"
               >
-                <Edit2 size={16} strokeWidth={2} />
+                <Edit2 size={14} className="sm:hidden" strokeWidth={2} />
+                <Edit2 size={16} className="hidden sm:block" strokeWidth={2} />
               </button>
 
               {/* Delete Button */}
@@ -474,13 +476,16 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                     handleDelete()
                   }}
                   disabled={isDeleting}
-                  className="p-2.5 bg-white/90 backdrop-blur-md rounded-full text-red-500 hover:bg-red-500 hover:text-white transition-colors shadow-sm disabled:opacity-50"
+                  className="p-1.5 sm:p-2.5 bg-white/90 backdrop-blur-md rounded-full text-red-500 hover:bg-red-500 hover:text-white transition-colors shadow-sm disabled:opacity-50"
                   title="Remove Item"
                 >
                   {isDeleting ? (
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
+                    <div className="h-3 w-3 sm:h-4 sm:w-4 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
                   ) : (
-                    <Trash2 size={16} strokeWidth={2} />
+                    <>
+                      <Trash2 size={14} className="sm:hidden" strokeWidth={2} />
+                      <Trash2 size={16} className="hidden sm:block" strokeWidth={2} />
+                    </>
                   )}
                 </button>
               )}
@@ -506,7 +511,7 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
         </div>
 
         {/* Text Content */}
-        <div className="p-5">
+        <div className="p-2.5 sm:p-5">
           {isEditing && isOwner ? (
             <div className="space-y-2">
               <input
@@ -516,23 +521,24 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                 onKeyDown={handleKeyDown}
                 onBlur={handleCancelEdit}
                 autoFocus
-                className="w-full px-3 py-2 text-sm font-medium text-zinc-900 bg-white border border-violet-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400"
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-zinc-900 bg-white border border-violet-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400"
                 disabled={isSaving}
               />
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 <button
                   onClick={handleSaveEdit}
                   disabled={isSaving}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-500 text-white text-xs font-medium rounded-lg hover:bg-violet-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 bg-violet-500 text-white text-[10px] sm:text-xs font-medium rounded-md sm:rounded-lg hover:bg-violet-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSaving ? (
                     <>
                       <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                      Saving...
+                      <span className="hidden sm:inline">Saving...</span>
                     </>
                   ) : (
                     <>
-                      <Check size={14} />
+                      <Check size={12} className="sm:hidden" />
+                      <Check size={14} className="hidden sm:block" />
                       Save
                     </>
                   )}
@@ -540,17 +546,18 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                 <button
                   onClick={handleCancelEdit}
                   disabled={isSaving}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 text-zinc-600 text-xs font-medium rounded-lg hover:bg-zinc-200 transition-colors disabled:opacity-50"
+                  className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 bg-zinc-100 text-zinc-600 text-[10px] sm:text-xs font-medium rounded-md sm:rounded-lg hover:bg-zinc-200 transition-colors disabled:opacity-50"
                 >
-                  <X size={14} />
-                  Cancel
+                  <X size={12} className="sm:hidden" />
+                  <X size={14} className="hidden sm:block" />
+                  <span className="hidden sm:inline">Cancel</span>
                 </button>
               </div>
             </div>
           ) : (
             <>
               <h3 
-                className="font-medium text-zinc-900 text-sm leading-snug line-clamp-2 cursor-text"
+                className="font-medium text-zinc-900 text-xs sm:text-sm leading-snug line-clamp-2 cursor-text"
                 onDoubleClick={isOwner ? handleStartEdit : undefined}
                 title={isOwner ? 'Double-click to edit' : undefined}
               >
@@ -558,38 +565,36 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
               </h3>
               
               {price && (
-                <div className="mt-3 flex items-center">
-                  <span className="inline-block bg-violet-50 text-violet-600 text-xs font-bold px-2.5 py-1 rounded-full">
+                <div className="mt-1.5 sm:mt-3 flex items-center">
+                  <span className="inline-block bg-violet-50 text-violet-600 text-[10px] sm:text-xs font-bold px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full">
                     {price}
                   </span>
                 </div>
               )}
 
               {/* Footer with History and Buy buttons */}
-              <div className="mt-4 flex items-end justify-between pt-4 border-t border-zinc-100">
+              <div className="mt-2 sm:mt-4 flex items-end justify-between pt-2 sm:pt-4 border-t border-zinc-100">
                 <div className="flex flex-col">
-                  <span className="text-xs text-gray-500">Current Price</span>
-                  <span className="text-lg font-bold text-gray-900">
+                  <span className="text-[10px] sm:text-xs text-gray-500">Price</span>
+                  <span className="text-xs sm:text-lg font-bold text-gray-900">
                     {price || 'N/A'}
                   </span>
                 </div>
                 
-                <div className="flex gap-2">
-                  {/* Internal Link to Detail Page */}
+                <div className="flex gap-1 sm:gap-2">
                   <Link
                     href={`/dashboard/item/${item.id}`}
-                    className="rounded-lg bg-gray-100 px-3 py-2 text-xs font-bold text-gray-900 transition hover:bg-gray-200"
+                    className="rounded-md sm:rounded-lg bg-gray-100 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold text-gray-900 transition hover:bg-gray-200"
                     onClick={(e) => e.stopPropagation()}
                   >
                     History
                   </Link>
 
-                  {/* External Link to Store */}
                   <a
                     href={item.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="rounded-lg bg-violet-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-violet-700"
+                    className="rounded-md sm:rounded-lg bg-violet-600 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold text-white transition hover:bg-violet-700"
                     onClick={(e) => e.stopPropagation()}
                   >
                     Buy

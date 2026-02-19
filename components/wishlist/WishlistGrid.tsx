@@ -54,9 +54,9 @@ export default function WishlistGrid({ items, isOwner = true, onDelete, onReserv
     // CSS Columns for Masonry Layout
     // columns-1 on mobile, 2 on tablet, 3 on desktop, 4 on large screens
     <div 
-      className="w-full px-4 md:px-0 mx-auto max-w-7xl pb-32 
-                 columns-1 sm:columns-2 lg:columns-3 xl:columns-4 
-                 gap-6 space-y-6"
+      className="w-full px-2 sm:px-4 md:px-0 mx-auto max-w-7xl pb-32 
+                 columns-2 sm:columns-2 lg:columns-3 xl:columns-4 
+                 gap-3 sm:gap-6 space-y-3 sm:space-y-6"
     >
       <AnimatePresence mode="popLayout">
         {items.map((item) => (
