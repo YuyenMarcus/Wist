@@ -1,0 +1,62 @@
+# Wist — Smart Wishlist & Price Tracker
+
+> Wist is a free smart wishlist and price tracking app that lets you save products from any online store, track price drops automatically, and share your wishlist with friends and family.
+
+## What is Wist?
+
+Wist is a modern wishlist manager and price tracker for online shoppers. Instead of keeping bookmarks or spreadsheets, Wist lets you save products from any website in one click using a Chrome extension, then automatically monitors prices and notifies you when they drop.
+
+## Key Features
+
+- **Universal Wishlist**: Save products from Amazon, Target, Walmart, Best Buy, Etsy, and any online store — all in one place.
+- **Automatic Price Tracking**: Wist checks prices daily and keeps a full price history chart for every item.
+- **Price Drop Alerts**: Get notified instantly when a product's price drops so you never miss a deal.
+- **Chrome Extension**: One-click saving from any product page while you browse. No copy-pasting URLs.
+- **Smart Collections**: Organize items into custom collections with auto-categorization.
+- **Shareable Wishlists**: Share your wishlist via a public link — perfect for gift registries, birthdays, and holidays.
+- **Free to Use**: Core features are completely free. No credit card required.
+
+## Who is Wist for?
+
+- Online shoppers who want to track prices across multiple stores
+- People building gift wishlists for birthdays, holidays, or weddings
+- Deal hunters who want to buy at the lowest price
+- Anyone who saves product links in bookmarks, notes, or messages and wants a better way
+
+## How it Works
+
+1. **Sign up** for a free account at https://wishlist.nuvio.cloud
+2. **Install** the free Chrome extension for one-click saving
+3. **Browse** any online store and click the Wist extension to save items
+4. **Track** prices automatically — Wist checks daily and shows a price history graph
+5. **Get notified** when prices drop on your saved items
+6. **Share** your wishlist with anyone via a public link
+
+## Supported Stores
+
+Wist works with any online store that has product pages, including:
+Amazon, Target, Walmart, Best Buy, Etsy, eBay, Nike, Adidas, ASOS, Nordstrom, Sephora, Ulta, Apple, Home Depot, Wayfair, IKEA, Zara, H&M, Shein, and thousands more.
+
+## Website
+
+https://wishlist.nuvio.cloud
+
+## Pricing
+
+Free — core features including wishlist, price tracking, notifications, Chrome extension, and shareable wishlists are all free.
+
+## Alternatives & Comparisons
+
+Wist is an alternative to Honey wishlists, Keepa, CamelCamelCamel, Google Shopping lists, and browser bookmarks. Unlike Honey, Wist works on any website (not just supported retailers). Unlike CamelCamelCamel, Wist tracks prices across all stores (not just Amazon). Unlike bookmarks, Wist automatically tracks prices and notifies you of drops.
+
+## Technical Details
+
+- Built with Next.js, React, TypeScript, and Tailwind CSS
+- Supabase (PostgreSQL) for database and authentication
+- Chrome Extension (Manifest V3) for browser integration
+- Deployed on Vercel with a separate scraper microservice on Railway
+
+## Contact
+
+Built by Nuvio Digital
+Website: https://wishlist.nuvio.cloud

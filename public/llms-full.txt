@@ -1,0 +1,103 @@
+# Wist — Smart Wishlist & Price Tracker (Full Documentation)
+
+> Wist is a free smart wishlist and price tracking application. Save products from any online store, track price changes automatically, get price drop notifications, and share wishlists with friends.
+
+## Overview
+
+Wist solves the problem of managing online shopping across multiple stores. Instead of scattered bookmarks, screenshots, or notes, Wist provides a single dashboard to save, organize, and track products from any website.
+
+### Core Value Propositions
+
+1. **One place for all your wishlists**: No more scattered bookmarks. Save from Amazon, Target, Walmart, Etsy, or any store.
+2. **Never overpay again**: Automatic daily price checks with a price history graph show you the best time to buy.
+3. **Get alerted, not distracted**: Price drop notifications come to you — no need to constantly check prices manually.
+4. **Share easily**: Generate a public link to your wishlist for birthdays, holidays, or gift registries.
+5. **Works everywhere**: Chrome extension for instant one-click saving from any product page.
+
+## Features in Detail
+
+### Universal Wishlist
+- Save products from any online store with a URL
+- Chrome extension enables one-click saving while browsing
+- Automatic extraction of product title, image, and price
+- Works on Amazon, Target, Walmart, Best Buy, Etsy, eBay, Nike, ASOS, Nordstrom, Sephora, Apple, IKEA, Wayfair, and thousands more
+
+### Automatic Price Tracking
+- Daily automated price checks on all saved items
+- Full price history chart for every item
+- Visual indicators showing price increases and decreases
+- Tracks percentage changes over time
+
+### Price Drop Notifications
+- Instant alerts when prices drop on your saved items
+- Browser notifications via the Chrome extension
+- Never miss a sale or deal on items you're watching
+
+### Smart Collections
+- Organize items into custom collections (e.g., "Holiday Gifts", "Home Office", "Clothing")
+- Auto-categorization using AI to sort items into relevant collections
+- Custom collection icons and colors
+
+### Shareable Wishlists
+- Generate a public link to share your wishlist
+- Perfect for gift registries, birthdays, holidays, weddings
+- Recipients can see all items with images and prices
+- No account required to view shared wishlists
+
+### Chrome Extension
+- One-click product saving from any webpage
+- Automatic price and image extraction
+- Works on product pages across all online stores
+- Syncs with your Wist dashboard in real-time
+
+## Getting Started
+
+1. Visit https://wishlist.nuvio.cloud
+2. Create a free account (Google sign-in or email)
+3. Install the Chrome extension from the extension page
+4. Start saving products and tracking prices
+
+## Pricing
+
+Wist is free to use. Core features including the wishlist, price tracking, price drop notifications, Chrome extension, and shareable wishlists are all included at no cost.
+
+## Comparison with Alternatives
+
+| Feature | Wist | Honey | CamelCamelCamel | Google Shopping |
+|---------|------|-------|-----------------|-----------------|
+| Any store | Yes | Limited | Amazon only | Limited |
+| Price tracking | Yes | No | Yes | No |
+| Price history chart | Yes | No | Yes | No |
+| Chrome extension | Yes | Yes | Yes | No |
+| Shareable wishlists | Yes | No | No | No |
+| Collections/categories | Yes | No | No | No |
+| Free | Yes | Yes | Yes | Yes |
+
+## Frequently Asked Questions
+
+**Q: Is Wist free?**
+A: Yes, Wist is completely free to use. All core features are included.
+
+**Q: What stores does Wist work with?**
+A: Wist works with any online store that has product pages. This includes Amazon, Target, Walmart, Best Buy, Etsy, eBay, Nike, ASOS, Nordstrom, and thousands more.
+
+**Q: How does price tracking work?**
+A: Wist automatically checks prices daily for all your saved items. You can see the full price history on each item's detail page.
+
+**Q: Can I share my wishlist?**
+A: Yes! You can generate a shareable public link to your wishlist that anyone can view without creating an account.
+
+**Q: Do I need the Chrome extension?**
+A: The Chrome extension makes saving products much easier (one click), but you can also paste product URLs directly in the dashboard.
+
+**Q: Is my data private?**
+A: Yes. Your wishlist is private by default. You choose when and what to share via public links.
+
+## Website
+
+https://wishlist.nuvio.cloud
+
+## Contact
+
+Built by Nuvio Digital
+Website: https://wishlist.nuvio.cloud
