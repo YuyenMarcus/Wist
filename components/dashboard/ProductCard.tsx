@@ -287,7 +287,7 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
       className="group relative bg-white rounded-xl overflow-hidden border border-zinc-200 hover:border-violet-500 hover:shadow-lg transition-all duration-300"
     >
       {/* Image Container */}
-      <div className="relative aspect-[4/5] overflow-hidden bg-zinc-100">
+      <div className="relative aspect-[2/3] overflow-hidden bg-zinc-100">
         {imageUrl ? (
           <img
             src={imageUrl}
@@ -297,7 +297,7 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-50 to-pink-50">
-            <span className="text-2xl font-medium text-zinc-400">
+            <span className="text-lg sm:text-2xl font-medium text-zinc-400">
               {title.substring(0, 2).toUpperCase()}
             </span>
           </div>
@@ -305,10 +305,11 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
         
         {/* Price Drop Badge - Shows when price dropped significantly (>5%) */}
         {item.price_change != null && item.price_change < 0 && (item.price_change_percent || 0) <= -5 && (
-          <div className="absolute top-3 left-3 z-10">
-            <span className="inline-flex items-center gap-1 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg animate-pulse">
-              <TrendingDown className="w-3 h-3" />
-              Price Drop!
+          <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10">
+            <span className="inline-flex items-center gap-0.5 sm:gap-1 bg-green-500 text-white text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full shadow-lg animate-pulse">
+              <TrendingDown className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+              <span className="hidden sm:inline">Price Drop!</span>
+              <span className="sm:hidden">Drop!</span>
             </span>
           </div>
         )}
@@ -324,14 +325,15 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
         )}
 
         {/* Menu Button - Top Right Corner - Always visible on mobile */}
-        <div className="absolute top-3 right-3 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200 z-10" ref={menuRef}>
+        <div className="absolute top-2 right-2 sm:top-3 sm:right-3 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200 z-10" ref={menuRef}>
           <div className="relative">
             <button 
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white text-zinc-600 transition-colors"
+              className="p-1.5 sm:p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white text-zinc-600 transition-colors"
               aria-label="More options"
             >
-              <MoreHorizontal size={16} />
+              <MoreHorizontal size={14} className="sm:hidden" />
+              <MoreHorizontal size={16} className="hidden sm:block" />
             </button>
 
             {/* Dropdown Menu - Positioned to avoid overflow on mobile */}
@@ -408,24 +410,25 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
           href={item.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-2 bg-white/90 dark:bg-black/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300"
+          className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1.5 sm:p-2 bg-white/90 dark:bg-black/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300"
           onClick={(e) => e.stopPropagation()}
           title="Visit product page"
         >
-          <ExternalLink size={16} />
+          <ExternalLink size={14} className="sm:hidden" />
+          <ExternalLink size={16} className="hidden sm:block" />
         </a>
       </div>
 
       {/* Content Section */}
-      <div className="p-4">
-        <h3 className="font-medium text-zinc-900 text-sm mb-2 line-clamp-2">
+      <div className="p-2.5 sm:p-4">
+        <h3 className="font-medium text-zinc-900 text-xs sm:text-sm mb-1 sm:mb-2 line-clamp-2">
           {title}
         </h3>
         
         {/* Price with change indicator */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
           {price && price > 0 && (
-            <p className="text-zinc-900 dark:text-white text-sm font-bold">
+            <p className="text-zinc-900 dark:text-white text-xs sm:text-sm font-bold">
               {formatPrice(price)}
             </p>
           )}
@@ -433,7 +436,7 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
           {/* Price Change Badge */}
           {item.price_change != null && item.price_change !== 0 && (
             <span 
-              className={`inline-flex items-center gap-0.5 text-xs font-semibold px-1.5 py-0.5 rounded-full ${
+              className={`inline-flex items-center gap-0.5 text-[10px] sm:text-xs font-semibold px-1 sm:px-1.5 py-0.5 rounded-full ${
                 item.price_change < 0 
                   ? 'bg-green-100 text-green-700' 
                   : 'bg-red-100 text-red-700'
@@ -441,9 +444,9 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
               title={`Was ${formatPrice(item.previous_price || 0)}`}
             >
               {item.price_change < 0 ? (
-                <TrendingDown className="w-3 h-3" />
+                <TrendingDown className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
               ) : (
-                <TrendingUp className="w-3 h-3" />
+                <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
               )}
               {Math.abs(item.price_change_percent || 0).toFixed(0)}%
             </span>
@@ -452,20 +455,20 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
         
         {/* Show previous price if there was a change */}
         {item.previous_price && item.price_change !== 0 && (
-          <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1 line-through">
+          <p className="text-[10px] sm:text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 sm:mt-1 line-through">
             Was {formatPrice(item.previous_price)}
           </p>
         )}
 
         {/* Action Buttons */}
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mt-2 sm:mt-3 flex items-center gap-1.5 sm:gap-2">
           {/* View History Link */}
           <Link 
             href={`/dashboard/item/${item.id}`}
-            className="flex-1 inline-flex items-center justify-center gap-1 text-xs text-zinc-600 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200 px-3 py-2 rounded-lg transition-colors"
+            className="flex-1 inline-flex items-center justify-center gap-0.5 sm:gap-1 text-[10px] sm:text-xs text-zinc-600 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200 px-2 sm:px-3 py-1.5 sm:py-2 rounded-md sm:rounded-lg transition-colors"
             onClick={(e) => e.stopPropagation()}
           >
-            <BarChart3 className="w-3 h-3" />
+            <BarChart3 className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
             History
           </Link>
           
@@ -474,10 +477,10 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
             href={item.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-medium text-white bg-violet-600 hover:bg-violet-700 px-3 py-2 rounded-lg transition-colors"
+            className="flex-1 inline-flex items-center justify-center gap-0.5 sm:gap-1 text-[10px] sm:text-xs font-medium text-white bg-violet-600 hover:bg-violet-700 px-2 sm:px-3 py-1.5 sm:py-2 rounded-md sm:rounded-lg transition-colors"
             onClick={(e) => e.stopPropagation()}
           >
-            <ExternalLink className="w-3 h-3" />
+            <ExternalLink className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
             Buy
           </a>
         </div>

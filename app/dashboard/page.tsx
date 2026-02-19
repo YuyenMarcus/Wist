@@ -471,7 +471,7 @@ export default function DashboardPage() {
                     {products.length}
                   </span>
                 </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
                   {products.map((item: any) => (
                     <ProductCard 
                       key={item.id} 
@@ -491,7 +491,7 @@ export default function DashboardPage() {
                   <span className="w-2 h-2 rounded-full bg-zinc-300"></span>
                   Uncategorized
                 </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
                   {uncategorizedItems.map((item: any) => (
                     <ProductCard 
                       key={item.id} 
@@ -523,7 +523,7 @@ export default function DashboardPage() {
                     </Link>
                   </div>
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
                     {group.items.map((item: any) => (
                       <ProductCard 
                         key={item.id} 
