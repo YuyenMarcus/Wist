@@ -49,6 +49,7 @@ export default function GoogleOneTap() {
     // Define the callback function that Google will call upon success
     window.handleCredentialResponse = async (response) => {
       try {
+        console.log('🔑 [OneTap] Credential received, signing in...')
         const { data, error } = await supabase.auth.signInWithIdToken({
           provider: 'google',
           token: response.credential,
@@ -56,11 +57,14 @@ export default function GoogleOneTap() {
 
         if (error) throw error
 
-        console.log('✅ Google One Tap Success:', data)
-        router.refresh()
-        router.push('/dashboard') // Redirect to dashboard
+        if (data?.session) {
+          console.log('✅ [OneTap] Sign-in successful, redirecting...')
+          window.location.href = '/dashboard'
+        } else {
+          console.error('❌ [OneTap] No session returned after sign-in')
+        }
       } catch (error) {
-        console.error('❌ Google One Tap Error:', error)
+        console.error('❌ [OneTap] Sign-in error:', error)
       }
     }
 
