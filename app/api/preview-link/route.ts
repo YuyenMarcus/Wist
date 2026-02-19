@@ -96,6 +96,20 @@ export async function POST(request: Request) {
     
     console.log(`✅ [Preview] Static scraper result: title=${hasTitle}, image=${hasImage}, price=${hasPrice} ($${data.price})`);
 
+    // Check if we got a poor result (just domain name as title, no image)
+    const poorResult = (!hasTitle || data.title.toLowerCase().includes('etsy') && data.title.length < 20) && !hasImage;
+    
+    // For dynamic sites with poor static results, indicate extension is needed
+    if (poorResult && needsPlaywright) {
+      console.log(`⚠️ [Preview] Poor result for dynamic site ${domain}, extension recommended`);
+      return NextResponse.json({ 
+        success: true, 
+        data,
+        extensionRequired: true,
+        message: 'This site requires the Wist browser extension for full data extraction'
+      }, { headers: corsHeaders() });
+    }
+
     // Return success even with partial data
     return NextResponse.json({ success: true, data }, { headers: corsHeaders() });
 

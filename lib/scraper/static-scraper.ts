@@ -68,9 +68,23 @@ const SITE_SELECTORS: Record<string, {
     image: ['img.primary-image', 'meta[property="og:image"]'],
   },
   'etsy.': {
-    title: ['h1[data-buy-box-listing-title]', 'h1'],
-    price: ['[data-buy-box-region="price"] p', '.wt-text-title-larger'],
-    image: ['[data-carousel-paging] img', 'meta[property="og:image"]'],
+    // Etsy renders most content with JS, so prioritize meta tags
+    title: [
+      'meta[property="og:title"]',
+      'meta[name="twitter:title"]',
+      'h1[data-buy-box-listing-title]',
+      'h1',
+    ],
+    price: [
+      // Etsy includes price in JSON-LD, handled separately
+      '[data-buy-box-region="price"] p',
+      '.wt-text-title-larger',
+    ],
+    image: [
+      'meta[property="og:image"]',
+      'meta[name="twitter:image"]',
+      '[data-carousel-paging] img',
+    ],
   },
 };
 
@@ -178,28 +192,48 @@ export async function staticScrape(url: string): Promise<ScrapeResult> {
     }
   }
 
-  // Try JSON-LD structured data
-  if (!priceRaw) {
-    $('script[type="application/ld+json"]').each((_, el) => {
-      if (priceRaw) return;
-      try {
-        const jsonLd = JSON.parse($(el).html() || '');
-        const items = Array.isArray(jsonLd) ? jsonLd : [jsonLd];
+  // Try JSON-LD structured data (extracts title, image, AND price)
+  $('script[type="application/ld+json"]').each((_, el) => {
+    try {
+      const jsonLd = JSON.parse($(el).html() || '');
+      const items = Array.isArray(jsonLd) ? jsonLd : [jsonLd];
 
-        for (const item of items) {
-          if (item && (item['@type'] === 'Product' || item['@type'] === 'Offer')) {
+      for (const item of items) {
+        if (item && (item['@type'] === 'Product' || item['@type'] === 'Offer')) {
+          // Extract title from JSON-LD if we don't have one yet
+          if ((!title || title.length < 3) && item.name) {
+            title = item.name;
+          }
+          
+          // Extract image from JSON-LD if we don't have one yet
+          if (!image && item.image) {
+            if (Array.isArray(item.image)) {
+              image = item.image[0];
+            } else if (typeof item.image === 'string') {
+              image = item.image;
+            } else if (item.image.url) {
+              image = item.image.url;
+            }
+          }
+          
+          // Extract price from JSON-LD if we don't have one yet
+          if (!priceRaw) {
             const price = item.offers?.price || item.offers?.lowPrice || item.price;
             if (price !== undefined && price !== null) {
               priceRaw = String(price);
-              return false;
             }
           }
+          
+          // Extract description from JSON-LD if we don't have one yet
+          if (!description && item.description) {
+            description = item.description.substring(0, 500);
+          }
         }
-      } catch (e) {
-        // Ignore JSON parse errors
       }
-    });
-  }
+    } catch (e) {
+      // Ignore JSON parse errors
+    }
+  });
 
   // Fallback: meta tags for price
   if (!priceRaw) {
@@ -239,6 +273,29 @@ export async function staticScrape(url: string): Promise<ScrapeResult> {
     }
   }
   
+  // Etsy-specific price extraction from HTML
+  if (!priceRaw && domainKey === 'etsy.') {
+    const etsyPricePatterns = [
+      /"price":\s*"?\$?([0-9]+\.?[0-9]*)"?/,
+      /"amount":\s*"?([0-9]+\.?[0-9]*)"?/,
+      /data-buy-box-listing-price="([0-9.]+)"/,
+      /"displayPrice":\s*"?\$?([0-9.,]+)"?/,
+      /\$([0-9]+\.[0-9]{2})/,
+    ];
+    
+    for (const pattern of etsyPricePatterns) {
+      const match = html.match(pattern);
+      if (match && match[1]) {
+        const potentialPrice = parseFloat(match[1].replace(/,/g, ''));
+        if (potentialPrice >= 0.01 && potentialPrice <= 100000) {
+          priceRaw = match[1];
+          console.log(`[StaticScraper] Found Etsy price via regex: ${priceRaw}`);
+          break;
+        }
+      }
+    }
+  }
+  
   // For any site: try to find price in common JavaScript data structures
   if (!priceRaw) {
     const genericPricePatterns = [
@@ -272,6 +329,13 @@ export async function staticScrape(url: string): Promise<ScrapeResult> {
   // Clean Amazon titles (remove " - Amazon.com" suffix)
   if (title && domainKey === 'amazon.') {
     title = title.replace(/\s*[-|]\s*Amazon\.com.*$/i, '').trim();
+  }
+  
+  // Clean Etsy titles (remove " - Etsy" suffix and shop name patterns)
+  if (title && domainKey === 'etsy.') {
+    title = title.replace(/\s*[-|]\s*Etsy.*$/i, '').trim();
+    // Also remove common Etsy title patterns like "Item Name | Etsy Shop Name"
+    title = title.replace(/\s*\|\s*[^|]+$/i, '').trim();
   }
   
   // Fix relative image URLs

@@ -4,6 +4,360 @@
 // This allows the React app to detect if the extension is installed
 document.documentElement.setAttribute('data-wist-installed', 'true');
 
+// ============================================================================
+// SCRAPE REQUEST HANDLER - For webapp "paste link" feature
+// ============================================================================
+
+// Listen for scrape requests from the webapp
+window.addEventListener('message', async (event) => {
+  // Only accept messages from the same window
+  if (event.source !== window) return;
+  
+  if (event.data?.type === 'WIST_SCRAPE_REQUEST') {
+    const { messageId, url } = event.data;
+    console.log('🧩 [ContentScript] Received scrape request for:', url);
+    
+    try {
+      // Send request to background script to handle the scraping
+      chrome.runtime.sendMessage({
+        action: 'SCRAPE_URL_FOR_WEBAPP',
+        url: url,
+        messageId: messageId
+      }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('❌ [ContentScript] Background script error:', chrome.runtime.lastError);
+          window.postMessage({
+            type: 'WIST_SCRAPE_RESULT',
+            messageId: messageId,
+            success: false,
+            error: chrome.runtime.lastError.message || 'Extension communication failed'
+          }, '*');
+          return;
+        }
+        
+        console.log('✅ [ContentScript] Received scrape response:', response);
+        window.postMessage({
+          type: 'WIST_SCRAPE_RESULT',
+          messageId: messageId,
+          success: response?.success || false,
+          data: response?.data || null,
+          error: response?.error || null
+        }, '*');
+      });
+    } catch (error) {
+      console.error('❌ [ContentScript] Error handling scrape request:', error);
+      window.postMessage({
+        type: 'WIST_SCRAPE_RESULT',
+        messageId: messageId,
+        success: false,
+        error: error.message || 'Unknown error'
+      }, '*');
+    }
+  }
+});
+
+// ============================================================================
+// PRODUCT SCRAPER - Universal scraping functions
+// ============================================================================
+
+// Scrape product data from the current page
+function scrapeCurrentPage() {
+  const url = window.location.href;
+  const domain = window.location.hostname.toLowerCase();
+  
+  console.log('🔍 [ContentScript] Scraping page:', url);
+  
+  let title = null;
+  let price = null;
+  let image = null;
+  let description = null;
+  
+  // Domain-specific scraping
+  if (domain.includes('amazon.')) {
+    const result = scrapeAmazon();
+    title = result.title;
+    price = result.price;
+    image = result.image;
+    description = result.description;
+  } else if (domain.includes('etsy.')) {
+    const result = scrapeEtsy();
+    title = result.title;
+    price = result.price;
+    image = result.image;
+    description = result.description;
+  } else if (domain.includes('target.')) {
+    const result = scrapeTarget();
+    title = result.title;
+    price = result.price;
+    image = result.image;
+    description = result.description;
+  } else if (domain.includes('walmart.')) {
+    const result = scrapeWalmart();
+    title = result.title;
+    price = result.price;
+    image = result.image;
+    description = result.description;
+  } else if (domain.includes('bestbuy.')) {
+    const result = scrapeBestBuy();
+    title = result.title;
+    price = result.price;
+    image = result.image;
+    description = result.description;
+  } else {
+    // Generic scraping for other sites
+    const result = scrapeGeneric();
+    title = result.title;
+    price = result.price;
+    image = result.image;
+    description = result.description;
+  }
+  
+  // Clean up price
+  let priceValue = 0;
+  if (price) {
+    const priceMatch = price.toString().replace(/[^0-9.]/g, '');
+    priceValue = parseFloat(priceMatch) || 0;
+  }
+  
+  return {
+    title: title || document.title || 'Unknown Item',
+    price: priceValue,
+    image: image || null,
+    description: description || null,
+    url: url,
+    retailer: domain.replace('www.', '').split('.')[0]
+  };
+}
+
+// Amazon scraper
+function scrapeAmazon() {
+  console.log('🛒 [ContentScript] Scraping Amazon...');
+  
+  // Title
+  let title = null;
+  const titleSelectors = ['#productTitle', '#title', 'h1.a-size-large', 'span#productTitle'];
+  for (const sel of titleSelectors) {
+    const el = document.querySelector(sel);
+    if (el && el.textContent?.trim()) {
+      title = el.textContent.trim();
+      break;
+    }
+  }
+  
+  // Price - priority order for accuracy
+  let price = null;
+  const priceSelectors = [
+    '.priceToPay .a-offscreen',
+    '.priceToPay span.a-offscreen',
+    '#corePrice_desktop .priceToPay .a-offscreen',
+    '.apexPriceToPay .a-offscreen',
+    '#priceblock_dealprice',
+    '#priceblock_saleprice',
+    '#priceblock_ourprice',
+    '#price_inside_buybox',
+    '#corePrice_feature_div .a-price:not(.a-text-price) .a-offscreen',
+    '#corePriceDisplay_desktop_feature_div .a-price:not(.a-text-price) .a-offscreen',
+    '#kindle-price',
+    '#price',
+    '.a-price:not(.a-text-price) .a-offscreen',
+    '.header-price',
+    '#newBuyBoxPrice',
+    '.offer-price'
+  ];
+  for (const sel of priceSelectors) {
+    const el = document.querySelector(sel);
+    if (el) {
+      const text = el.textContent?.trim() || el.innerText?.trim();
+      if (text && /\d/.test(text)) {
+        price = text;
+        console.log('[Wist] Found Amazon price via:', sel, '=', text);
+        break;
+      }
+    }
+  }
+  
+  // Image
+  let image = null;
+  const imageSelectors = ['#landingImage', '#imgBlkFront', '#main-image', 'img[data-a-image-name="landingImage"]'];
+  for (const sel of imageSelectors) {
+    const el = document.querySelector(sel);
+    if (el && el.src) {
+      image = el.src;
+      break;
+    }
+  }
+  
+  // Also try data-old-hires for high-res image
+  if (!image) {
+    const hiresEl = document.querySelector('[data-old-hires]');
+    if (hiresEl) {
+      image = hiresEl.getAttribute('data-old-hires') || hiresEl.src;
+    }
+  }
+  
+  // Description
+  let description = null;
+  const descEl = document.querySelector('#productDescription p, #feature-bullets ul');
+  if (descEl) {
+    description = descEl.textContent?.trim().substring(0, 500);
+  }
+  
+  return { title, price, image, description };
+}
+
+// Etsy scraper
+function scrapeEtsy() {
+  console.log('🎨 [ContentScript] Scraping Etsy...');
+  
+  let title = null;
+  const titleEl = document.querySelector('h1[data-buy-box-listing-title], h1');
+  if (titleEl) title = titleEl.textContent?.trim();
+  
+  let price = null;
+  const priceEl = document.querySelector('[data-buy-box-region="price"] p, .wt-text-title-larger, [data-selector="price-only"]');
+  if (priceEl) price = priceEl.textContent?.trim();
+  
+  let image = null;
+  const imageEl = document.querySelector('[data-carousel-paging] img, .listing-page-image-carousel img, img[data-listing-id]');
+  if (imageEl) image = imageEl.src;
+  
+  let description = null;
+  const descEl = document.querySelector('[data-id="description-text"], #description-text');
+  if (descEl) description = descEl.textContent?.trim().substring(0, 500);
+  
+  return { title, price, image, description };
+}
+
+// Target scraper
+function scrapeTarget() {
+  console.log('🎯 [ContentScript] Scraping Target...');
+  
+  let title = null;
+  const titleEl = document.querySelector('h1[data-test="product-title"], h1');
+  if (titleEl) title = titleEl.textContent?.trim();
+  
+  let price = null;
+  const priceEl = document.querySelector('[data-test="product-price"], span[data-test="product-price"]');
+  if (priceEl) price = priceEl.textContent?.trim();
+  
+  let image = null;
+  const imageEl = document.querySelector('[data-test="product-image"] img, img[alt*="product"]');
+  if (imageEl) image = imageEl.src;
+  
+  let description = null;
+  const descEl = document.querySelector('[data-test="product-description"]');
+  if (descEl) description = descEl.textContent?.trim().substring(0, 500);
+  
+  return { title, price, image, description };
+}
+
+// Walmart scraper
+function scrapeWalmart() {
+  console.log('🏪 [ContentScript] Scraping Walmart...');
+  
+  let title = null;
+  const titleEl = document.querySelector('h1[itemprop="name"], h1');
+  if (titleEl) title = titleEl.textContent?.trim();
+  
+  let price = null;
+  const priceEl = document.querySelector('[itemprop="price"], span[data-testid="price"]');
+  if (priceEl) price = priceEl.textContent?.trim() || priceEl.getAttribute('content');
+  
+  let image = null;
+  const imageEl = document.querySelector('[data-testid="hero-image"] img, img[data-testid="product-image"]');
+  if (imageEl) image = imageEl.src;
+  
+  let description = null;
+  const descEl = document.querySelector('[data-testid="product-description"]');
+  if (descEl) description = descEl.textContent?.trim().substring(0, 500);
+  
+  return { title, price, image, description };
+}
+
+// Best Buy scraper
+function scrapeBestBuy() {
+  console.log('💻 [ContentScript] Scraping Best Buy...');
+  
+  let title = null;
+  const titleEl = document.querySelector('h1.heading-5, h1[class*="sku-title"]');
+  if (titleEl) title = titleEl.textContent?.trim();
+  
+  let price = null;
+  const priceEl = document.querySelector('.priceView-customer-price span, [data-testid="customer-price"]');
+  if (priceEl) price = priceEl.textContent?.trim();
+  
+  let image = null;
+  const imageEl = document.querySelector('img.primary-image, [data-testid="product-image"] img');
+  if (imageEl) image = imageEl.src;
+  
+  let description = null;
+  const descEl = document.querySelector('[data-testid="product-description"]');
+  if (descEl) description = descEl.textContent?.trim().substring(0, 500);
+  
+  return { title, price, image, description };
+}
+
+// Generic scraper for other sites
+function scrapeGeneric() {
+  console.log('🌐 [ContentScript] Scraping generic site...');
+  
+  // Title from meta tags or h1
+  let title = null;
+  const ogTitle = document.querySelector('meta[property="og:title"]');
+  const metaTitle = document.querySelector('meta[name="title"]');
+  const h1 = document.querySelector('h1');
+  title = ogTitle?.getAttribute('content') || metaTitle?.getAttribute('content') || h1?.textContent?.trim() || document.title;
+  
+  // Price from JSON-LD or meta tags
+  let price = null;
+  
+  // Try JSON-LD first
+  const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
+  for (const script of jsonLdScripts) {
+    try {
+      const data = JSON.parse(script.textContent || '{}');
+      const items = Array.isArray(data) ? data : [data];
+      for (const item of items) {
+        if (item['@type'] === 'Product' || item['@type'] === 'Offer') {
+          const p = item.offers?.price || item.price;
+          if (p) {
+            price = p.toString();
+            break;
+          }
+        }
+      }
+      if (price) break;
+    } catch (e) {}
+  }
+  
+  // Try meta tags
+  if (!price) {
+    const priceMeta = document.querySelector('meta[property="product:price:amount"], meta[property="og:price:amount"]');
+    if (priceMeta) price = priceMeta.getAttribute('content');
+  }
+  
+  // Image from meta tags
+  let image = null;
+  const ogImage = document.querySelector('meta[property="og:image"]');
+  const metaImage = document.querySelector('meta[name="image"]');
+  image = ogImage?.getAttribute('content') || metaImage?.getAttribute('content');
+  
+  // Description from meta tags
+  let description = null;
+  const ogDesc = document.querySelector('meta[property="og:description"]');
+  const metaDesc = document.querySelector('meta[name="description"]');
+  description = ogDesc?.getAttribute('content') || metaDesc?.getAttribute('content');
+  
+  return { title, price, image, description };
+}
+
+// Export scraper for background script to use
+window.wistScrapeCurrentPage = scrapeCurrentPage;
+
+// ============================================================================
+// ORIGINAL CONTENT SCRIPT LOGIC
+// ============================================================================
+
 // 1. Listen for the page to load
 window.addEventListener('load', () => {
   // A. Check if this is a real "Thank You" page (Production Mode)

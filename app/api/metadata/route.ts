@@ -61,13 +61,23 @@ export async function GET(request: Request) {
       priceString = result.priceRaw.startsWith('$') ? result.priceRaw : `$${result.priceRaw}`
     }
 
-    console.log(`✅ [Metadata] Static result: title=${!!result.title}, image=${!!result.image}, price=${priceString}`)
+    const hasGoodTitle = result.title && result.title.length > 15 && 
+      !result.title.toLowerCase().includes('etsy') && 
+      !result.title.toLowerCase().includes('amazon');
+    const hasImage = !!result.image;
+    
+    // Check if we got a poor result for a dynamic site
+    const poorResult = !hasGoodTitle && !hasImage;
+    const extensionRequired = poorResult && needsPlaywright;
+    
+    console.log(`✅ [Metadata] Static result: title=${!!result.title}, image=${hasImage}, price=${priceString}, extensionRequired=${extensionRequired}`)
 
     return NextResponse.json({
       title: result.title?.trim() || '',
       description: result.description?.trim() || '',
       imageUrl: result.image || '',
       price: priceString,
+      extensionRequired,
     })
 
   } catch (error: any) {

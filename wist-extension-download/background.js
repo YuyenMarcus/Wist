@@ -171,6 +171,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true; // Keep channel open for async response
   }
 
+  // Handle SCRAPE_URL_FOR_WEBAPP - browser-based scraping for the dashboard
+  if (request.action === "SCRAPE_URL_FOR_WEBAPP") {
+    console.log("🧩 [Background] Webapp scrape request for:", request.url);
+    handleWebappScrape(request.url, sendResponse).catch(error => {
+      console.error("❌ [Background] Webapp scrape error:", error);
+      sendResponse({ success: false, error: error.message });
+    });
+    return true; // Keep channel open for async response
+  }
+
   if (request.action === "TRIGGER_PURCHASE_POPUP") {
     chrome.tabs.sendMessage(sender.tab.id, {
       action: "TRIGGER_PURCHASE_POPUP",
@@ -224,6 +234,254 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // If no handler matched, return false
   return false;
 });
+
+// ============================================================================
+// WEBAPP SCRAPE HANDLER - Browser-based scraping for dashboard "paste link"
+// ============================================================================
+
+async function handleWebappScrape(productUrl, sendResponse) {
+  console.log("🧩 [Background] Starting browser-based scrape for:", productUrl);
+  
+  let backgroundTab = null;
+  
+  try {
+    // Create a background tab (not visible to user)
+    backgroundTab = await chrome.tabs.create({
+      url: productUrl,
+      active: false, // Don't focus the tab
+    });
+    
+    console.log("📑 [Background] Created background tab:", backgroundTab.id);
+    
+    // Wait for the page to fully load
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Page load timeout'));
+      }, 30000); // 30 second timeout
+      
+      const checkComplete = async () => {
+        try {
+          const tab = await chrome.tabs.get(backgroundTab.id);
+          if (tab.status === 'complete') {
+            clearTimeout(timeout);
+            // Give the page a bit more time for JS to render
+            setTimeout(resolve, 2000);
+          } else {
+            setTimeout(checkComplete, 500);
+          }
+        } catch (e) {
+          clearTimeout(timeout);
+          reject(e);
+        }
+      };
+      
+      checkComplete();
+    });
+    
+    console.log("✅ [Background] Page loaded, executing scraper...");
+    
+    // Execute the scraping script in the tab
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: backgroundTab.id },
+      func: scrapePageData,
+    });
+    
+    console.log("📦 [Background] Scrape results:", results);
+    
+    // Close the background tab
+    await chrome.tabs.remove(backgroundTab.id);
+    backgroundTab = null;
+    
+    if (results && results[0] && results[0].result) {
+      const data = results[0].result;
+      console.log("✅ [Background] Successfully scraped:", data.title);
+      sendResponse({ success: true, data });
+    } else {
+      throw new Error('No data returned from scraper');
+    }
+    
+  } catch (error) {
+    console.error("❌ [Background] Scrape failed:", error);
+    
+    // Make sure to close the tab on error
+    if (backgroundTab && backgroundTab.id) {
+      try {
+        await chrome.tabs.remove(backgroundTab.id);
+      } catch (e) {
+        // Tab might already be closed
+      }
+    }
+    
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+// This function runs in the context of the scraped page
+function scrapePageData() {
+  const url = window.location.href;
+  const domain = window.location.hostname.toLowerCase();
+  
+  console.log('🔍 [Scraper] Scraping page:', url);
+  
+  let title = null;
+  let price = null;
+  let image = null;
+  let description = null;
+  
+  // ===== AMAZON =====
+  if (domain.includes('amazon.')) {
+    // Title
+    const titleSelectors = ['#productTitle', '#title', 'h1.a-size-large', 'span#productTitle'];
+    for (const sel of titleSelectors) {
+      const el = document.querySelector(sel);
+      if (el && el.textContent?.trim()) {
+        title = el.textContent.trim();
+        break;
+      }
+    }
+    
+    // Price - priority order
+    const priceSelectors = [
+      '.priceToPay .a-offscreen',
+      '.priceToPay span.a-offscreen',
+      '#corePrice_desktop .priceToPay .a-offscreen',
+      '.apexPriceToPay .a-offscreen',
+      '#priceblock_dealprice',
+      '#priceblock_saleprice',
+      '#priceblock_ourprice',
+      '#price_inside_buybox',
+      '#corePrice_feature_div .a-price:not(.a-text-price) .a-offscreen',
+      '#corePriceDisplay_desktop_feature_div .a-price:not(.a-text-price) .a-offscreen',
+      '.a-price:not(.a-text-price) .a-offscreen',
+    ];
+    for (const sel of priceSelectors) {
+      const el = document.querySelector(sel);
+      if (el) {
+        const text = el.textContent?.trim() || el.innerText?.trim();
+        if (text && /\d/.test(text)) {
+          price = text;
+          break;
+        }
+      }
+    }
+    
+    // Image
+    const imageSelectors = ['#landingImage', '#imgBlkFront', '#main-image'];
+    for (const sel of imageSelectors) {
+      const el = document.querySelector(sel);
+      if (el && (el.src || el.getAttribute('data-old-hires'))) {
+        image = el.getAttribute('data-old-hires') || el.src;
+        break;
+      }
+    }
+    
+    // Description
+    const descEl = document.querySelector('#productDescription p, #feature-bullets ul');
+    if (descEl) description = descEl.textContent?.trim().substring(0, 500);
+  }
+  
+  // ===== ETSY =====
+  else if (domain.includes('etsy.')) {
+    const titleEl = document.querySelector('h1[data-buy-box-listing-title], h1');
+    if (titleEl) title = titleEl.textContent?.trim();
+    
+    const priceEl = document.querySelector('[data-buy-box-region="price"] p, .wt-text-title-larger');
+    if (priceEl) price = priceEl.textContent?.trim();
+    
+    const imageEl = document.querySelector('[data-carousel-paging] img, .listing-page-image-carousel img');
+    if (imageEl) image = imageEl.src;
+    
+    const descEl = document.querySelector('[data-id="description-text"]');
+    if (descEl) description = descEl.textContent?.trim().substring(0, 500);
+  }
+  
+  // ===== TARGET =====
+  else if (domain.includes('target.')) {
+    const titleEl = document.querySelector('h1[data-test="product-title"], h1');
+    if (titleEl) title = titleEl.textContent?.trim();
+    
+    const priceEl = document.querySelector('[data-test="product-price"]');
+    if (priceEl) price = priceEl.textContent?.trim();
+    
+    const imageEl = document.querySelector('[data-test="product-image"] img');
+    if (imageEl) image = imageEl.src;
+  }
+  
+  // ===== WALMART =====
+  else if (domain.includes('walmart.')) {
+    const titleEl = document.querySelector('h1[itemprop="name"], h1');
+    if (titleEl) title = titleEl.textContent?.trim();
+    
+    const priceEl = document.querySelector('[itemprop="price"]');
+    if (priceEl) price = priceEl.textContent?.trim() || priceEl.getAttribute('content');
+    
+    const imageEl = document.querySelector('[data-testid="hero-image"] img');
+    if (imageEl) image = imageEl.src;
+  }
+  
+  // ===== BEST BUY =====
+  else if (domain.includes('bestbuy.')) {
+    const titleEl = document.querySelector('h1.heading-5');
+    if (titleEl) title = titleEl.textContent?.trim();
+    
+    const priceEl = document.querySelector('.priceView-customer-price span');
+    if (priceEl) price = priceEl.textContent?.trim();
+    
+    const imageEl = document.querySelector('img.primary-image');
+    if (imageEl) image = imageEl.src;
+  }
+  
+  // ===== GENERIC =====
+  else {
+    // Title from meta tags
+    const ogTitle = document.querySelector('meta[property="og:title"]');
+    const h1 = document.querySelector('h1');
+    title = ogTitle?.getAttribute('content') || h1?.textContent?.trim() || document.title;
+    
+    // Price from JSON-LD
+    const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
+    for (const script of jsonLdScripts) {
+      try {
+        const data = JSON.parse(script.textContent || '{}');
+        const items = Array.isArray(data) ? data : [data];
+        for (const item of items) {
+          if (item['@type'] === 'Product' || item['@type'] === 'Offer') {
+            const p = item.offers?.price || item.price;
+            if (p) {
+              price = p.toString();
+              break;
+            }
+          }
+        }
+        if (price) break;
+      } catch (e) {}
+    }
+    
+    // Image from meta
+    const ogImage = document.querySelector('meta[property="og:image"]');
+    image = ogImage?.getAttribute('content');
+    
+    // Description from meta
+    const ogDesc = document.querySelector('meta[property="og:description"]');
+    description = ogDesc?.getAttribute('content');
+  }
+  
+  // Clean up price
+  let priceValue = 0;
+  if (price) {
+    const priceMatch = price.toString().replace(/[^0-9.]/g, '');
+    priceValue = parseFloat(priceMatch) || 0;
+  }
+  
+  return {
+    title: title || document.title || 'Unknown Item',
+    price: priceValue,
+    image: image || null,
+    description: description || null,
+    url: url,
+    retailer: domain.replace('www.', '').split('.')[0]
+  };
+}
 
 // ============================================================================
 // PREVIEW LINK HANDLER
