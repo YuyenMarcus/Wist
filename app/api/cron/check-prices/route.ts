@@ -14,7 +14,7 @@ async function queuePriceDropNotification(
   // Only notify for price DROPS (negative change)
   if (priceChangePercent >= 0) return;
   
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from('notification_queue')
     .insert({
       user_id: userId,
