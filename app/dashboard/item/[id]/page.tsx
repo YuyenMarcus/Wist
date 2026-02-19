@@ -84,17 +84,39 @@ export default function ItemDetail() {
             fullDate: dateObj.toLocaleDateString()
           };
         });
-        setHistory(formattedHistory);
-      } else if (itemData.current_price || itemData.price) {
-        // No history entries yet — show current price as a baseline so the chart isn't empty
-        const price = parseFloat(itemData.current_price || itemData.price);
-        if (!isNaN(price) && price > 0) {
+        
+        // If only 1 point, add the current price as a second point so recharts draws a line
+        if (formattedHistory.length === 1) {
+          const currentP = parseFloat(itemData.current_price || itemData.price) || formattedHistory[0].price;
           const now = new Date();
-          setHistory([{
-            price,
+          formattedHistory.push({
+            price: currentP,
             date: `${now.getMonth() + 1}/${now.getDate()}`,
             fullDate: now.toLocaleDateString()
-          }]);
+          });
+        }
+        
+        setHistory(formattedHistory);
+      } else {
+        // No history entries — build a baseline from item's current/added price
+        const rawPrice = itemData.current_price ?? itemData.price ?? null;
+        const price = rawPrice !== null ? parseFloat(String(rawPrice)) : NaN;
+        
+        if (!isNaN(price) && price > 0) {
+          const now = new Date();
+          const addedDate = itemData.created_at ? new Date(itemData.created_at) : new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          setHistory([
+            {
+              price,
+              date: `${addedDate.getMonth() + 1}/${addedDate.getDate()}`,
+              fullDate: addedDate.toLocaleDateString()
+            },
+            {
+              price,
+              date: `${now.getMonth() + 1}/${now.getDate()}`,
+              fullDate: now.toLocaleDateString()
+            }
+          ]);
         }
       }
       
@@ -208,7 +230,7 @@ export default function ItemDetail() {
                           tickLine={false} 
                           tick={{fill: '#6b7280', fontSize: 12}} 
                           tickFormatter={(val) => `$${val}`} 
-                          domain={history.length === 1 ? [(d: number) => d * 0.9, (d: number) => d * 1.1] : ['auto', 'auto']}
+                          domain={[(d: number) => Math.floor(d * 0.95), (d: number) => Math.ceil(d * 1.05)]}
                         />
                         <Tooltip 
                           contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
@@ -226,9 +248,9 @@ export default function ItemDetail() {
                         />
                       </LineChart>
                     </ResponsiveContainer>
-                    {history.length <= 1 && (
+                    {history.length <= 2 && history[0]?.price === history[history.length - 1]?.price && (
                       <p className="text-xs text-gray-400 text-center mt-2">
-                        Tracking started — more data points will appear after the next price check
+                        Price tracking active — the chart will update as prices change
                       </p>
                     )}
                   </div>
@@ -236,7 +258,7 @@ export default function ItemDetail() {
                   <div className="flex flex-col h-full items-center justify-center text-gray-400 space-y-3 px-4">
                     <p className="text-base font-medium text-gray-600">No price data available.</p>
                     <p className="text-sm text-gray-500 text-center max-w-md">
-                      Price information isn't available for this item yet.
+                      This item doesn't have a tracked price yet. Add it again with a price to start tracking.
                     </p>
                   </div>
                 )}
