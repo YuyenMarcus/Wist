@@ -54,11 +54,11 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex min-h-screen bg-white">
-      {/* Sidebar - Hidden on mobile, handled by a separate component later if needed */}
+      {/* Sidebar - Includes mobile header and slide-out menu */}
       <Sidebar initialCollections={collections} />
       
-      {/* Main Content Area */}
-      <main className="flex-1 w-full">
+      {/* Main Content Area - Add top padding on mobile for fixed header */}
+      <main className="flex-1 w-full pt-14 md:pt-0">
         {children}
       </main>
     </div>

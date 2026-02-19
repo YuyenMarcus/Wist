@@ -207,8 +207,8 @@ export default function PurchasedPage() {
                       </div>
                     )}
                     
-                    {/* Action Buttons - Visible on Hover */}
-                    <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                    {/* Action Buttons - Always visible on mobile, hover on desktop */}
+                    <div className="absolute top-3 right-3 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex gap-2">
                       <button
                         onClick={() => handleMoveBackToWishlist(item.id)}
                         className="p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white text-zinc-600 hover:text-violet-600 transition-colors"

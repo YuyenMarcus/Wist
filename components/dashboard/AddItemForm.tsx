@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { Puzzle, Check, Download } from 'lucide-react'
 
 type Priority = 'high' | 'medium' | 'low'
 
@@ -13,7 +14,11 @@ interface PreviewData {
   price?: string | number
   description?: string
   url: string
+  extensionRequired?: boolean
 }
+
+// Extension ID - update this if your extension ID changes
+const EXTENSION_ID = chrome?.runtime?.id || ''
 
 export default function AddItemForm() {
   const [url, setUrl] = useState('')
@@ -24,26 +29,126 @@ export default function AddItemForm() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
+  const [extensionInstalled, setExtensionInstalled] = useState(false)
+  const [scrapeMethod, setScrapeMethod] = useState<'extension' | 'server' | null>(null)
   const router = useRouter()
 
-  // Debug: Verify state connection - log when preview changes
+  // Check if extension is installed on mount
   useEffect(() => {
-    if (preview) {
-      console.log('🔄 Preview state updated:', {
-        hasImage: !!preview.image,
-        imageUrl: preview.image,
-        title: preview.title,
-      })
-    } else {
-      console.log('🔄 Preview state cleared')
+    const checkExtension = () => {
+      // Method 1: Check for data attribute set by content script
+      const hasAttribute = document.documentElement.getAttribute('data-wist-installed') === 'true'
+      
+      // Method 2: Try to communicate with the extension
+      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+        // Try sending a ping to the extension
+        try {
+          // Get extension ID from manifest or use a known ID
+          const extensionIds = [
+            // Add your extension ID here after publishing
+            // You can find it in chrome://extensions
+          ]
+          
+          // For development, the extension might be using a dynamic ID
+          // We rely on the content script setting the data attribute
+        } catch (e) {
+          console.log('Extension communication not available')
+        }
+      }
+      
+      setExtensionInstalled(hasAttribute)
+      console.log('🧩 Extension installed:', hasAttribute)
     }
-  }, [preview])
+    
+    // Check immediately and after a short delay (in case content script hasn't run yet)
+    checkExtension()
+    const timeout = setTimeout(checkExtension, 500)
+    
+    return () => clearTimeout(timeout)
+  }, [])
+
+  // Scrape using the extension (browser-based, avoids bot detection)
+  const scrapeWithExtension = useCallback(async (targetUrl: string): Promise<PreviewData | null> => {
+    return new Promise((resolve) => {
+      console.log('🧩 Attempting extension-based scraping for:', targetUrl)
+      
+      // Send message to extension via window postMessage (content script will relay it)
+      const messageId = `scrape-${Date.now()}`
+      
+      const handleResponse = (event: MessageEvent) => {
+        if (event.data?.type === 'WIST_SCRAPE_RESULT' && event.data?.messageId === messageId) {
+          window.removeEventListener('message', handleResponse)
+          
+          if (event.data.success && event.data.data) {
+            console.log('✅ Extension scrape successful:', event.data.data)
+            resolve({
+              title: event.data.data.title || 'Unknown Item',
+              image: event.data.data.image || event.data.data.image_url || null,
+              price: event.data.data.price || null,
+              description: event.data.data.description || null,
+              url: targetUrl,
+            })
+          } else {
+            console.log('❌ Extension scrape failed:', event.data.error)
+            resolve(null)
+          }
+        }
+      }
+      
+      window.addEventListener('message', handleResponse)
+      
+      // Send scrape request to content script
+      window.postMessage({
+        type: 'WIST_SCRAPE_REQUEST',
+        messageId,
+        url: targetUrl,
+      }, '*')
+      
+      // Timeout after 30 seconds
+      setTimeout(() => {
+        window.removeEventListener('message', handleResponse)
+        console.log('⏱️ Extension scrape timed out')
+        resolve(null)
+      }, 30000)
+    })
+  }, [])
+
+  // Scrape using server-side API (fallback)
+  const scrapeWithServer = useCallback(async (targetUrl: string): Promise<PreviewData | null> => {
+    console.log('🖥️ Using server-side scraping for:', targetUrl)
+    
+    const metadataUrl = `/api/metadata?url=${encodeURIComponent(targetUrl)}`
+    const response = await fetch(metadataUrl)
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Failed to fetch metadata' }))
+      throw new Error(errorData.error || 'Failed to fetch product data')
+    }
+
+    const metadata = await response.json()
+    console.log('🔍 Server metadata:', metadata)
+    
+    // Check if extension is recommended for better results
+    if (metadata.extensionRequired && !extensionInstalled) {
+      console.log('⚠️ Extension recommended for this site')
+    }
+    
+    return {
+      title: metadata.title || 'Unknown Item',
+      image: metadata.imageUrl || null,
+      price: metadata.price || null,
+      description: metadata.description || null,
+      url: targetUrl,
+      extensionRequired: metadata.extensionRequired,
+    }
+  }, [extensionInstalled])
 
   // Fetch metadata when URL is pasted/changed
   const handleUrlChange = async (newUrl: string) => {
     setUrl(newUrl)
     setError(null)
     setPreview(null)
+    setScrapeMethod(null)
 
     if (!newUrl.trim()) {
       setIsExpanded(false)
@@ -63,30 +168,31 @@ export default function AddItemForm() {
     setLoading(true)
 
     try {
-      // Fetch metadata from the new metadata API
-      const metadataUrl = `/api/metadata?url=${encodeURIComponent(newUrl.trim())}`
-      const response = await fetch(metadataUrl)
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Failed to fetch metadata' }))
-        throw new Error(errorData.error || 'Failed to fetch product data')
-      }
-
-      const metadata = await response.json()
-
-      // Debug: Log the fetched metadata to see what we're getting
-      console.log('🔍 Fetched metadata:', metadata)
+      let previewData: PreviewData | null = null
       
-      const previewData = {
-        title: metadata.title || 'Unknown Item',
-        image: metadata.imageUrl || null, // API returns imageUrl, we store it as image
-        price: metadata.price || null,
-        description: metadata.description || null,
-        url: newUrl.trim(),
+      // Try extension-based scraping first if extension is installed
+      if (extensionInstalled) {
+        console.log('🧩 Extension detected, trying extension-based scraping...')
+        previewData = await scrapeWithExtension(newUrl.trim())
+        
+        if (previewData && previewData.title && previewData.title !== 'Unknown Item') {
+          setScrapeMethod('extension')
+        }
       }
       
-      console.log('📦 Setting preview with image:', previewData.image)
-      setPreview(previewData)
+      // Fall back to server-side scraping if extension fails or is not installed
+      if (!previewData || !previewData.title || previewData.title === 'Unknown Item') {
+        console.log('🖥️ Falling back to server-side scraping...')
+        previewData = await scrapeWithServer(newUrl.trim())
+        setScrapeMethod('server')
+      }
+      
+      if (previewData) {
+        console.log('📦 Setting preview:', previewData)
+        setPreview(previewData)
+      } else {
+        throw new Error('Could not fetch product data')
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to fetch product data')
       setPreview(null)
@@ -219,12 +325,42 @@ export default function AddItemForm() {
 
   return (
     <div className="max-w-2xl mx-auto">
+      {/* Extension Status Indicator */}
+      {extensionInstalled ? (
+        <div className="flex items-center justify-center gap-2 mb-3 text-xs text-green-600">
+          <Check className="w-3.5 h-3.5" />
+          <span>Extension connected</span>
+        </div>
+      ) : (
+        <div className="mb-4 p-3 sm:p-4 bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-200 rounded-xl">
+          <div className="flex flex-col sm:flex-row items-start gap-3">
+            <div className="p-2 bg-violet-100 rounded-lg flex-shrink-0">
+              <Puzzle className="w-5 h-5 text-violet-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="text-sm font-medium text-zinc-900">Install our extension to add items from links</h4>
+              <p className="mt-1 text-xs text-zinc-500 leading-relaxed">
+                The Wist extension enables instant scraping from any shopping site including Amazon, Etsy, and more.
+              </p>
+              <a
+                href="/wist-extension-download.zip"
+                download
+                className="inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 bg-violet-600 text-white text-xs font-medium rounded-lg hover:bg-violet-700 transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Download Extension
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Magic Input Bar */}
       <div className="relative">
         <div
           className={`bg-white rounded-2xl border border-zinc-200 shadow-sm transition-all duration-300 ${
             isExpanded ? 'shadow-xl border-violet-200 ring-2 ring-violet-200' : ''
-          }`}
+          } ${!extensionInstalled ? 'opacity-60' : ''}`}
         >
           <div className="flex items-center h-14 px-4">
             <input
@@ -234,13 +370,13 @@ export default function AddItemForm() {
               onFocus={() => {
                 if (url.trim()) setIsExpanded(true)
               }}
-              placeholder="Paste a link to add to wishlist..."
+              placeholder={extensionInstalled ? "Paste a link to add to wishlist..." : "Install extension to paste links..."}
               className="flex-1 bg-transparent border-none outline-none text-zinc-900 placeholder-zinc-400 text-sm focus:ring-0"
-              disabled={loading || saving}
+              disabled={loading || saving || !extensionInstalled}
             />
             {loading && (
               <div className="ml-3">
-                <div className="w-5 h-5 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-5 h-5 border-2 border-violet-400 border-t-transparent rounded-full animate-spin"></div>
               </div>
             )}
             {isExpanded && !loading && preview && (
@@ -284,30 +420,25 @@ export default function AddItemForm() {
                   </div>
                 )}
 
+                {/* Scrape Method Indicator */}
+                {scrapeMethod === 'extension' && preview && (
+                  <div className="mb-3 flex items-center gap-2 text-xs text-green-600">
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Scraped via extension</span>
+                  </div>
+                )}
+
                 {/* Preview Card */}
                 {preview && (
                   <div className="mb-4">
-                    {/* Debug info (remove in production) */}
-                    {process.env.NODE_ENV === 'development' && (
-                      <div className="mb-2 p-2 bg-zinc-50 rounded text-xs text-zinc-600 border border-zinc-200">
-                        <div><strong>State Check:</strong></div>
-                        <div>preview.image = {preview.image ? `"${preview.image}"` : 'null'}</div>
-                        <div>preview.image exists? {preview.image ? '✅ YES' : '❌ NO'}</div>
-                      </div>
-                    )}
                     <div className="flex items-center gap-3">
                       {preview.image ? (
                         <img
-                          key={preview.image} // Force re-render if image URL changes
+                          key={preview.image}
                           src={preview.image}
                           alt={preview.title || 'Product preview'}
                           className="w-12 h-12 object-cover rounded border border-zinc-200"
-                          onLoad={() => {
-                            console.log('✅ Image loaded successfully:', preview.image)
-                          }}
                           onError={(e) => {
-                            // Fallback if image fails to load
-                            console.error('❌ Image failed to load:', preview.image)
                             e.currentTarget.style.display = 'none'
                           }}
                         />

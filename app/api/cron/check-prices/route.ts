@@ -1,6 +1,38 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
+// Notification queue helper - queues price drop notifications for users
+async function queuePriceDropNotification(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  itemId: string,
+  oldPrice: number,
+  newPrice: number
+) {
+  const priceChangePercent = ((newPrice - oldPrice) / oldPrice) * 100;
+  
+  // Only notify for price DROPS (negative change)
+  if (priceChangePercent >= 0) return;
+  
+  const { error } = await supabase
+    .from('notification_queue')
+    .insert({
+      user_id: userId,
+      item_id: itemId,
+      notification_type: 'price_drop',
+      old_price: oldPrice,
+      new_price: newPrice,
+      price_change_percent: priceChangePercent,
+      sent: false,
+    });
+  
+  if (error) {
+    console.log(`   ⚠️  Failed to queue notification: ${error.message}`);
+  } else {
+    console.log(`   🔔 Notification queued for user (${Math.abs(priceChangePercent).toFixed(1)}% drop)`);
+  }
+}
+
 // ⚠️ CRITICAL CHANGE: Use the SERVICE_ROLE_KEY
 // This bypasses RLS so the bot can see ALL items
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -39,13 +71,13 @@ export async function GET(req: Request) {
     // (Alternative: use a system_config table or Redis)
     const { data: recentHistory } = await supabase
       .from('price_history')
-      .select('recorded_at')
-      .order('recorded_at', { ascending: false })
+      .select('created_at')
+      .order('created_at', { ascending: false })
       .limit(1)
       .single();
     
-    if (recentHistory?.recorded_at) {
-      const lastRunTime = new Date(recentHistory.recorded_at);
+    if (recentHistory?.created_at) {
+      const lastRunTime = new Date(recentHistory.created_at);
       const hoursSinceLastRun = (Date.now() - lastRunTime.getTime()) / (1000 * 60 * 60);
       
       if (hoursSinceLastRun < RATE_LIMIT_HOURS) {
@@ -83,11 +115,13 @@ export async function GET(req: Request) {
     
     let totalChecked = 0;
     let updateCount = 0;
+    let notificationCount = 0;
     let offset = 0;
     let hasMore = true;
 
     // Only select columns we actually need (reduces data transfer)
-    const selectColumns = 'id, title, url, current_price, status, updated_at';
+    // Include user_id for notifications
+    const selectColumns = 'id, user_id, title, url, current_price, status, updated_at';
 
     console.log(`📊 Starting batch processing (batch size: ${BATCH_SIZE}, max items: ${MAX_ITEMS_TO_CHECK})`);
 
@@ -99,6 +133,7 @@ export async function GET(req: Request) {
       
       type ItemType = {
         id: string;
+        user_id: string;
         title: string;
         url: string;
         current_price: number | null;
@@ -133,7 +168,7 @@ export async function GET(req: Request) {
         console.log("⚠️  Query error (might be missing columns), trying simplified query...");
         const retry = await supabase
           .from('items')
-          .select('id, title, url, current_price, status, updated_at')
+          .select('id, user_id, title, url, current_price, status, updated_at')
           .not('url', 'is', null)
           .order('created_at', { ascending: true })
           .limit(BATCH_SIZE);
@@ -259,6 +294,13 @@ export async function GET(req: Request) {
             updateData.current_price = newPrice;
             console.log(`   💰 PRICE DIFFERENCE! Updating DB...`);
             console.log(`   Old: $${oldPrice} → New: $${newPrice}`);
+            updateCount++;
+            
+            // Queue notification if price DROPPED (newPrice < oldPrice)
+            if (newPrice < oldPrice && item.user_id) {
+              await queuePriceDropNotification(supabase, item.user_id, item.id, oldPrice, newPrice);
+              notificationCount++;
+            }
           } else {
             console.log("   💤 No change in price.");
           }
@@ -271,20 +313,17 @@ export async function GET(req: Request) {
             console.log(`   ✅ Item updated in DB`);
           }
           
-          // Log price history if price changed
-          if (priceChanged) {
-            const historyResult = await supabase.from('price_history').insert({
-              item_id: item.id,
-              price: newPrice
-            });
+          // ALWAYS log price history (even if unchanged) to build graph data over time
+          // This ensures users see price trends on the graph, even if the price is stable
+          const historyResult = await supabase.from('price_history').insert({
+            item_id: item.id,
+            price: newPrice
+          });
 
-            if (historyResult.error) {
-              console.log(`   ⚠️  History Error: ${historyResult.error.message}`);
-            } else {
-              console.log(`   ✅ Price history logged`);
-            }
-
-            updateCount++;
+          if (historyResult.error) {
+            console.log(`   ⚠️  History Error: ${historyResult.error.message}`);
+          } else {
+            console.log(`   ✅ Price history logged (${priceChanged ? 'price changed' : 'same price'})`);
           }
           
         } catch (error: any) {
@@ -325,12 +364,13 @@ export async function GET(req: Request) {
     }
 
     console.log("\n--- JOB FINISHED ---");
-    console.log(`📊 Summary: Checked ${totalChecked} items, Updated ${updateCount} prices`);
+    console.log(`📊 Summary: Checked ${totalChecked} items, Updated ${updateCount} prices, Queued ${notificationCount} notifications`);
     
     return NextResponse.json({ 
       success: true, 
       checked: totalChecked, 
       updates: updateCount,
+      notifications: notificationCount,
       message: totalChecked >= MAX_ITEMS_TO_CHECK 
         ? `Processed ${totalChecked} items (limit reached). More items will be checked in next run.`
         : `Processed all ${totalChecked} items.`

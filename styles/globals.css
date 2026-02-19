@@ -1061,51 +1061,175 @@ body.user-logged-in.has-extension .ExtensionBanner {
   }
 
   .nav-actions {
-    gap: 16px;
+    gap: 12px;
   }
 
   .nav-link {
     display: none;
   }
 
+  .nav-signup {
+    padding: 10px 16px;
+    font-size: 0.85rem;
+  }
+
   .hero-main {
-    padding: 32px 20px 60px;
+    padding: 24px 16px 40px;
+    min-height: auto;
+    gap: 40px;
   }
 
   .hero-headline {
-    font-size: 2.2rem;
+    font-size: 1.9rem;
+    margin-bottom: 20px;
   }
 
   .hero-subheadline {
-    font-size: 1rem;
+    font-size: 0.95rem;
+    margin-bottom: 24px;
+    line-height: 1.6;
   }
 
   .hero-cta {
     flex-direction: column;
+    gap: 12px;
+    margin-bottom: 24px;
   }
 
   .btn {
     width: 100%;
     justify-content: center;
-    padding: 16px 24px;
+    padding: 14px 20px;
+    font-size: 0.9rem;
   }
 
   .trust-signals {
     flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+    margin-bottom: 24px;
+  }
+
+  .trust-item {
+    font-size: 0.8rem;
+  }
+
+  .social-proof {
+    flex-direction: column;
     gap: 12px;
+    align-items: flex-start;
+  }
+
+  .avatars {
+    margin-bottom: 4px;
+  }
+
+  .comparison-container {
+    border-radius: 16px;
+  }
+
+  .comparison-side {
+    padding: 16px;
+    min-height: 300px;
   }
 
   .chaos-container {
-    height: 280px;
+    height: 240px;
   }
 
   .chaos-item {
-    transform: rotate(0deg) scale(0.9) !important;
+    transform: rotate(0deg) scale(0.8) !important;
+  }
+
+  .note {
+    width: 110px;
+    padding: 8px;
+    font-size: 0.6rem;
+  }
+
+  .browser {
+    width: 120px;
+  }
+
+  .wist-app {
+    border-radius: 12px;
+  }
+
+  .app-header {
+    padding: 12px 14px;
+  }
+
+  .wishlist-item {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .item-image {
+    width: 40px;
+    height: 40px;
+  }
+
+  .item-name {
+    font-size: 0.75rem;
+  }
+
+  .price-current {
+    font-size: 0.85rem;
+  }
+
+  .item-chart {
+    width: 50px;
+    height: 24px;
   }
 
   .price-notification {
     right: auto;
     left: 50%;
     transform: translateX(-50%);
+    padding: 8px 10px;
+    font-size: 0.65rem;
+    top: -10px;
   }
+
+  .comparison-divider {
+    height: 40px;
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 380px) {
+  .hero-headline {
+    font-size: 1.7rem;
+  }
+  
+  .hero-main {
+    padding: 20px 12px 32px;
+  }
+  
+  .comparison-side {
+    padding: 12px;
+    min-height: 260px;
+  }
+  
+  .chaos-container {
+    height: 200px;
+  }
+  
+  .chaos-item {
+    transform: rotate(0deg) scale(0.7) !important;
+  }
+}
+
+/* ===== Mobile Menu Animation ===== */
+@keyframes slide-in-left {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 0.25s ease-out;
 }

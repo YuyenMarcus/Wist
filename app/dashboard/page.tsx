@@ -30,51 +30,6 @@ export default function DashboardPage() {
 
   // Determine view mode from URL parameter
   const viewMode = searchParams?.get('view') === 'grouped' ? 'grouped' : 'timeline'
-  
-  // Debug: Log view mode changes
-  useEffect(() => {
-    console.log('🔍 View mode changed:', {
-      viewMode,
-      searchParamsView: searchParams?.get('view'),
-      url: typeof window !== 'undefined' ? window.location.href : 'server'
-    })
-  }, [viewMode, searchParams])
-
-  // Debug: Log Categories view rendering conditions
-  useEffect(() => {
-    if (viewMode === 'grouped') {
-      console.log('🎨 Categories View Debug:', {
-        viewMode,
-        collectionsLength: collections.length,
-        productsLength: products.length,
-        shouldRenderAllItems: collections.length === 0 && products.length > 0,
-        collections: collections.map((c: any) => ({ id: c.id, name: c.name })),
-        productsSample: products.slice(0, 3).map((p: any) => ({ id: p.id, title: p.title }))
-      })
-    }
-  }, [viewMode, collections, products])
-
-  // Debug: Log Collections Check right before Categories view renders
-  useEffect(() => {
-    if (viewMode === 'grouped') {
-      console.log('🎨 Categories View - Collections Check:', {
-        collectionsCount: collections.length,
-        collections: collections,
-        productsCount: products.length
-      });
-    }
-  }, [viewMode, collections, products])
-
-  // Debug: Log Dashboard render state
-  useEffect(() => {
-    console.log('🐛 Dashboard Render Debug:', {
-      viewMode,
-      collectionsCount: collections.length,
-      collectionsData: collections,
-      productsCount: products.length,
-      timestamp: new Date().toISOString()
-    });
-  }, [viewMode, collections, products])
 
   // Group items by collection for the Categories view - use useMemo to ensure proper computation
   const groupedItems = useMemo(() => {
@@ -88,8 +43,6 @@ export default function DashboardPage() {
     }
     
     const grouped = collections.map(col => {
-      // Filter items that belong to this collection
-      // Ensure both values are strings for comparison
       const items = products.filter((item: any) => {
         const itemCollectionId = item.collection_id?.toString() || null
         const collectionId = col.id?.toString() || null
@@ -102,33 +55,8 @@ export default function DashboardPage() {
       }
     })
     
-    // Debug logging
-    if (viewMode === 'grouped') {
-      console.log('📊 Grouped items computation:', {
-        viewMode,
-        collectionsCount: collections.length,
-        productsCount: products.length,
-        collections: collections.map((c: any) => ({ id: c.id, name: c.name })),
-        grouped: grouped.map(g => ({
-          name: g.name,
-          id: g.id,
-          itemsCount: g.items.length,
-          sampleItemIds: g.items.slice(0, 3).map((i: any) => i.id)
-        })),
-        productsWithCollectionId: products.filter((p: any) => p.collection_id).map((p: any) => ({
-          id: p.id,
-          title: p.title,
-          collection_id: p.collection_id
-        })),
-        productsWithoutCollectionId: products.filter((p: any) => !p.collection_id).map((p: any) => ({
-          id: p.id,
-          title: p.title
-        }))
-      })
-    }
-    
     return grouped
-  }, [collections, products, viewMode])
+  }, [collections, products])
 
   const uncategorizedItems = useMemo(() => {
     const uncategorized = products.filter((item: any) => {
@@ -498,14 +426,14 @@ export default function DashboardPage() {
         {/* Categories View (Grouped by Collection) */}
         {viewMode === 'grouped' && (
           <div className="space-y-12">
-            {/* Auto-organize Banner */}
+            {/* Auto-organize Banner - Stacks on mobile */}
             {autoOrganizeStats && autoOrganizeStats.canAutoCategorize > 0 && (
-              <div className="flex items-center justify-between bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-200 rounded-xl px-5 py-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-200 rounded-xl px-4 sm:px-5 py-4">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-violet-100 rounded-lg">
+                  <div className="p-2 bg-violet-100 rounded-lg flex-shrink-0">
                     <Sparkles className="w-5 h-5 text-violet-600" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-sm font-medium text-zinc-900">
                       {autoOrganizeStats.canAutoCategorize} item{autoOrganizeStats.canAutoCategorize !== 1 ? 's' : ''} can be auto-organized
                     </p>
@@ -517,7 +445,7 @@ export default function DashboardPage() {
                 <button
                   onClick={handleAutoOrganize}
                   disabled={autoOrganizing}
-                  className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 disabled:bg-violet-400 text-white text-sm font-medium rounded-lg transition-colors"
+                  className="flex items-center justify-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 disabled:bg-violet-400 text-white text-sm font-medium rounded-lg transition-colors flex-shrink-0 w-full sm:w-auto"
                 >
                   {autoOrganizing ? (
                     <>

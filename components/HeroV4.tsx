@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Chrome } from 'lucide-react'
+import { Chrome, Menu, X } from 'lucide-react'
 
 interface HeroV4Props {
   isLoggedIn: boolean
@@ -13,6 +13,7 @@ export default function HeroV4({ isLoggedIn }: HeroV4Props) {
   const router = useRouter()
   const [priceIndex, setPriceIndex] = useState(0)
   const [hasExtension, setHasExtension] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const prices = [699, 650, 620, 699, 680, 699]
 
@@ -84,7 +85,9 @@ export default function HeroV4({ isLoggedIn }: HeroV4Props) {
             BETA
           </span>
         </div>
-        <div className="nav-actions">
+        
+        {/* Desktop Navigation */}
+        <div className="nav-actions hidden sm:flex">
           {isLoggedIn ? (
             <Link href="/dashboard" className="nav-signup">
               Dashboard
@@ -96,7 +99,50 @@ export default function HeroV4({ isLoggedIn }: HeroV4Props) {
             </>
           )}
         </div>
+
+        {/* Mobile Menu Button */}
+        <button 
+          className="sm:hidden p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          aria-label="Toggle menu"
+        >
+          {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
       </nav>
+
+      {/* Mobile Menu Dropdown */}
+      {mobileMenuOpen && (
+        <div className="sm:hidden absolute top-16 left-0 right-0 bg-white border-b border-gray-200 shadow-lg z-50 animate-slide-in-left">
+          <div className="flex flex-col p-4 gap-3">
+            {isLoggedIn ? (
+              <Link 
+                href="/dashboard" 
+                className="w-full py-3 px-4 text-center bg-violet-600 text-white font-semibold rounded-xl hover:bg-violet-700 transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link 
+                  href="/login" 
+                  className="w-full py-3 px-4 text-center text-gray-700 font-medium border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Log In
+                </Link>
+                <Link 
+                  href="/signup" 
+                  className="w-full py-3 px-4 text-center bg-violet-600 text-white font-semibold rounded-xl hover:bg-violet-700 transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Get Started
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Hero Main Content */}
       <main className="hero-main">

@@ -8,7 +8,7 @@ import {
   Heart, Home, ShoppingBag, Star, Bookmark, Tag, Box, Package, 
   Sparkles, Zap, Coffee, Music, Gamepad2, Shirt, Car, Plane, 
   Camera, Palette, Dumbbell, BookOpen, Laptop, Phone, Watch, 
-  Headphones, Utensils, Bed, Sofa, TreePine  // ← Added new icons
+  Headphones, Utensils, Bed, Sofa, TreePine, Menu, X
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
@@ -214,6 +214,33 @@ function CollectionItem({
   );
 }
 
+// Mobile Menu Context - allows mobile header to control sidebar state
+export function MobileHeader({ onMenuClick }: { onMenuClick: () => void }) {
+  return (
+    <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-zinc-200 px-4 py-3 flex items-center justify-between">
+      <Link href="/dashboard" className="flex items-center gap-2">
+        <Image 
+          src="/logo.svg" 
+          alt="Wist Logo" 
+          width={32} 
+          height={32}
+          className="w-8 h-8"
+        />
+        <span className="px-1.5 py-0.5 text-[9px] font-semibold text-violet-600 bg-violet-50 rounded-full border border-violet-200">
+          BETA
+        </span>
+      </Link>
+      <button 
+        onClick={onMenuClick}
+        className="p-2 -mr-2 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors"
+        aria-label="Open menu"
+      >
+        <Menu size={24} />
+      </button>
+    </header>
+  );
+}
+
 export default function Sidebar({ initialCollections = [] }: { initialCollections?: Collection[] }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -227,9 +254,27 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
   const [newCollectionColor, setNewCollectionColor] = useState('Violet');
   const [showCreateIconPicker, setShowCreateIconPicker] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const createIconPickerRef = useRef<HTMLDivElement>(null);
   const createIconButtonRef = useRef<HTMLButtonElement>(null);
   const [createIconPickerPosition, setCreateIconPickerPosition] = useState({ top: 0, left: 0 });
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
 
   // Determine view mode from URL parameter
   const viewMode = searchParams?.get('view') === 'grouped' ? 'grouped' : 'timeline';
@@ -376,25 +421,9 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
     }
   };
 
-  return (
-    <aside className="w-64 border-r border-zinc-200 h-screen sticky top-0 hidden md:flex flex-col bg-white">
-      
-      {/* Logo - Top Corner */}
-      <Link href="/dashboard" className="flex items-center gap-2 px-4 pt-4 pb-6 hover:opacity-80 transition-opacity border-b border-zinc-200">
-        <div className="relative flex items-center">
-          <Image 
-            src="/logo.svg" 
-            alt="Wist Logo" 
-            width={40} 
-            height={40}
-            className="w-10 h-10"
-          />
-          <span className="ml-2 px-1.5 py-0.5 text-[10px] font-semibold text-violet-600 bg-violet-50 rounded-full border border-violet-200">
-            BETA
-          </span>
-        </div>
-      </Link>
-      
+  // Sidebar content - shared between desktop and mobile
+  const sidebarContent = (
+    <>
       {/* View Switcher (Timeline / Categories) */}
       <div className="px-4 pt-4 mb-4">
         <div className="flex p-1 bg-white border border-zinc-200 rounded-lg shadow-sm">
@@ -441,7 +470,7 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
       {/* Collections Header with Manage Button */}
       <div className="flex items-center justify-between mb-2 px-4 group">
         <h3 className="text-xs font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-wider">Collections</h3>
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
           {/* Manage/Delete Button */}
           <button 
             onClick={() => setIsManaging(!isManaging)}
@@ -461,6 +490,250 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
           </button>
         </div>
       </div>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile Header */}
+      <MobileHeader onMenuClick={() => setMobileMenuOpen(true)} />
+
+      {/* Mobile Menu Overlay */}
+      {mobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 z-50">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          
+          {/* Slide-out Menu */}
+          <aside className="absolute left-0 top-0 bottom-0 w-[280px] bg-white shadow-xl flex flex-col animate-slide-in-left">
+            {/* Mobile Menu Header */}
+            <div className="flex items-center justify-between px-4 py-4 border-b border-zinc-200">
+              <Link href="/dashboard" className="flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
+                <Image 
+                  src="/logo.svg" 
+                  alt="Wist Logo" 
+                  width={36} 
+                  height={36}
+                  className="w-9 h-9"
+                />
+                <span className="px-1.5 py-0.5 text-[9px] font-semibold text-violet-600 bg-violet-50 rounded-full border border-violet-200">
+                  BETA
+                </span>
+              </Link>
+              <button 
+                onClick={() => setMobileMenuOpen(false)}
+                className="p-2 -mr-2 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors"
+                aria-label="Close menu"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Mobile Menu Content */}
+            {sidebarContent}
+
+            {/* Inline Create Form with Buttons */}
+            {isCreating && (
+              <div className="mb-3 px-4">
+                <form onSubmit={handleCreate} className="bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-3 shadow-sm">
+                  
+                  {/* Icon and Color Picker Row */}
+                  <div className="flex items-center gap-2 mb-3 flex-wrap">
+                    {/* Icon Picker */}
+                    <div className="relative flex-shrink-0" ref={createIconPickerRef}>
+                      <button
+                        ref={createIconButtonRef}
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (createIconButtonRef.current) {
+                            const rect = createIconButtonRef.current.getBoundingClientRect();
+                            setCreateIconPickerPosition({
+                              top: rect.bottom + 4,
+                              left: Math.min(rect.left, window.innerWidth - 270)
+                            });
+                          }
+                          setShowCreateIconPicker(!showCreateIconPicker);
+                        }}
+                        className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded transition-colors"
+                        title="Choose icon"
+                      >
+                        {(() => {
+                          const IconComponent = getIconComponent(newCollectionIcon);
+                          const colorClass = COLOR_PALETTE.find(c => c.name === newCollectionColor)?.class || 'text-violet-600 dark:text-violet-400';
+                          return <IconComponent size={18} className={colorClass} />;
+                        })()}
+                      </button>
+
+                      {/* Icon Picker Popup for Creation - Using fixed positioning to avoid overflow */}
+                      {showCreateIconPicker && (
+                        <>
+                          {/* Backdrop to close popup */}
+                          <div 
+                            className="fixed inset-0 z-[9998]"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowCreateIconPicker(false);
+                            }}
+                          />
+                          <div 
+                            className="fixed z-[9999] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl p-2 w-64 max-h-64 overflow-y-auto"
+                            style={{
+                              top: `${createIconPickerPosition.top}px`,
+                              left: `${createIconPickerPosition.left}px`,
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                          <div className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 px-2 py-1 mb-1">Choose Icon</div>
+                          <div className="grid grid-cols-6 gap-1">
+                            {AVAILABLE_ICONS.map(({ name, icon: Icon }) => {
+                              const isSelected = newCollectionIcon === name || (!newCollectionIcon && name === 'Folder');
+                              return (
+                                <button
+                                  key={name}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    setNewCollectionIcon(name);
+                                    setShowCreateIconPicker(false);
+                                  }}
+                                  className={`p-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors ${
+                                    isSelected ? 'bg-violet-100 dark:bg-violet-900/20 ring-1 ring-violet-500' : ''
+                                  }`}
+                                  title={name}
+                                >
+                                  <Icon size={16} className={isSelected ? 'text-violet-600 dark:text-violet-400' : 'text-zinc-500'} />
+                                </button>
+                              );
+                            })}
+                          </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    
+                    {/* Color Palette */}
+                    <div className="flex gap-1 flex-wrap flex-1 min-w-0">
+                      {COLOR_PALETTE.map(color => (
+                        <button
+                          key={color.name}
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setNewCollectionColor(color.name);
+                          }}
+                          className={`w-5 h-5 rounded-full transition-all flex-shrink-0 ${
+                            newCollectionColor === color.name 
+                              ? 'ring-2 ring-zinc-400 dark:ring-zinc-600 ring-inset scale-110' 
+                              : 'hover:scale-105'
+                          }`}
+                          style={{ backgroundColor: color.value }}
+                          title={color.name}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Name Input */}
+                  <input 
+                    autoFocus
+                    type="text" 
+                    placeholder="List Name..."
+                    className="w-full bg-transparent text-sm focus:outline-none text-zinc-900 dark:text-white px-2 py-2 mb-3 border-b border-zinc-200 dark:border-zinc-800"
+                    value={newCollectionName}
+                    onChange={(e) => setNewCollectionName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        handleCancel();
+                      }
+                    }}
+                    disabled={loading}
+                  />
+                  
+                  {/* Action Buttons */}
+                  <div className="flex gap-2">
+                    <button 
+                      type="submit" 
+                      disabled={loading || !newCollectionName.trim()}
+                      className="flex-1 bg-violet-600 text-white text-xs py-1.5 px-2 rounded font-medium hover:bg-violet-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {loading ? 'Adding...' : 'Add'}
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={handleCancel}
+                      disabled={loading}
+                      className="flex-1 bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-xs py-1.5 px-2 rounded font-medium hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* Collections List */}
+            <div className="space-y-1 overflow-y-auto flex-1 px-4 pb-4">
+              {collections.length === 0 && !isCreating && (
+                <p className="text-xs text-zinc-400 px-3 py-2">No collections yet</p>
+              )}
+              {collections.map((col) => (
+                <Link
+                  key={col.id}
+                  href={`/dashboard?view=grouped&collection=${col.slug}`}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <CollectionItem
+                    collection={col}
+                    pathname={pathname}
+                    isManaging={isManaging}
+                    onDelete={handleDelete}
+                    onIconChange={handleIconChange}
+                  />
+                </Link>
+              ))}
+            </div>
+
+            {/* Settings Link at Bottom */}
+            <div className="border-t border-zinc-200 px-4 py-4 mt-auto">
+              <Link 
+                href="/settings" 
+                className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-zinc-500 hover:text-violet-600 hover:bg-zinc-50 transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <Settings size={18} />
+                Settings
+              </Link>
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {/* Desktop Sidebar */}
+      <aside className="w-64 border-r border-zinc-200 h-screen sticky top-0 hidden md:flex flex-col bg-white">
+        
+        {/* Logo - Top Corner */}
+        <Link href="/dashboard" className="flex items-center gap-2 px-4 pt-4 pb-6 hover:opacity-80 transition-opacity border-b border-zinc-200">
+          <div className="relative flex items-center">
+            <Image 
+              src="/logo.svg" 
+              alt="Wist Logo" 
+              width={40} 
+              height={40}
+              className="w-10 h-10"
+            />
+            <span className="ml-2 px-1.5 py-0.5 text-[10px] font-semibold text-violet-600 bg-violet-50 rounded-full border border-violet-200">
+              BETA
+            </span>
+          </div>
+        </Link>
+        
+        {sidebarContent}
 
       {/* Inline Create Form with Buttons */}
       {isCreating && (
@@ -621,6 +894,7 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
         ))}
       </div>
     </aside>
+    </>
   );
 }
 
