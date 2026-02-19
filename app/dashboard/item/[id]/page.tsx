@@ -76,22 +76,26 @@ export default function ItemDetail() {
 
       // Format data
       if (historyData && historyData.length > 0) {
-        console.log("Raw History Data:", historyData); // Check console to see real data
-
         const formattedHistory = historyData.map(entry => {
           const dateObj = new Date(entry.created_at);
           return {
-            price: Number(entry.price), // Force number
-            // Create a simple string like "12/24"
+            price: Number(entry.price),
             date: `${dateObj.getMonth() + 1}/${dateObj.getDate()}`, 
             fullDate: dateObj.toLocaleDateString()
           };
         });
-        
-        console.log("Formatted History:", formattedHistory); // Debug: see formatted data
         setHistory(formattedHistory);
-      } else {
-        console.log("No history found for this item.");
+      } else if (itemData.current_price || itemData.price) {
+        // No history entries yet — show current price as a baseline so the chart isn't empty
+        const price = parseFloat(itemData.current_price || itemData.price);
+        if (!isNaN(price) && price > 0) {
+          const now = new Date();
+          setHistory([{
+            price,
+            date: `${now.getMonth() + 1}/${now.getDate()}`,
+            fullDate: now.toLocaleDateString()
+          }]);
+        }
       }
       
       setLoading(false);
@@ -188,45 +192,51 @@ export default function ItemDetail() {
               
               <div className="h-80 w-full">
                 {history.length > 0 ? (
-                  /* Price History Chart - Shows when data exists */
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={history} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                      <XAxis 
-                        dataKey="date" 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{fill: '#6b7280', fontSize: 12}} 
-                        dy={10}
-                      />
-                      <YAxis 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{fill: '#6b7280', fontSize: 12}} 
-                        tickFormatter={(val) => `$${val}`} 
-                      />
-                      <Tooltip 
-                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                        labelStyle={{ color: '#6b7280', marginBottom: '4px' }}
-                        formatter={(value: number | undefined) => value !== undefined ? [`$${value.toFixed(2)}`, 'Price'] : ['', '']}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="price" 
-                        stroke="#4f46e5" 
-                        strokeWidth={3} 
-                        dot={{ r: 4, fill: '#4f46e5', strokeWidth: 0 }} 
-                        activeDot={{ r: 6, fill: '#4f46e5' }} 
-                        isAnimationActive={true}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  <div className="relative h-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={history} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                        <XAxis 
+                          dataKey="date" 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{fill: '#6b7280', fontSize: 12}} 
+                          dy={10}
+                        />
+                        <YAxis 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{fill: '#6b7280', fontSize: 12}} 
+                          tickFormatter={(val) => `$${val}`} 
+                          domain={history.length === 1 ? [(d: number) => d * 0.9, (d: number) => d * 1.1] : ['auto', 'auto']}
+                        />
+                        <Tooltip 
+                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                          labelStyle={{ color: '#6b7280', marginBottom: '4px' }}
+                          formatter={(value: number | undefined) => value !== undefined ? [`$${value.toFixed(2)}`, 'Price'] : ['', '']}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="price" 
+                          stroke="#4f46e5" 
+                          strokeWidth={3} 
+                          dot={{ r: 5, fill: '#4f46e5', strokeWidth: 0 }} 
+                          activeDot={{ r: 6, fill: '#4f46e5' }} 
+                          isAnimationActive={true}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                    {history.length <= 1 && (
+                      <p className="text-xs text-gray-400 text-center mt-2">
+                        Tracking started — more data points will appear after the next price check
+                      </p>
+                    )}
+                  </div>
                 ) : (
-                  /* Placeholder Message - Shows before data exists */
                   <div className="flex flex-col h-full items-center justify-center text-gray-400 space-y-3 px-4">
-                    <p className="text-base font-medium text-gray-600">No price history yet.</p>
+                    <p className="text-base font-medium text-gray-600">No price data available.</p>
                     <p className="text-sm text-gray-500 text-center max-w-md">
-                      We're tracking this item's price automatically. Check back in 24 hours to see price trends!
+                      Price information isn't available for this item yet.
                     </p>
                   </div>
                 )}
