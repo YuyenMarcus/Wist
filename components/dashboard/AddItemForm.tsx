@@ -18,6 +18,7 @@ interface PreviewData {
 }
 
 // Extension ID - update this if your extension ID changes
+declare const chrome: any;
 const EXTENSION_ID = typeof chrome !== 'undefined' ? chrome?.runtime?.id || '' : ''
 
 export default function AddItemForm() {
