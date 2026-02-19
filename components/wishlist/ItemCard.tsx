@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Trash2, Edit2, Check, X, MoreHorizontal, FolderInput } from 'lucide-react'
+import { Trash2, Edit2, Check, X, MoreHorizontal, FolderInput, TrendingDown, TrendingUp } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -47,6 +47,9 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
     ? `$${typeof item.price === 'number' ? item.price.toFixed(2) : item.price}` 
     : null
   const isReserved = !!item.reserved_by
+  const priceChange = (item as any).price_change ?? null
+  const priceChangePercent = (item as any).price_change_percent ?? null
+  const previousPrice = (item as any).previous_price ?? null
 
   const handleDelete = async () => {
     if (!onDelete) return
@@ -361,6 +364,17 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
             </div>
           )}
 
+          {/* Price Drop Badge */}
+          {priceChange != null && priceChange < 0 && (priceChangePercent || 0) <= -5 && (
+            <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10">
+              <span className="inline-flex items-center gap-0.5 sm:gap-1 bg-green-500 text-white text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full shadow-lg animate-pulse">
+                <TrendingDown className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                <span className="hidden sm:inline">Price Drop!</span>
+                <span className="sm:hidden">Drop!</span>
+              </span>
+            </div>
+          )}
+
           {/* Reserved Badge */}
           {isReserved && !isOwner && (
             <div className="absolute inset-0 bg-black/30 flex items-center justify-center z-20">
@@ -565,10 +579,22 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
               </h3>
               
               {price && (
-                <div className="mt-1.5 sm:mt-3 flex items-center">
+                <div className="mt-1.5 sm:mt-3 flex items-center gap-1 sm:gap-1.5 flex-wrap">
                   <span className="inline-block bg-violet-50 text-violet-600 text-[10px] sm:text-xs font-bold px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full">
                     {price}
                   </span>
+                  {priceChange != null && priceChange !== 0 && (
+                    <span className={`inline-flex items-center gap-0.5 text-[10px] sm:text-xs font-semibold px-1 sm:px-1.5 py-0.5 rounded-full ${
+                      priceChange < 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                    }`}>
+                      {priceChange < 0 ? (
+                        <TrendingDown className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                      ) : (
+                        <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                      )}
+                      {Math.abs(priceChangePercent || 0).toFixed(0)}%
+                    </span>
+                  )}
                 </div>
               )}
 
@@ -579,6 +605,11 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                   <span className="text-xs sm:text-lg font-bold text-gray-900">
                     {price || 'N/A'}
                   </span>
+                  {previousPrice && priceChange !== 0 && (
+                    <span className="text-[9px] sm:text-xs text-zinc-400 line-through">
+                      ${typeof previousPrice === 'number' ? previousPrice.toFixed(2) : previousPrice}
+                    </span>
+                  )}
                 </div>
                 
                 <div className="flex gap-1 sm:gap-2">

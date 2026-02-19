@@ -92,6 +92,9 @@ export default function DashboardPage() {
         const { data, error } = await getUserProducts(currentUser.id, currentUser.id)
         if (!error && data) {
           setProducts(data)
+          
+          // Seed price history for items that have no entries yet (runs once, non-blocking)
+          fetch('/api/seed-price-history', { method: 'POST' }).catch(() => {})
         }
 
         // Load collections for "Move to" dropdown and Categories view
