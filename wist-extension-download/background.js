@@ -131,10 +131,15 @@ async function getTokenFromCookies() {
     const rootCookies = await chrome.cookies.getAll({ domain: '.nuvio.cloud' });
     const allCookies = [...cookies, ...rootCookies];
 
-    const authPrefix = `sb-${SUPABASE_PROJECT_REF}-auth-token`;
+    const authCookieName = `sb-${SUPABASE_PROJECT_REF}-auth-token`;
+
+    // Only match the exact cookie name or chunked variants (.0, .1, etc.)
+    // Excludes code-verifier and other suffixed cookies that share the prefix
     const authCookies = allCookies
-      .filter(c => c.name.startsWith(authPrefix))
+      .filter(c => c.name === authCookieName || /\.\d+$/.test(c.name) && c.name.startsWith(authCookieName + '.'))
       .sort((a, b) => a.name.localeCompare(b.name));
+
+    console.log(`🔍 [Background] Found ${authCookies.length} auth cookies:`, authCookies.map(c => c.name));
 
     if (authCookies.length === 0) {
       console.log("⚠️ [Background] No Supabase auth cookies found");
@@ -142,12 +147,40 @@ async function getTokenFromCookies() {
     }
 
     let sessionStr = authCookies.map(c => c.value).join('');
+
+    // Try URL-decode first
     try { sessionStr = decodeURIComponent(sessionStr); } catch (_) {}
 
-    let session;
-    try { session = JSON.parse(sessionStr); } catch (_) {
-      const base64 = sessionStr.replace(/-/g, '+').replace(/_/g, '/');
-      session = JSON.parse(atob(base64));
+    // Try multiple parse strategies
+    let session = null;
+
+    // Strategy 1: Raw JSON
+    try { session = JSON.parse(sessionStr); } catch (_) {}
+
+    // Strategy 2: base64url → JSON
+    if (!session) {
+      try {
+        const base64 = sessionStr.replace(/-/g, '+').replace(/_/g, '/');
+        const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
+        session = JSON.parse(atob(padded));
+      } catch (_) {}
+    }
+
+    // Strategy 3: Each chunk is separate base64, decode individually then join
+    if (!session && authCookies.length > 1) {
+      try {
+        const decoded = authCookies.map(c => {
+          const b64 = c.value.replace(/-/g, '+').replace(/_/g, '/');
+          const padded = b64 + '='.repeat((4 - b64.length % 4) % 4);
+          return atob(padded);
+        }).join('');
+        session = JSON.parse(decoded);
+      } catch (_) {}
+    }
+
+    if (!session) {
+      console.warn("⚠️ [Background] Could not parse cookie session. First 80 chars:", sessionStr.substring(0, 80));
+      return null;
     }
 
     if (!session?.access_token) {
@@ -184,6 +217,48 @@ async function getTokenFromCookies() {
   }
 }
 
+async function getTokenViaSilentTab() {
+  return new Promise(async (resolve) => {
+    let tabId = null;
+    let resolved = false;
+
+    const finish = (token) => {
+      if (resolved) return;
+      resolved = true;
+      if (tabId) chrome.tabs.remove(tabId).catch(() => {});
+      resolve(token);
+    };
+
+    setTimeout(() => finish(null), 12000);
+
+    const poll = async () => {
+      if (resolved) return;
+      const stored = await chrome.storage.local.get(['wist_auth_token']);
+      if (stored.wist_auth_token) {
+        try {
+          const payload = JSON.parse(atob(stored.wist_auth_token.split('.')[1]));
+          if (payload.exp * 1000 > Date.now()) {
+            console.log("✅ [Background] Got token via silent tab sync");
+            finish(stored.wist_auth_token);
+            return;
+          }
+        } catch (_) {}
+      }
+      if (!resolved) setTimeout(poll, 1500);
+    };
+
+    try {
+      console.log("🔄 [Background] Opening silent tab to trigger ExtensionSync...");
+      const tab = await chrome.tabs.create({ url: `${API_BASE_URL}/dashboard`, active: false });
+      tabId = tab.id;
+      setTimeout(poll, 4000);
+    } catch (e) {
+      console.error("❌ [Background] Silent tab failed:", e.message);
+      finish(null);
+    }
+  });
+}
+
 async function getValidToken() {
   const stored = await chrome.storage.local.get([
     'wist_auth_token',
@@ -217,11 +292,16 @@ async function getValidToken() {
     tokenSource = 'supabase_session (legacy)';
   }
   
-  // No stored token — try cookies
+  // No stored token — try cookies, then silent tab
   if (!token) {
     console.log("⚠️ [Background] No stored token, trying cookies...");
     const cookieToken = await getTokenFromCookies();
     if (cookieToken) return cookieToken;
+
+    console.log("⚠️ [Background] Cookies failed, trying silent tab sync...");
+    const tabToken = await getTokenViaSilentTab();
+    if (tabToken) return tabToken;
+
     throw new Error("Not logged in. Please visit wishlist.nuvio.cloud and log in.");
   }
   
@@ -238,6 +318,11 @@ async function getValidToken() {
       console.warn(`⚠️ [Background] Stored token expired ${minutesAgo}m ago, trying cookies...`);
       const cookieToken = await getTokenFromCookies();
       if (cookieToken) return cookieToken;
+
+      console.log("⚠️ [Background] Cookies failed, trying silent tab sync...");
+      const tabToken = await getTokenViaSilentTab();
+      if (tabToken) return tabToken;
+
       throw new Error("Token expired. Please visit wishlist.nuvio.cloud to refresh.");
     }
     
