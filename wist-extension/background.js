@@ -136,7 +136,12 @@ async function getTokenFromCookies() {
   try {
     const cookies = await chrome.cookies.getAll({ domain: 'wishlist.nuvio.cloud' });
     const rootCookies = await chrome.cookies.getAll({ domain: '.nuvio.cloud' });
-    const allCookies = [...cookies, ...rootCookies];
+    const seen = new Set();
+    const allCookies = [...cookies, ...rootCookies].filter(c => {
+      if (seen.has(c.name)) return false;
+      seen.add(c.name);
+      return true;
+    });
 
     const authCookieName = `sb-${SUPABASE_PROJECT_REF}-auth-token`;
 
