@@ -265,13 +265,51 @@ export default function ItemDetail() {
               </div>
             </div>
 
-            {/* Notes Section */}
-            <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-900/5">
-              <h3 className="font-bold text-gray-900">My Notes</h3>
-              <div className="mt-3 rounded-lg bg-gray-50 p-4 text-sm text-gray-700">
-                {item.note || item.description || "No notes added for this item yet."}
+            {/* Weekly Price Log */}
+            {history.length > 0 && (
+              <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-900/5">
+                <h3 className="font-bold text-gray-900 mb-4">Weekly Price Log</h3>
+                <div className="divide-y divide-gray-100">
+                  {(() => {
+                    const weeks: { weekLabel: string; price: number; date: Date }[] = []
+                    let lastWeek = -1
+                    for (const entry of history) {
+                      const d = new Date(entry.fullDate)
+                      const year = d.getFullYear()
+                      const startOfYear = new Date(year, 0, 1)
+                      const weekNum = Math.floor(((d.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay()) / 7)
+                      const key = year * 100 + weekNum
+                      if (key !== lastWeek) {
+                        weeks.push({ weekLabel: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), price: entry.price, date: d })
+                        lastWeek = key
+                      } else {
+                        weeks[weeks.length - 1] = { weekLabel: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), price: entry.price, date: d }
+                      }
+                    }
+                    return weeks.map((w, i) => {
+                      const prev = i > 0 ? weeks[i - 1].price : null
+                      const diff = prev !== null ? w.price - prev : null
+                      return (
+                        <div key={i} className="flex items-center justify-between py-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-2 h-2 rounded-full bg-violet-500 flex-shrink-0" />
+                            <span className="text-sm text-gray-600">{w.weekLabel}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-gray-900">${w.price.toFixed(2)}</span>
+                            {diff !== null && diff !== 0 && (
+                              <span className={`text-xs font-medium ${diff < 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                {diff < 0 ? '↓' : '↑'} ${Math.abs(diff).toFixed(2)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })
+                  })()}
+                </div>
               </div>
-            </div>
+            )}
 
           </div>
         </div>
