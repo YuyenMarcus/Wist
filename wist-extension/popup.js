@@ -229,13 +229,13 @@ async function handleSave(item) {
         saveBtn.style.backgroundColor = "#EF4444";
         console.error("Save Error:", response?.error);
         
-        // Show error message if auth required
+        // Show error message if auth required — open dashboard (triggers token sync)
         if (response?.error && (response.error.includes("logged in") || response.error.includes("Unauthorized") || response.error.includes("Token"))) {
-          errorMsg.textContent = "Please log in to Wist first.";
+          errorMsg.textContent = "Syncing your session — please try again in a moment.";
           showState('error');
           setTimeout(() => {
-            chrome.tabs.create({ url: 'https://wishlist.nuvio.cloud/login' });
-          }, 1000);
+            chrome.tabs.create({ url: 'https://wishlist.nuvio.cloud/dashboard' });
+          }, 1500);
         } else {
           errorMsg.textContent = response?.error || "Failed to save item.";
           showState('error');

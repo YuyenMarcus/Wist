@@ -83,6 +83,47 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 // ============================================================================
 
 const SUPABASE_PROJECT_REF = "ulmhmjqjtebaetocuhno";
+const SUPABASE_URL = "https://ulmhmjqjtebaetocuhno.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsbWhtanFqdGViYWV0b2N1aG5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzOTUzMDMsImV4cCI6MjA4MDk3MTMwM30.DRQ2gESK6Yj8_2tUXReid1VoBdyq5qcxT84HsoPp69U";
+
+async function refreshWithSupabase(refreshToken) {
+  try {
+    console.log("🔄 [Background] Refreshing token via Supabase API...");
+    const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({ refresh_token: refreshToken })
+    });
+
+    if (!response.ok) {
+      console.error("❌ [Background] Supabase refresh failed:", response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    if (!data.access_token) return null;
+
+    const payload = JSON.parse(atob(data.access_token.split('.')[1]));
+    const minutesLeft = Math.floor((payload.exp * 1000 - Date.now()) / 60000);
+    console.log(`✅ [Background] Token refreshed via Supabase API (${minutesLeft}m left)`);
+
+    await chrome.storage.local.set({
+      wist_auth_token: data.access_token,
+      wist_session: data,
+      wist_last_sync: Date.now(),
+      supabase_token: data.access_token,
+      supabase_session: data
+    });
+
+    return data.access_token;
+  } catch (e) {
+    console.error("❌ [Background] Supabase refresh error:", e.message);
+    return null;
+  }
+}
 
 async function getTokenFromCookies() {
   try {
@@ -118,7 +159,10 @@ async function getTokenFromCookies() {
     const expiresAt = payload.exp * 1000;
 
     if (expiresAt < Date.now()) {
-      console.warn("⚠️ [Background] Cookie token also expired");
+      console.warn("⚠️ [Background] Cookie access_token expired, trying refresh_token...");
+      if (session.refresh_token) {
+        return await refreshWithSupabase(session.refresh_token);
+      }
       return null;
     }
 

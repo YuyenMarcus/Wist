@@ -64,12 +64,9 @@ function LoginForm() {
       setMessageType('error')
     }
 
-    // Listen for auth state changes - ONLY redirect on actual sign-in
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        setTimeout(() => {
-          router.push('/dashboard')
-        }, 100)
+      if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session?.user) {
+        window.location.href = '/dashboard'
       } else if (event === 'SIGNED_OUT') {
         setMessage(null)
         setMessageType(null)
