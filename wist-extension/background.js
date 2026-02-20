@@ -125,6 +125,13 @@ async function refreshWithSupabase(refreshToken) {
   }
 }
 
+function safeBase64Decode(str) {
+  let b64 = str.replace(/-/g, '+').replace(/_/g, '/');
+  const pad = (4 - (b64.length % 4)) % 4;
+  b64 += '='.repeat(pad);
+  return atob(b64);
+}
+
 async function getTokenFromCookies() {
   try {
     const cookies = await chrome.cookies.getAll({ domain: 'wishlist.nuvio.cloud' });
@@ -133,75 +140,90 @@ async function getTokenFromCookies() {
 
     const authCookieName = `sb-${SUPABASE_PROJECT_REF}-auth-token`;
 
-    // Only match the exact cookie name or chunked variants (.0, .1, etc.)
-    // Excludes code-verifier and other suffixed cookies that share the prefix
     const authCookies = allCookies
-      .filter(c => c.name === authCookieName || /\.\d+$/.test(c.name) && c.name.startsWith(authCookieName + '.'))
+      .filter(c => {
+        if (c.name === authCookieName) return true;
+        if (c.name.startsWith(authCookieName + '.') && /\.\d+$/.test(c.name)) return true;
+        return false;
+      })
       .sort((a, b) => a.name.localeCompare(b.name));
 
     console.log(`🔍 [Background] Found ${authCookies.length} auth cookies:`, authCookies.map(c => c.name));
 
-    if (authCookies.length === 0) {
-      console.log("⚠️ [Background] No Supabase auth cookies found");
-      return null;
-    }
+    if (authCookies.length === 0) return null;
 
-    let sessionStr = authCookies.map(c => c.value).join('');
+    // Log each cookie for debugging
+    authCookies.forEach((c, i) => {
+      let val = c.value;
+      try { val = decodeURIComponent(val); } catch (_) {}
+      console.log(`🔍 [Background] Cookie ${i} "${c.name}": length=${val.length}, starts="${val.substring(0, 30)}..."`);
+    });
 
-    // Try URL-decode first
-    try { sessionStr = decodeURIComponent(sessionStr); } catch (_) {}
+    // Determine if we have chunked cookies (.0, .1, ...) vs a single base cookie
+    const chunkedCookies = authCookies.filter(c => /\.\d+$/.test(c.name));
+    const baseCookie = authCookies.find(c => c.name === authCookieName);
+
+    // Prefer chunked cookies if they exist (Supabase SSR standard)
+    const cookiesToUse = chunkedCookies.length > 0 ? chunkedCookies : (baseCookie ? [baseCookie] : authCookies);
+
+    // Step 1: URL-decode each cookie value individually, strip "base64-" prefix from first chunk
+    const rawChunks = cookiesToUse.map((c, i) => {
+      let val = c.value;
+      try { val = decodeURIComponent(val); } catch (_) {}
+      if (i === 0 && val.startsWith('base64-')) val = val.slice(7);
+      return val;
+    });
+
+    const combined = rawChunks.join('');
+    console.log(`🔍 [Background] Combined base64 length: ${combined.length}`);
 
     let session = null;
 
-    // Strategy 1: Raw JSON
-    try { session = JSON.parse(sessionStr); } catch (_) {}
+    // Try direct JSON parse (in case it's not encoded)
+    try { session = JSON.parse(combined); } catch (_) {}
 
-    // Strategy 2: Supabase SSR "base64-" prefix format
-    // Cookies are prefixed with "base64-" followed by base64-encoded JSON
-    if (!session && sessionStr.startsWith('base64-')) {
+    // Try base64 decode (handles both standard and URL-safe base64)
+    if (!session) {
       try {
-        const b64 = sessionStr.slice(7);
-        const decoded = atob(b64);
+        const decoded = safeBase64Decode(combined);
         session = JSON.parse(decoded);
-        console.log("✅ [Background] Parsed cookie via base64- prefix");
-      } catch (_) {}
+        console.log("✅ [Background] Parsed via base64 decode");
+      } catch (e) {
+        console.warn("⚠️ [Background] base64 decode failed:", e.message);
+      }
     }
 
-    // Strategy 3: Chunked cookies — each chunk has its own "base64-" prefix
-    if (!session && authCookies.length > 1) {
+    // Try: maybe each chunk has its own "base64-" prefix
+    if (!session && chunkedCookies.length > 1) {
       try {
-        const combined = authCookies.map(c => {
+        const chunks = cookiesToUse.map(c => {
           let val = c.value;
           try { val = decodeURIComponent(val); } catch (_) {}
           if (val.startsWith('base64-')) val = val.slice(7);
           return val;
-        }).join('');
-        const decoded = atob(combined);
+        });
+        const decoded = safeBase64Decode(chunks.join(''));
         session = JSON.parse(decoded);
-        console.log("✅ [Background] Parsed cookie via chunked base64- prefix");
-      } catch (_) {}
-    }
-
-    // Strategy 4: Chunked cookies — no prefix, just concatenate and decode
-    if (!session && authCookies.length > 1) {
-      try {
-        const combined = authCookies.map(c => c.value).join('');
-        const decoded = atob(combined);
-        session = JSON.parse(decoded);
-      } catch (_) {}
-    }
-
-    // Strategy 5: base64url → JSON (no prefix)
-    if (!session) {
-      try {
-        const base64 = sessionStr.replace(/-/g, '+').replace(/_/g, '/');
-        const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
-        session = JSON.parse(atob(padded));
+        console.log("✅ [Background] Parsed via per-chunk base64- strip");
       } catch (_) {}
     }
 
     if (!session) {
-      console.warn("⚠️ [Background] Could not parse cookie session. First 80 chars:", sessionStr.substring(0, 80));
+      console.warn("⚠️ [Background] All parse strategies failed. Combined first 120 chars:", combined.substring(0, 120));
+      // Last resort: try to extract access_token directly from the raw base64
+      try {
+        const decoded = safeBase64Decode(combined);
+        const tokenMatch = decoded.match(/"access_token"\s*:\s*"([^"]+)"/);
+        if (tokenMatch) {
+          console.log("✅ [Background] Extracted access_token via regex from partial decode");
+          const token = tokenMatch[1];
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          if (payload.exp * 1000 > Date.now()) {
+            await chrome.storage.local.set({ wist_auth_token: token, wist_last_sync: Date.now() });
+            return token;
+          }
+        }
+      } catch (_) {}
       return null;
     }
 
@@ -214,7 +236,7 @@ async function getTokenFromCookies() {
     const expiresAt = payload.exp * 1000;
 
     if (expiresAt < Date.now()) {
-      console.warn("⚠️ [Background] Cookie access_token expired, trying refresh_token...");
+      console.warn("⚠️ [Background] Cookie access_token expired, trying refresh...");
       if (session.refresh_token) {
         return await refreshWithSupabase(session.refresh_token);
       }
