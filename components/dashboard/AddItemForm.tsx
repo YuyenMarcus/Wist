@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -17,9 +17,38 @@ interface PreviewData {
   extensionRequired?: boolean
 }
 
-// Extension ID - update this if your extension ID changes
 declare const chrome: any;
 const EXTENSION_ID = typeof chrome !== 'undefined' ? chrome?.runtime?.id || '' : ''
+
+function useFakeProgress(isActive: boolean) {
+  const [progress, setProgress] = useState(0)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    if (isActive) {
+      setProgress(0)
+      let current = 0
+      const tick = () => {
+        current += current < 30 ? 8 : current < 60 ? 3 : current < 80 ? 1 : 0.3
+        if (current > 92) current = 92
+        setProgress(current)
+      }
+      intervalRef.current = setInterval(tick, 200)
+    } else {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+      if (progress > 0) {
+        setProgress(100)
+        const t = setTimeout(() => setProgress(0), 400)
+        return () => clearTimeout(t)
+      }
+    }
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
+  }, [isActive])
+
+  return progress
+}
 
 export default function AddItemForm() {
   const [url, setUrl] = useState('')
@@ -32,6 +61,7 @@ export default function AddItemForm() {
   const [isExpanded, setIsExpanded] = useState(false)
   const [extensionInstalled, setExtensionInstalled] = useState(false)
   const [scrapeMethod, setScrapeMethod] = useState<'extension' | 'server' | null>(null)
+  const progress = useFakeProgress(loading)
   const router = useRouter()
 
   // Check if extension is installed on mount
@@ -359,7 +389,7 @@ export default function AddItemForm() {
       {/* Magic Input Bar */}
       <div className="relative">
         <div
-          className={`bg-white rounded-2xl border border-zinc-200 shadow-sm transition-all duration-300 ${
+          className={`relative bg-white rounded-2xl border border-zinc-200 shadow-sm transition-all duration-300 overflow-hidden ${
             isExpanded ? 'shadow-xl border-violet-200 ring-2 ring-violet-200' : ''
           } ${!extensionInstalled ? 'opacity-60' : ''}`}
         >
@@ -376,8 +406,8 @@ export default function AddItemForm() {
               disabled={loading || saving || !extensionInstalled}
             />
             {loading && (
-              <div className="ml-3">
-                <div className="w-5 h-5 border-2 border-violet-400 border-t-transparent rounded-full animate-spin"></div>
+              <div className="ml-3 flex items-center gap-2">
+                <span className="text-xs text-zinc-400 tabular-nums">{Math.round(progress)}%</span>
               </div>
             )}
             {isExpanded && !loading && preview && (
@@ -390,6 +420,15 @@ export default function AddItemForm() {
               </button>
             )}
           </div>
+          {/* Progress bar */}
+          {progress > 0 && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-zinc-100 rounded-b-2xl overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-violet-500 to-purple-500 transition-all duration-200 ease-out"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          )}
         </div>
 
         {/* Expanded Content */}
@@ -407,6 +446,19 @@ export default function AddItemForm() {
               className="mt-3 overflow-hidden"
             >
               <div className="bg-white rounded-xl border border-zinc-200 shadow-sm p-4">
+                {/* Loading status */}
+                {loading && (
+                  <div className="mb-3 flex items-center gap-2 text-xs text-zinc-400">
+                    <div className="w-3.5 h-3.5 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />
+                    <span>
+                      {progress < 20 ? 'Connecting...' :
+                       progress < 50 ? 'Loading page...' :
+                       progress < 75 ? 'Extracting product data...' :
+                       'Almost there...'}
+                    </span>
+                  </div>
+                )}
+
                 {/* Error Message */}
                 {error && (
                   <div className="mb-3 text-xs text-red-600">
