@@ -2,9 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   
-  // Output configuration for standalone deployment
-  // Enable for Docker/Railway deployment, comment out for Vercel
-  // output: 'standalone', // Commented out for Vercel deployment
+  output: 'standalone',
   
   experimental: {
     serverActions: {
