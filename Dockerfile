@@ -35,6 +35,7 @@ RUN npm ci
 COPY . .
 
 # Build the application
+ARG CACHE_BUST=2026-02-20
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
