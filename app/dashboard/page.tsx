@@ -88,11 +88,9 @@ export default function DashboardPage() {
         const { data: profileData } = await getProfile(currentUser.id)
         if (profileData) {
           setProfile(profileData)
-          if (!profileData.onboarding_completed) {
+          if (profileData.onboarding_completed === false) {
             setShowOnboarding(true)
           }
-        } else {
-          setShowOnboarding(true)
         }
         
         // Load products

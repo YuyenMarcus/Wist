@@ -470,7 +470,7 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
       {/* Collections Header with Manage Button */}
       <div className="flex items-center justify-between mb-2 px-4 group">
         <h3 className="text-xs font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-wider">Collections</h3>
-        <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+        <div className="flex gap-1 md:opacity-40 md:group-hover:opacity-100 transition-opacity">
           {/* Manage/Delete Button */}
           <button 
             onClick={() => setIsManaging(!isManaging)}

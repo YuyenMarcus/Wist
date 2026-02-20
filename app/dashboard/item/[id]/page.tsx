@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -216,7 +216,13 @@ export default function ItemDetail() {
                 {history.length > 0 ? (
                   <div className="relative h-full">
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={history} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                      <AreaChart data={history} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                        <defs>
+                          <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                            <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                         <XAxis 
                           dataKey="date" 
@@ -237,16 +243,17 @@ export default function ItemDetail() {
                           labelStyle={{ color: '#6b7280', marginBottom: '4px' }}
                           formatter={(value: number | undefined) => value !== undefined ? [`$${value.toFixed(2)}`, 'Price'] : ['', '']}
                         />
-                        <Line 
+                        <Area 
                           type="monotone" 
                           dataKey="price" 
-                          stroke="#4f46e5" 
+                          stroke="#7c3aed" 
                           strokeWidth={3} 
-                          dot={{ r: 5, fill: '#4f46e5', strokeWidth: 0 }} 
-                          activeDot={{ r: 6, fill: '#4f46e5' }} 
+                          fill="url(#priceGradient)"
+                          dot={{ r: 5, fill: '#7c3aed', strokeWidth: 0 }} 
+                          activeDot={{ r: 6, fill: '#7c3aed' }} 
                           isAnimationActive={true}
                         />
-                      </LineChart>
+                      </AreaChart>
                     </ResponsiveContainer>
                     {history.length <= 2 && history[0]?.price === history[history.length - 1]?.price && (
                       <p className="text-xs text-gray-400 text-center mt-2">

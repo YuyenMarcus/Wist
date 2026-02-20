@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
 import {
   ChevronRight,
   ChevronLeft,
@@ -157,7 +157,7 @@ const TUTORIAL_STEPS = [
       <div className="flex flex-col items-center gap-4">
         <MockItemCard />
         <p className="text-sm text-zinc-500 text-center max-w-xs leading-relaxed">
-          Use the <strong>browser extension</strong> to save items in one click, or
+          Use the <strong className="text-violet-600">browser extension</strong> to save items in one click, or
           paste a product URL directly. Each card shows the price, store, and any
           recent changes.
         </p>
@@ -228,6 +228,19 @@ export default function OnboardingFlow({ userId, onComplete }: OnboardingFlowPro
   const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
 
+  useEffect(() => {
+    supabase
+      .from('profiles')
+      .select('age')
+      .eq('id', userId)
+      .single()
+      .then(({ data }) => {
+        if (data?.age != null) {
+          setPhase('tutorial')
+        }
+      })
+  }, [userId])
+
   const handleAgeSubmit = async () => {
     const parsed = parseInt(age, 10)
     if (isNaN(parsed) || parsed < 5 || parsed > 120) {
@@ -238,13 +251,22 @@ export default function OnboardingFlow({ userId, onComplete }: OnboardingFlowPro
     setSaving(true)
     try {
       const adultFilter = parsed < 18
-      await supabase
+      const { error } = await supabase
         .from('profiles')
         .update({ age: parsed, adult_content_filter: adultFilter })
         .eq('id', userId)
+        .select()
+
+      if (error) {
+        console.error('Failed to save age:', error)
+        setAgeError('Could not save. Please try again.')
+        setSaving(false)
+        return
+      }
 
       setPhase('tutorial')
-    } catch {
+    } catch (e: any) {
+      console.error('Age submit error:', e)
       setAgeError('Something went wrong. Please try again.')
     } finally {
       setSaving(false)
@@ -254,13 +276,19 @@ export default function OnboardingFlow({ userId, onComplete }: OnboardingFlowPro
   const handleFinish = async () => {
     setSaving(true)
     try {
-      await supabase
+      const { error } = await supabase
         .from('profiles')
         .update({ onboarding_completed: true })
         .eq('id', userId)
+        .select()
+
+      if (error) {
+        console.error('Failed to mark onboarding complete:', error)
+      }
 
       onComplete()
-    } catch {
+    } catch (e: any) {
+      console.error('Finish onboarding error:', e)
       onComplete()
     }
   }
@@ -279,140 +307,140 @@ export default function OnboardingFlow({ userId, onComplete }: OnboardingFlowPro
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <AnimatePresence mode="wait">
-        {phase === 'age' && (
-          <motion.div
-            key="age"
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -10 }}
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 text-center"
+      {phase === 'age' ? (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+          className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 text-center"
+        >
+          <div className="w-14 h-14 rounded-2xl bg-violet-100 flex items-center justify-center mx-auto mb-5">
+            <Sparkles className="w-7 h-7 text-violet-600" />
+          </div>
+          <h2 className="text-xl font-bold text-zinc-900 mb-1">Before we start</h2>
+          <p className="text-sm text-zinc-500 mb-6">
+            How old are you? This helps us personalize your experience.
+          </p>
+
+          <input
+            type="number"
+            value={age}
+            onChange={(e) => {
+              setAge(e.target.value)
+              setAgeError('')
+            }}
+            onKeyDown={(e) => e.key === 'Enter' && handleAgeSubmit()}
+            placeholder="Your age"
+            min={5}
+            max={120}
+            className="w-full px-4 py-3 text-center text-lg font-semibold border border-zinc-200 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition text-zinc-900 placeholder:text-zinc-300"
+            autoFocus
+          />
+
+          {ageError && (
+            <p className="text-xs text-red-500 mt-2">{ageError}</p>
+          )}
+
+          <button
+            onClick={handleAgeSubmit}
+            disabled={saving || !age}
+            className="mt-5 w-full py-3 bg-violet-600 hover:bg-violet-700 disabled:bg-violet-300 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
           >
-            <div className="w-14 h-14 rounded-2xl bg-violet-100 flex items-center justify-center mx-auto mb-5">
-              <Sparkles className="w-7 h-7 text-violet-600" />
+            {saving ? (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <>
+                Continue
+                <ChevronRight className="w-4 h-4" />
+              </>
+            )}
+          </button>
+        </motion.div>
+      ) : (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.2 }}
+          className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+        >
+          {/* Progress bar */}
+          <div className="h-1 bg-zinc-100">
+            <div
+              className="h-full bg-violet-500 transition-all duration-300"
+              style={{ width: `${((step + 1) / TUTORIAL_STEPS.length) * 100}%` }}
+            />
+          </div>
+
+          <div className="p-6 sm:p-8">
+            {/* Step indicator */}
+            <div className="flex items-center justify-center gap-1.5 mb-5">
+              {TUTORIAL_STEPS.map((_, i) => (
+                <div
+                  key={i}
+                  className={`w-2 h-2 rounded-full transition-colors duration-200 ${
+                    i === step ? 'bg-violet-500' : i < step ? 'bg-violet-200' : 'bg-zinc-200'
+                  }`}
+                />
+              ))}
             </div>
-            <h2 className="text-xl font-bold text-zinc-900 mb-1">Before we start</h2>
-            <p className="text-sm text-zinc-500 mb-6">
-              How old are you? This helps us personalize your experience.
+
+            {/* Title — transitions instantly */}
+            <h2 className="text-xl font-bold text-zinc-900 text-center mb-1">
+              {TUTORIAL_STEPS[step].title}
+            </h2>
+            <p className="text-sm text-zinc-400 text-center mb-6">
+              {TUTORIAL_STEPS[step].subtitle}
             </p>
 
-            <input
-              type="number"
-              value={age}
-              onChange={(e) => {
-                setAge(e.target.value)
-                setAgeError('')
-              }}
-              onKeyDown={(e) => e.key === 'Enter' && handleAgeSubmit()}
-              placeholder="Your age"
-              min={5}
-              max={120}
-              className="w-full px-4 py-3 text-center text-lg font-semibold border border-zinc-200 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition text-zinc-900 placeholder:text-zinc-300"
-              autoFocus
-            />
-
-            {ageError && (
-              <p className="text-xs text-red-500 mt-2">{ageError}</p>
-            )}
-
-            <button
-              onClick={handleAgeSubmit}
-              disabled={saving || !age}
-              className="mt-5 w-full py-3 bg-violet-600 hover:bg-violet-700 disabled:bg-violet-300 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
-            >
-              {saving ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <>
-                  Continue
-                  <ChevronRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
-          </motion.div>
-        )}
-
-        {phase === 'tutorial' && (
-          <motion.div
-            key={`tutorial-${step}`}
-            initial={{ opacity: 0, x: 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -40 }}
-            transition={{ duration: 0.25 }}
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
-          >
-            {/* Progress bar */}
-            <div className="h-1 bg-zinc-100">
-              <div
-                className="h-full bg-violet-500 transition-all duration-300"
-                style={{ width: `${((step + 1) / TUTORIAL_STEPS.length) * 100}%` }}
-              />
+            {/* Content — quick fade via key swap */}
+            <div key={step} className="min-h-[240px] flex items-center justify-center animate-[fadeIn_150ms_ease-out]">
+              {TUTORIAL_STEPS[step].content}
             </div>
 
-            <div className="p-6 sm:p-8">
-              {/* Step indicator */}
-              <div className="flex items-center justify-center gap-1.5 mb-5">
-                {TUTORIAL_STEPS.map((_, i) => (
-                  <div
-                    key={i}
-                    className={`w-2 h-2 rounded-full transition-colors ${
-                      i === step ? 'bg-violet-500' : i < step ? 'bg-violet-200' : 'bg-zinc-200'
-                    }`}
-                  />
-                ))}
-              </div>
-
-              {/* Title */}
-              <h2 className="text-xl font-bold text-zinc-900 text-center mb-1">
-                {TUTORIAL_STEPS[step].title}
-              </h2>
-              <p className="text-sm text-zinc-400 text-center mb-6">
-                {TUTORIAL_STEPS[step].subtitle}
-              </p>
-
-              {/* Content */}
-              <div className="min-h-[240px] flex items-center justify-center">
-                {TUTORIAL_STEPS[step].content}
-              </div>
-
-              {/* Navigation */}
-              <div className="flex items-center justify-between mt-6 pt-4 border-t border-zinc-100">
-                {step > 0 ? (
-                  <button
-                    onClick={handleBack}
-                    className="flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700 transition-colors"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                    Back
-                  </button>
-                ) : (
-                  <div />
-                )}
-
+            {/* Navigation */}
+            <div className="flex items-center justify-between mt-6 pt-4 border-t border-zinc-100">
+              {step > 0 ? (
                 <button
-                  onClick={handleNext}
-                  disabled={saving}
-                  className="flex items-center gap-1.5 px-5 py-2.5 bg-violet-600 hover:bg-violet-700 disabled:bg-violet-300 text-white text-sm font-semibold rounded-xl transition-colors"
+                  onClick={handleBack}
+                  className="flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700 transition-colors"
                 >
-                  {saving ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : step < TUTORIAL_STEPS.length - 1 ? (
-                    <>
-                      Next
-                      <ChevronRight className="w-4 h-4" />
-                    </>
-                  ) : (
-                    <>
-                      Get Started
-                      <Sparkles className="w-4 h-4" />
-                    </>
-                  )}
+                  <ChevronLeft className="w-4 h-4" />
+                  Back
                 </button>
-              </div>
+              ) : (
+                <div />
+              )}
+
+              <button
+                onClick={handleNext}
+                disabled={saving}
+                className="flex items-center gap-1.5 px-5 py-2.5 bg-violet-600 hover:bg-violet-700 disabled:bg-violet-300 text-white text-sm font-semibold rounded-xl transition-colors"
+              >
+                {saving ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : step < TUTORIAL_STEPS.length - 1 ? (
+                  <>
+                    Next
+                    <ChevronRight className="w-4 h-4" />
+                  </>
+                ) : (
+                  <>
+                    Get Started
+                    <Sparkles className="w-4 h-4" />
+                  </>
+                )}
+              </button>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </motion.div>
+      )}
+
+      <style jsx global>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+      `}</style>
     </div>
   )
 }
