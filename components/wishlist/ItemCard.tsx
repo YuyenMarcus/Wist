@@ -1,11 +1,12 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Trash2, Edit2, Check, X, MoreHorizontal, FolderInput, TrendingDown, TrendingUp } from 'lucide-react'
+import { Trash2, Edit2, Check, X, MoreHorizontal, FolderInput, TrendingDown, TrendingUp, EyeOff } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { SupabaseProduct } from '@/lib/supabase/products'
+import { isAdultContent } from '@/lib/content-filter'
 
 export interface WishlistItem {
   id: string
@@ -28,9 +29,10 @@ interface ItemCardProps {
   onReserve?: (id: string) => void
   onUpdate?: (id: string, updatedItem: SupabaseProduct) => void
   userCollections?: Collection[]
+  adultFilterEnabled?: boolean
 }
 
-export default function ItemCard({ item, isOwner = true, onDelete, onReserve, onUpdate, userCollections = [] }: ItemCardProps) {
+export default function ItemCard({ item, isOwner = true, onDelete, onReserve, onUpdate, userCollections = [], adultFilterEnabled = false }: ItemCardProps) {
   const router = useRouter()
   const [isHovered, setIsHovered] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -59,6 +61,7 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
     }
   };
   const domain = getDomain(item.url)
+  const isNsfw = adultFilterEnabled && isAdultContent(item.title)
 
   const handleDelete = async () => {
     if (!onDelete) return
@@ -361,15 +364,22 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
             <img 
               src={imageUrl} 
               alt={title}
-              className="w-full h-auto max-h-48 sm:max-h-96 object-cover transition-transform duration-700 group-hover:scale-105"
+              className={`w-full h-auto max-h-48 sm:max-h-96 object-cover transition-transform duration-700 group-hover:scale-105 ${isNsfw ? 'blur-xl scale-110' : ''}`}
               loading="lazy"
             />
           ) : (
-            // Fallback for missing image
             <div className="flex aspect-[4/3] items-center justify-center bg-gradient-to-br from-violet-50 to-pink-50 text-zinc-400 text-sm font-medium">
               <span className="text-lg sm:text-2xl font-medium text-zinc-300">
                 {title.substring(0, 2).toUpperCase()}
               </span>
+            </div>
+          )}
+
+          {/* NSFW Overlay */}
+          {isNsfw && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-zinc-900/40">
+              <EyeOff className="w-6 h-6 sm:w-8 sm:h-8 text-white/80 mb-1" />
+              <span className="text-white/90 text-xs sm:text-sm font-bold tracking-wider">18+</span>
             </div>
           )}
 

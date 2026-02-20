@@ -17,6 +17,9 @@ export interface Profile {
   instagram_handle: string | null;
   tiktok_handle: string | null;
   amazon_affiliate_id: string | null;
+  age: number | null;
+  adult_content_filter: boolean;
+  onboarding_completed: boolean;
 }
 
 /**
@@ -105,6 +108,9 @@ export async function updateProfile(
     instagram_handle?: string | null;
     tiktok_handle?: string | null;
     amazon_affiliate_id?: string | null;
+    age?: number | null;
+    adult_content_filter?: boolean;
+    onboarding_completed?: boolean;
   }
 ): Promise<{
   data: Profile | null;

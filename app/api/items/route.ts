@@ -169,6 +169,30 @@ export async function POST(request: Request) {
 
     console.log("👤 [API] User authenticated:", user.id, user.email);
 
+    // 2b. ADULT CONTENT CHECK: Block adult items for minors
+    {
+      const { isAdultContent } = await import('@/lib/content-filter');
+      if (title && isAdultContent(title)) {
+        const profileClient = supabaseClient || createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          { global: { headers: { Authorization: `Bearer ${request.headers.get('Authorization')?.replace('Bearer ', '') || ''}` } } }
+        );
+        const { data: prof } = await (profileClient as any)
+          .from('profiles')
+          .select('age')
+          .eq('id', user.id)
+          .single();
+
+        if (prof && prof.age != null && prof.age < 18) {
+          return NextResponse.json(
+            { error: 'This item cannot be added to your wishlist.' },
+            { status: 403, headers: corsHeaders(origin) }
+          );
+        }
+      }
+    }
+
     // 3. CHECK: Does this URL already exist in products table?
     let existingProduct = null;
     if (url && supabaseClient) {

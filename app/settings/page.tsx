@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, AlertCircle, Check, Instagram, Link as LinkIcon, ShoppingCart, Video } from 'lucide-react'
+import { Loader2, AlertCircle, Check, Instagram, Link as LinkIcon, ShoppingCart, Video, Shield, Lock } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { getProfile, updateProfile } from '@/lib/supabase/profile'
 import LavenderLoader from '@/components/ui/LavenderLoader'
@@ -22,7 +22,8 @@ export default function SettingsPage() {
     website: '',
     instagram: '',
     tiktok: '',
-    amazonId: ''
+    amazonId: '',
+    adultFilter: true,
   })
 
   // 1. Load All Profile Data
@@ -48,7 +49,8 @@ export default function SettingsPage() {
             website: data.website || '',
             instagram: data.instagram_handle || '',
             tiktok: data.tiktok_handle || '',
-            amazonId: data.amazon_affiliate_id || ''
+            amazonId: data.amazon_affiliate_id || '',
+            adultFilter: data.adult_content_filter ?? true,
           })
         }
       } catch (error: any) {
@@ -79,6 +81,7 @@ export default function SettingsPage() {
       const cleanInsta = formData.instagram.replace(/^@+/, '').trim()
       const cleanTikTok = formData.tiktok.replace(/^@+/, '').trim()
 
+      const isMinor = profile?.age != null && profile.age < 18
       const { data, error } = await updateProfile(user.id, {
         username: formData.username.trim() || null,
         full_name: formData.fullName.trim() || null,
@@ -87,6 +90,7 @@ export default function SettingsPage() {
         instagram_handle: cleanInsta || null,
         tiktok_handle: cleanTikTok || null,
         amazon_affiliate_id: formData.amazonId.trim() || null,
+        adult_content_filter: isMinor ? true : formData.adultFilter,
       })
 
       if (error) {
@@ -286,6 +290,46 @@ export default function SettingsPage() {
                 placeholder="tag-20"
                 className="w-full px-4 py-2 border border-violet-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none bg-white text-zinc-900"
               />
+            </div>
+          </div>
+
+          {/* --- SECTION 3: CONTENT PREFERENCES --- */}
+          <div className="bg-white p-8 rounded-2xl border border-zinc-200 shadow-sm space-y-6">
+            <h2 className="text-lg font-semibold text-zinc-900 border-b border-zinc-100 pb-2 flex items-center gap-2">
+              <Shield size={16} /> Content Preferences
+            </h2>
+
+            <div className="flex items-center justify-between">
+              <div className="flex-1 pr-4">
+                <label className="block text-sm font-medium text-zinc-700">Adult Content Filter</label>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  {profile?.age != null && profile.age < 18
+                    ? 'Adult content is blocked for users under 18.'
+                    : 'When enabled, adult items will have their images blurred with an 18+ overlay.'}
+                </p>
+              </div>
+              <div className="relative">
+                {profile?.age != null && profile.age < 18 ? (
+                  <div className="flex items-center gap-2 text-xs text-zinc-400">
+                    <Lock size={14} />
+                    <span className="font-medium">Always on</span>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, adultFilter: !prev.adultFilter }))}
+                    className={`relative w-11 h-6 rounded-full transition-colors ${
+                      formData.adultFilter ? 'bg-violet-600' : 'bg-zinc-300'
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                        formData.adultFilter ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 

@@ -1,12 +1,13 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ExternalLink, Trash2, MoreHorizontal, Check, FolderInput, TrendingDown, TrendingUp, Minus, ShoppingBag } from 'lucide-react';
+import { ExternalLink, Trash2, MoreHorizontal, Check, FolderInput, TrendingDown, TrendingUp, Minus, ShoppingBag, EyeOff } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { BarChart3 } from 'lucide-react';
+import { isAdultContent } from '@/lib/content-filter';
 
 interface ProductItem {
   id: string;
@@ -34,9 +35,10 @@ interface Props {
   item: ProductItem;
   userCollections?: Collection[];
   onDelete?: (id: string) => void;
+  adultFilterEnabled?: boolean;
 }
 
-export default function ProductCard({ item, userCollections = [], onDelete }: Props) {
+export default function ProductCard({ item, userCollections = [], onDelete, adultFilterEnabled = false }: Props) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -59,6 +61,7 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
   const imageUrl = item.image_url || item.image;
   const title = item.title || 'Untitled Item';
   const domain = getDomain(item.url);
+  const isNsfw = adultFilterEnabled && isAdultContent(item.title);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -300,7 +303,7 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
           <img
             src={imageUrl}
             alt={title}
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 ${isNsfw ? 'blur-xl scale-110' : ''}`}
             loading="lazy"
           />
         ) : (
@@ -308,6 +311,14 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
             <span className="text-lg sm:text-2xl font-medium text-zinc-400">
               {title.substring(0, 2).toUpperCase()}
             </span>
+          </div>
+        )}
+
+        {/* NSFW Overlay */}
+        {isNsfw && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-zinc-900/40">
+            <EyeOff className="w-6 h-6 sm:w-8 sm:h-8 text-white/80 mb-1" />
+            <span className="text-white/90 text-xs sm:text-sm font-bold tracking-wider">18+</span>
           </div>
         )}
         

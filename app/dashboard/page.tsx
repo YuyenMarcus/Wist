@@ -10,6 +10,7 @@ import ProductCard from '@/components/dashboard/ProductCard'
 import { getUserProducts, SupabaseProduct, deleteUserProduct } from '@/lib/supabase/products'
 import { getProfile, Profile } from '@/lib/supabase/profile'
 import LavenderLoader from '@/components/ui/LavenderLoader'
+import OnboardingFlow from '@/components/onboarding/OnboardingFlow'
 import { Layers, LayoutGrid, Sparkles, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -23,6 +24,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [autoOrganizing, setAutoOrganizing] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(false)
   const [autoOrganizeStats, setAutoOrganizeStats] = useState<{
     canAutoCategorize: number;
     uncategorized: number;
@@ -86,6 +88,11 @@ export default function DashboardPage() {
         const { data: profileData } = await getProfile(currentUser.id)
         if (profileData) {
           setProfile(profileData)
+          if (!profileData.onboarding_completed) {
+            setShowOnboarding(true)
+          }
+        } else {
+          setShowOnboarding(true)
         }
         
         // Load products
@@ -398,8 +405,23 @@ export default function DashboardPage() {
     return null // Will redirect via useEffect
   }
 
+  const adultFilterEnabled = profile?.adult_content_filter ?? true
+
+  const handleOnboardingComplete = async () => {
+    setShowOnboarding(false)
+    if (user) {
+      const { data } = await getProfile(user.id)
+      if (data) setProfile(data)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-white pb-32">
+
+      {/* Onboarding Tutorial */}
+      {showOnboarding && user && (
+        <OnboardingFlow userId={user.id} onComplete={handleOnboardingComplete} />
+      )}
 
       {/* Extension Banner - High Visibility */}
       <ExtensionBanner />
@@ -423,6 +445,7 @@ export default function DashboardPage() {
             onDelete={handleDelete}
             onUpdate={handleUpdate}
             userCollections={collections}
+            adultFilterEnabled={adultFilterEnabled}
           />
         )}
 
@@ -481,6 +504,7 @@ export default function DashboardPage() {
                       item={item} 
                       userCollections={collections} 
                       onDelete={handleDelete}
+                      adultFilterEnabled={adultFilterEnabled}
                     />
                   ))}
                 </div>
@@ -501,6 +525,7 @@ export default function DashboardPage() {
                       item={item} 
                       userCollections={collections} 
                       onDelete={handleDelete}
+                      adultFilterEnabled={adultFilterEnabled}
                     />
                   ))}
                 </div>
@@ -533,6 +558,7 @@ export default function DashboardPage() {
                         item={item} 
                         userCollections={collections} 
                         onDelete={handleDelete}
+                        adultFilterEnabled={adultFilterEnabled}
                       />
                     ))}
                   </div>

@@ -20,8 +20,14 @@ export default async function CollectionPage({ params }: { params: { slug: strin
     .eq('user_id', user.id)
     .single();
 
-  // If collection doesn't exist, show 404 (Don't log out)
   if (!collection) return notFound();
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('adult_content_filter')
+    .eq('id', user.id)
+    .single();
+  const adultFilterEnabled = profile?.adult_content_filter ?? true;
 
   // 3. Fetch Items (SAFE: If empty, it returns [])
   const { data: items } = await supabase
@@ -92,7 +98,8 @@ export default async function CollectionPage({ params }: { params: { slug: strin
                     <ProductCard 
                         key={item.id} 
                         item={item} 
-                        userCollections={allCollections || []} 
+                        userCollections={allCollections || []}
+                        adultFilterEnabled={adultFilterEnabled}
                     />
                 ))}
             </div>

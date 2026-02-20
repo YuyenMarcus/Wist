@@ -19,9 +19,10 @@ interface WishlistGridProps {
   onReserve?: (id: string) => void
   onUpdate?: (id: string, updatedItem: SupabaseProduct) => void
   userCollections?: Collection[]
+  adultFilterEnabled?: boolean
 }
 
-export default function WishlistGrid({ items, isOwner = true, onDelete, onReserve, onUpdate, userCollections = [] }: WishlistGridProps) {
+export default function WishlistGrid({ items, isOwner = true, onDelete, onReserve, onUpdate, userCollections = [], adultFilterEnabled = false }: WishlistGridProps) {
   
   // Empty State
   if (!items || items.length === 0) {
@@ -68,6 +69,7 @@ export default function WishlistGrid({ items, isOwner = true, onDelete, onReserv
             onReserve={onReserve}
             onUpdate={onUpdate}
             userCollections={userCollections}
+            adultFilterEnabled={adultFilterEnabled}
           />
         ))}
       </AnimatePresence>
