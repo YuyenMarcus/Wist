@@ -51,6 +51,15 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
   const priceChangePercent = (item as any).price_change_percent ?? null
   const previousPrice = (item as any).previous_price ?? null
 
+  const getDomain = (url: string) => {
+    try {
+      return new URL(url).hostname.replace('www.', '');
+    } catch {
+      return '';
+    }
+  };
+  const domain = getDomain(item.url)
+
   const handleDelete = async () => {
     if (!onDelete) return
     setIsDeleting(true)
@@ -372,6 +381,23 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                 <span className="hidden sm:inline">Price Drop!</span>
                 <span className="sm:hidden">Drop!</span>
               </span>
+            </div>
+          )}
+
+          {/* Site Favicon Badge - Bottom Left */}
+          {domain && (
+            <div className="absolute bottom-2 left-2 sm:bottom-3 sm:left-3 z-10" title={domain}>
+              <div className="flex items-center gap-1 bg-white/90 backdrop-blur-sm rounded-full pl-1 pr-1.5 sm:pl-1.5 sm:pr-2 py-0.5 sm:py-1 shadow-sm">
+                <img
+                  src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
+                  alt={domain}
+                  className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-sm"
+                  loading="lazy"
+                />
+                <span className="text-[8px] sm:text-[10px] font-medium text-zinc-600 max-w-[50px] sm:max-w-[70px] truncate capitalize">
+                  {domain.split('.')[0]}
+                </span>
+              </div>
             </div>
           )}
 

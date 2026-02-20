@@ -82,27 +82,81 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 // TOKEN RETRIEVAL HELPER
 // ============================================================================
 
+const SUPABASE_PROJECT_REF = "ulmhmjqjtebaetocuhno";
+
+async function getTokenFromCookies() {
+  try {
+    const cookies = await chrome.cookies.getAll({ domain: 'wishlist.nuvio.cloud' });
+    const rootCookies = await chrome.cookies.getAll({ domain: '.nuvio.cloud' });
+    const allCookies = [...cookies, ...rootCookies];
+
+    const authPrefix = `sb-${SUPABASE_PROJECT_REF}-auth-token`;
+    const authCookies = allCookies
+      .filter(c => c.name.startsWith(authPrefix))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    if (authCookies.length === 0) {
+      console.log("⚠️ [Background] No Supabase auth cookies found");
+      return null;
+    }
+
+    let sessionStr = authCookies.map(c => c.value).join('');
+    try { sessionStr = decodeURIComponent(sessionStr); } catch (_) {}
+
+    let session;
+    try { session = JSON.parse(sessionStr); } catch (_) {
+      const base64 = sessionStr.replace(/-/g, '+').replace(/_/g, '/');
+      session = JSON.parse(atob(base64));
+    }
+
+    if (!session?.access_token) {
+      console.log("⚠️ [Background] Cookie session missing access_token");
+      return null;
+    }
+
+    const payload = JSON.parse(atob(session.access_token.split('.')[1]));
+    const expiresAt = payload.exp * 1000;
+
+    if (expiresAt < Date.now()) {
+      console.warn("⚠️ [Background] Cookie token also expired");
+      return null;
+    }
+
+    const minutesLeft = Math.floor((expiresAt - Date.now()) / 60000);
+    console.log(`✅ [Background] Got valid token from cookies (${minutesLeft}m left)`);
+
+    await chrome.storage.local.set({
+      wist_auth_token: session.access_token,
+      wist_session: session,
+      wist_last_sync: Date.now(),
+      supabase_token: session.access_token,
+      supabase_session: session
+    });
+
+    return session.access_token;
+  } catch (e) {
+    console.error("❌ [Background] Cookie token read failed:", e.message);
+    return null;
+  }
+}
+
 async function getValidToken() {
   const stored = await chrome.storage.local.get([
     'wist_auth_token',
     'wist_session',
     'wist_last_sync',
-    // Legacy keys
     'supabase_token',
     'supabase_session'
   ]);
   
-  // Try new keys first
   let token = stored.wist_auth_token;
   let tokenSource = 'wist_auth_token';
   
-  // Fall back to legacy keys
   if (!token && stored.supabase_token) {
     token = stored.supabase_token;
     tokenSource = 'supabase_token (legacy)';
   }
   
-  // Try extracting from session
   if (!token && stored.wist_session) {
     const session = typeof stored.wist_session === 'string' 
       ? JSON.parse(stored.wist_session) 
@@ -119,8 +173,11 @@ async function getValidToken() {
     tokenSource = 'supabase_session (legacy)';
   }
   
+  // No stored token — try cookies
   if (!token) {
-    console.error("❌ [Background] No token found in storage");
+    console.log("⚠️ [Background] No stored token, trying cookies...");
+    const cookieToken = await getTokenFromCookies();
+    if (cookieToken) return cookieToken;
     throw new Error("Not logged in. Please visit wishlist.nuvio.cloud and log in.");
   }
   
@@ -133,23 +190,25 @@ async function getValidToken() {
     const now = Date.now();
     
     if (expiresAt < now) {
-      console.error("❌ [Background] Token is expired!");
       const minutesAgo = Math.floor((now - expiresAt) / 60000);
-      console.error(`   Expired ${minutesAgo} minutes ago`);
+      console.warn(`⚠️ [Background] Stored token expired ${minutesAgo}m ago, trying cookies...`);
+      const cookieToken = await getTokenFromCookies();
+      if (cookieToken) return cookieToken;
       throw new Error("Token expired. Please visit wishlist.nuvio.cloud to refresh.");
     }
     
     const minutesUntilExpiry = Math.floor((expiresAt - now) / 60000);
-    console.log("✅ [Background] Token is valid, expires in:", minutesUntilExpiry, "minutes");
+    console.log("✅ [Background] Token valid, expires in:", minutesUntilExpiry, "minutes");
     
-    // Warn if token is about to expire
     if (minutesUntilExpiry < 5) {
-      console.warn("⚠️ [Background] Token expires soon! Please refresh the website.");
+      console.log("🔄 [Background] Token expiring soon, proactively refreshing from cookies...");
+      const cookieToken = await getTokenFromCookies();
+      if (cookieToken) return cookieToken;
     }
     
   } catch (e) {
-    if (e.message?.includes('expired')) {
-      throw e; // Re-throw expiration errors
+    if (e.message?.includes('expired') || e.message?.includes('Not logged in')) {
+      throw e;
     }
     console.warn("⚠️ [Background] Could not validate token expiry:", e.message);
   }

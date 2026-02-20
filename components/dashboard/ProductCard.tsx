@@ -38,19 +38,27 @@ interface Props {
 
 export default function ProductCard({ item, userCollections = [], onDelete }: Props) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isMoving, setIsMoving] = useState(false); // Loading state for moving items
+  const [isMoving, setIsMoving] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   
-  // Format price
   const formatPrice = (price: number | null | undefined): string => {
     if (!price || price === 0) return 'Price not available';
     return `$${price.toFixed(2)}`;
   };
 
+  const getDomain = (url: string) => {
+    try {
+      return new URL(url).hostname.replace('www.', '');
+    } catch {
+      return '';
+    }
+  };
+
   const price = item.current_price || item.price;
   const imageUrl = item.image_url || item.image;
   const title = item.title || 'Untitled Item';
+  const domain = getDomain(item.url);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -404,6 +412,23 @@ export default function ProductCard({ item, userCollections = [], onDelete }: Pr
             )}
           </div>
         </div>
+
+        {/* Site Favicon Badge - Bottom Left */}
+        {domain && (
+          <div className="absolute bottom-2 left-2 sm:bottom-3 sm:left-3 z-10" title={domain}>
+            <div className="flex items-center gap-1 bg-white/90 backdrop-blur-sm rounded-full pl-1 pr-1.5 sm:pl-1.5 sm:pr-2 py-0.5 sm:py-1 shadow-sm">
+              <img
+                src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
+                alt={domain}
+                className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-sm"
+                loading="lazy"
+              />
+              <span className="text-[8px] sm:text-[10px] font-medium text-zinc-600 max-w-[50px] sm:max-w-[70px] truncate capitalize">
+                {domain.split('.')[0]}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Visit Link Button - Bottom Right */}
         <a
