@@ -626,6 +626,7 @@ function scrapePageData() {
       }
     }
     
+    // Target price: try DOM selectors first
     const priceSelectors = [
       '[data-test="product-price"]',
       '[data-test="product-price"] span',
@@ -644,7 +645,63 @@ function scrapePageData() {
         }
       }
     }
-    
+
+    // Target price: scan all visible elements for a dollar amount near the buy area
+    if (!price) {
+      const candidates = document.querySelectorAll(
+        '[class*="rice"] span, [class*="rice"], [data-test*="rice"], [class*="offer"] span'
+      );
+      for (const el of candidates) {
+        const text = el.textContent?.trim();
+        if (text && /^\$\d{1,5}(\.\d{2})?$/.test(text)) {
+          price = text;
+          break;
+        }
+      }
+    }
+
+    // Target price: extract from embedded __TGT_DATA__ or preloaded queries
+    if (!price) {
+      try {
+        const scripts = document.querySelectorAll('script');
+        for (const script of scripts) {
+          const text = script.textContent || '';
+          // Target embeds product data in script tags with price info
+          const currentRetailMatch = text.match(/"current_retail"\s*:\s*([0-9]+\.?[0-9]*)/);
+          if (currentRetailMatch) {
+            price = currentRetailMatch[1];
+            break;
+          }
+          const formattedPriceMatch = text.match(/"formatted_current_price"\s*:\s*"\$([0-9.,]+)"/);
+          if (formattedPriceMatch) {
+            price = formattedPriceMatch[1];
+            break;
+          }
+          const offerPriceMatch = text.match(/"offerPrice"\s*:\s*\{[^}]*"price"\s*:\s*([0-9.]+)/);
+          if (offerPriceMatch) {
+            price = offerPriceMatch[1];
+            break;
+          }
+        }
+      } catch (e) {}
+    }
+
+    // Target price: last resort — find the first prominent $XX.XX on the page
+    if (!price) {
+      const allElements = document.querySelectorAll('span, div, p');
+      for (const el of allElements) {
+        if (el.children.length > 2) continue;
+        const text = el.textContent?.trim();
+        if (text && /^\$\d{1,5}\.\d{2}$/.test(text)) {
+          const rect = el.getBoundingClientRect();
+          if (rect.top > 0 && rect.top < 800 && rect.width > 0) {
+            price = text;
+            break;
+          }
+        }
+      }
+    }
+
     const imageSelectors = [
       '[data-test="product-image"] img',
       'img[data-test="product-image"]',
