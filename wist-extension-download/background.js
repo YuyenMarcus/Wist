@@ -157,17 +157,21 @@ async function getTokenFromCookies() {
 
     if (authCookies.length === 0) return null;
 
+    // Log each cookie for debugging
     authCookies.forEach((c, i) => {
       let val = c.value;
       try { val = decodeURIComponent(val); } catch (_) {}
       console.log(`🔍 [Background] Cookie ${i} "${c.name}": length=${val.length}, starts="${val.substring(0, 30)}..."`);
     });
 
+    // Determine if we have chunked cookies (.0, .1, ...) vs a single base cookie
     const chunkedCookies = authCookies.filter(c => /\.\d+$/.test(c.name));
     const baseCookie = authCookies.find(c => c.name === authCookieName);
 
+    // Prefer chunked cookies if they exist (Supabase SSR standard)
     const cookiesToUse = chunkedCookies.length > 0 ? chunkedCookies : (baseCookie ? [baseCookie] : authCookies);
 
+    // Step 1: URL-decode each cookie value individually, strip "base64-" prefix from first chunk
     const rawChunks = cookiesToUse.map((c, i) => {
       let val = c.value;
       try { val = decodeURIComponent(val); } catch (_) {}
@@ -180,8 +184,10 @@ async function getTokenFromCookies() {
 
     let session = null;
 
+    // Try direct JSON parse (in case it's not encoded)
     try { session = JSON.parse(combined); } catch (_) {}
 
+    // Try base64 decode (handles both standard and URL-safe base64)
     if (!session) {
       try {
         const decoded = safeBase64Decode(combined);
@@ -192,6 +198,7 @@ async function getTokenFromCookies() {
       }
     }
 
+    // Try: maybe each chunk has its own "base64-" prefix
     if (!session && chunkedCookies.length > 1) {
       try {
         const chunks = cookiesToUse.map(c => {
@@ -208,6 +215,7 @@ async function getTokenFromCookies() {
 
     if (!session) {
       console.warn("⚠️ [Background] All parse strategies failed. Combined first 120 chars:", combined.substring(0, 120));
+      // Last resort: try to extract access_token directly from the raw base64
       try {
         const decoded = safeBase64Decode(combined);
         const tokenMatch = decoded.match(/"access_token"\s*:\s*"([^"]+)"/);
@@ -500,7 +508,32 @@ async function handleWebappScrape(productUrl, sendResponse) {
     
     if (results && results[0] && results[0].result) {
       const data = results[0].result;
-      console.log("✅ [Background] Successfully scraped:", data.title);
+      
+      // Target fallback: if no price was found, try the Redsky API
+      if ((!data.price || data.price === 0) && productUrl.includes('target.com')) {
+        console.log("🎯 [Background] Target price missing, trying Redsky API...");
+        try {
+          const tcinMatch = productUrl.match(/\/A-(\d+)/);
+          if (tcinMatch) {
+            const tcin = tcinMatch[1];
+            const apiUrl = `https://redsky.target.com/redsky_aggregations/v1/web/pdp_client_v1?key=9f36aeafbe60771e321a7cc95a78140772ab3e96&tcin=${tcin}&pricing_store_id=3991&has_pricing_store_id=true`;
+            const apiRes = await fetch(apiUrl);
+            if (apiRes.ok) {
+              const apiData = await apiRes.json();
+              const priceObj = apiData?.data?.product?.price;
+              const retail = priceObj?.current_retail || priceObj?.reg_retail;
+              if (retail) {
+                data.price = retail;
+                console.log("✅ [Background] Got Target price from Redsky API:", retail);
+              }
+            }
+          }
+        } catch (e) {
+          console.warn("⚠️ [Background] Redsky API failed:", e.message);
+        }
+      }
+
+      console.log("✅ [Background] Successfully scraped:", data.title, "price:", data.price);
       sendResponse({ success: true, data });
     } else {
       throw new Error('No data returned from scraper');
@@ -618,31 +651,30 @@ function scrapePageData() {
       }
     }
     
-    // Target price: try DOM selectors first
+    // Target price: DOM selectors (current-price is the correct data-test attr)
     const priceSelectors = [
+      'span[data-test="current-price"]',
+      'span[data-test="current-price"] span',
       '[data-test="product-price"]',
       '[data-test="product-price"] span',
-      'span[data-test="product-price"]',
+      '[class*="CurrentPrice"]',
       '[class*="CurrentPrice"] span',
       '[class*="styles__CurrentPriceFontSize"]',
-      'div[class*="Price"] span:first-child',
     ];
     for (const sel of priceSelectors) {
       const el = document.querySelector(sel);
       if (el) {
         const text = el.textContent?.trim();
-        if (text && /\$?\d/.test(text)) {
+        if (text && /\$\d/.test(text)) {
           price = text;
           break;
         }
       }
     }
 
-    // Target price: scan all visible elements for a dollar amount near the buy area
+    // Target price: scan elements with "price" in data-test or class
     if (!price) {
-      const candidates = document.querySelectorAll(
-        '[class*="rice"] span, [class*="rice"], [data-test*="rice"], [class*="offer"] span'
-      );
+      const candidates = document.querySelectorAll('[data-test*="rice"], [class*="rice"], [class*="Rice"]');
       for (const el of candidates) {
         const text = el.textContent?.trim();
         if (text && /^\$\d{1,5}(\.\d{2})?$/.test(text)) {
@@ -652,40 +684,39 @@ function scrapePageData() {
       }
     }
 
-    // Target price: extract from embedded __TGT_DATA__ or preloaded queries
+    // Target price: extract from embedded script data
     if (!price) {
       try {
-        const scripts = document.querySelectorAll('script');
-        for (const script of scripts) {
-          const text = script.textContent || '';
-          const currentRetailMatch = text.match(/"current_retail"\s*:\s*([0-9]+\.?[0-9]*)/);
-          if (currentRetailMatch) {
-            price = currentRetailMatch[1];
-            break;
-          }
-          const formattedPriceMatch = text.match(/"formatted_current_price"\s*:\s*"\$([0-9.,]+)"/);
-          if (formattedPriceMatch) {
-            price = formattedPriceMatch[1];
-            break;
-          }
-          const offerPriceMatch = text.match(/"offerPrice"\s*:\s*\{[^}]*"price"\s*:\s*([0-9.]+)/);
-          if (offerPriceMatch) {
-            price = offerPriceMatch[1];
-            break;
+        const allText = document.documentElement.innerHTML;
+        const patterns = [
+          /"current_retail"\s*:\s*([0-9]+\.?[0-9]*)/,
+          /"formatted_current_price"\s*:\s*"\$([0-9.,]+)"/,
+          /"current_retail_min"\s*:\s*([0-9]+\.?[0-9]*)/,
+          /"price"\s*:\s*\{\s*"[^"]*"\s*:\s*"[^"]*"\s*,\s*"currentRetail"\s*:\s*([0-9.]+)/,
+          /"offerPrice"\s*:\s*\{[^}]*?"price"\s*:\s*([0-9.]+)/,
+        ];
+        for (const pattern of patterns) {
+          const match = allText.match(pattern);
+          if (match && match[1]) {
+            const val = parseFloat(match[1].replace(/,/g, ''));
+            if (val >= 0.01 && val <= 100000) {
+              price = match[1];
+              break;
+            }
           }
         }
       } catch (e) {}
     }
 
-    // Target price: last resort — find the first prominent $XX.XX on the page
+    // Target price: find visible $XX.XX in the top portion of the page
     if (!price) {
       const allElements = document.querySelectorAll('span, div, p');
       for (const el of allElements) {
-        if (el.children.length > 2) continue;
+        if (el.children.length > 3) continue;
         const text = el.textContent?.trim();
         if (text && /^\$\d{1,5}\.\d{2}$/.test(text)) {
           const rect = el.getBoundingClientRect();
-          if (rect.top > 0 && rect.top < 800 && rect.width > 0) {
+          if (rect.top > 0 && rect.top < 900 && rect.width > 0) {
             price = text;
             break;
           }

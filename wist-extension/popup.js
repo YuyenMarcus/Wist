@@ -411,7 +411,61 @@ function scrapeProductData() {
     }
   }
   
-  // Strategy 4: Generic e-commerce selectors
+  // Strategy 4: Target-specific selectors
+  if (!price) {
+    const domain = window.location.hostname.toLowerCase();
+    if (domain.includes('target.')) {
+      const targetPriceSelectors = [
+        'span[data-test="current-price"]',
+        'span[data-test="current-price"] span',
+        '[data-test="product-price"]',
+        '[data-test="product-price"] span',
+        '[class*="CurrentPrice"]',
+        '[class*="CurrentPrice"] span',
+      ];
+      for (const selector of targetPriceSelectors) {
+        const element = document.querySelector(selector);
+        if (element) {
+          const text = element.textContent?.trim();
+          if (text && /\$\d/.test(text)) {
+            priceString = text;
+            console.log('[Wist] Found Target price via:', selector, '=', priceString);
+            break;
+          }
+        }
+      }
+      // Target: scan embedded script data for current_retail
+      if (!priceString) {
+        try {
+          const html = document.documentElement.innerHTML;
+          const m = html.match(/"current_retail"\s*:\s*([0-9]+\.?[0-9]*)/);
+          if (m && m[1]) {
+            price = parseFloat(m[1]);
+            priceString = `$${price.toFixed(2)}`;
+            console.log('[Wist] Found Target price via embedded data:', priceString);
+          }
+        } catch (e) {}
+      }
+      // Target: visible $XX.XX scan
+      if (!priceString && !price) {
+        const allEls = document.querySelectorAll('span, div, p');
+        for (const el of allEls) {
+          if (el.children.length > 3) continue;
+          const text = el.textContent?.trim();
+          if (text && /^\$\d{1,5}\.\d{2}$/.test(text)) {
+            const rect = el.getBoundingClientRect();
+            if (rect.top > 0 && rect.top < 900 && rect.width > 0) {
+              priceString = text;
+              console.log('[Wist] Found Target price via visible scan:', priceString);
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Strategy 5: Generic e-commerce selectors
   if (!price) {
     const genericPriceSelectors = [
       '.price',
