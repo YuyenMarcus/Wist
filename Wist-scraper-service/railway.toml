@@ -1,6 +1,7 @@
 [build]
 builder = "dockerfile"
 dockerfilePath = "Dockerfile"
+noCache = true
 
 [deploy]
 startCommand = "npm start"
