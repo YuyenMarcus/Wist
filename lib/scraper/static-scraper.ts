@@ -53,9 +53,22 @@ const SITE_SELECTORS: Record<string, {
     ],
   },
   'target.': {
-    title: ['h1[data-test="product-title"]', 'h1'],
-    price: ['[data-test="product-price"]', 'span[data-test="product-price"]'],
-    image: ['[data-test="product-image"] img', 'meta[property="og:image"]'],
+    title: [
+      'h1[data-test="product-title"]',
+      '[data-test="product-detail-highlights"] h1',
+      'meta[property="og:title"]',
+      'h1',
+    ],
+    price: [
+      '[data-test="product-price"]',
+      'span[data-test="product-price"]',
+      'meta[property="product:price:amount"]',
+    ],
+    image: [
+      '[data-test="product-image"] img',
+      'meta[property="og:image"]',
+      'img[src*="scene7"]',
+    ],
   },
   'walmart.': {
     title: ['h1[itemprop="name"]', 'h1'],
@@ -296,6 +309,28 @@ export async function staticScrape(url: string): Promise<ScrapeResult> {
     }
   }
   
+  // Target-specific price extraction from embedded data
+  if (!priceRaw && domainKey === 'target.') {
+    const targetPricePatterns = [
+      /"current_retail":\s*([0-9.]+)/,
+      /"price":\s*"?\$?([0-9]+\.?[0-9]*)"?/,
+      /"formatted_current_price":\s*"\$([0-9.,]+)"/,
+      /"current_retail_min":\s*([0-9.]+)/,
+    ];
+    
+    for (const pattern of targetPricePatterns) {
+      const match = html.match(pattern);
+      if (match && match[1]) {
+        const potentialPrice = parseFloat(match[1].replace(/,/g, ''));
+        if (potentialPrice >= 0.01 && potentialPrice <= 100000) {
+          priceRaw = match[1];
+          console.log(`[StaticScraper] Found Target price via regex: ${priceRaw}`);
+          break;
+        }
+      }
+    }
+  }
+
   // For any site: try to find price in common JavaScript data structures
   if (!priceRaw) {
     const genericPricePatterns = [

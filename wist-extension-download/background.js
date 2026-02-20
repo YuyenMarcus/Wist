@@ -444,28 +444,34 @@ async function handleWebappScrape(productUrl, sendResponse) {
   
   let backgroundTab = null;
   
+  // JS-heavy sites need more render time
+  const hostname = new URL(productUrl).hostname.toLowerCase();
+  let jsRenderDelay = 2000;
+  if (hostname.includes('target.')) jsRenderDelay = 5000;
+  else if (hostname.includes('walmart.')) jsRenderDelay = 4000;
+  else if (hostname.includes('bestbuy.')) jsRenderDelay = 4000;
+  else if (hostname.includes('etsy.')) jsRenderDelay = 4000;
+  
   try {
-    // Create a background tab (not visible to user)
     backgroundTab = await chrome.tabs.create({
       url: productUrl,
-      active: false, // Don't focus the tab
+      active: false,
     });
     
-    console.log("📑 [Background] Created background tab:", backgroundTab.id);
+    console.log("📑 [Background] Created background tab:", backgroundTab.id, `(render delay: ${jsRenderDelay}ms)`);
     
     // Wait for the page to fully load
     await new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error('Page load timeout'));
-      }, 30000); // 30 second timeout
+      }, 45000);
       
       const checkComplete = async () => {
         try {
           const tab = await chrome.tabs.get(backgroundTab.id);
           if (tab.status === 'complete') {
             clearTimeout(timeout);
-            // Give the page a bit more time for JS to render
-            setTimeout(resolve, 2000);
+            setTimeout(resolve, jsRenderDelay);
           } else {
             setTimeout(checkComplete, 500);
           }
@@ -597,14 +603,57 @@ function scrapePageData() {
   
   // ===== TARGET =====
   else if (domain.includes('target.')) {
-    const titleEl = document.querySelector('h1[data-test="product-title"], h1');
-    if (titleEl) title = titleEl.textContent?.trim();
+    const titleSelectors = [
+      'h1[data-test="product-title"]',
+      '[data-test="product-detail-highlights"] h1',
+      'h1.Heading',
+      'h1[class*="ProductTitle"]',
+      'h1',
+    ];
+    for (const sel of titleSelectors) {
+      const el = document.querySelector(sel);
+      if (el && el.textContent?.trim()) {
+        title = el.textContent.trim();
+        break;
+      }
+    }
     
-    const priceEl = document.querySelector('[data-test="product-price"]');
-    if (priceEl) price = priceEl.textContent?.trim();
+    const priceSelectors = [
+      '[data-test="product-price"]',
+      '[data-test="product-price"] span',
+      'span[data-test="product-price"]',
+      '[class*="CurrentPrice"] span',
+      '[class*="styles__CurrentPriceFontSize"]',
+      'div[class*="Price"] span:first-child',
+    ];
+    for (const sel of priceSelectors) {
+      const el = document.querySelector(sel);
+      if (el) {
+        const text = el.textContent?.trim();
+        if (text && /\$?\d/.test(text)) {
+          price = text;
+          break;
+        }
+      }
+    }
     
-    const imageEl = document.querySelector('[data-test="product-image"] img');
-    if (imageEl) image = imageEl.src;
+    const imageSelectors = [
+      '[data-test="product-image"] img',
+      'img[data-test="product-image"]',
+      '[class*="slide--active"] img',
+      'picture img[src*="target"]',
+      'img[alt][src*="scene7"]',
+    ];
+    for (const sel of imageSelectors) {
+      const el = document.querySelector(sel);
+      if (el && el.src) {
+        image = el.src;
+        break;
+      }
+    }
+    
+    const descEl = document.querySelector('[data-test="item-details-description"], [class*="Description"]');
+    if (descEl) description = descEl.textContent?.trim().substring(0, 500);
   }
   
   // ===== WALMART =====
@@ -666,6 +715,59 @@ function scrapePageData() {
     description = ogDesc?.getAttribute('content');
   }
   
+  // ===== UNIVERSAL FALLBACKS (run for ALL sites if data is still missing) =====
+  
+  // JSON-LD structured data fallback
+  if (!title || !price || !image) {
+    const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
+    for (const script of jsonLdScripts) {
+      try {
+        const data = JSON.parse(script.textContent || '{}');
+        const items = Array.isArray(data) ? data : [data];
+        for (const item of items) {
+          if (item['@type'] === 'Product' || item['@type'] === 'Offer' || item['@graph']) {
+            const product = item['@graph']
+              ? item['@graph'].find(g => g['@type'] === 'Product')
+              : item;
+            if (!product) continue;
+            if (!title && product.name) title = product.name;
+            if (!price) {
+              const p = product.offers?.price || product.offers?.lowPrice || product.price;
+              if (p !== undefined && p !== null) price = String(p);
+            }
+            if (!image) {
+              const img = product.image;
+              if (Array.isArray(img)) image = img[0];
+              else if (typeof img === 'string') image = img;
+              else if (img?.url) image = img.url;
+            }
+            if (!description && product.description) {
+              description = product.description.substring(0, 500);
+            }
+          }
+        }
+      } catch (e) {}
+    }
+  }
+  
+  // Meta tag fallbacks
+  if (!title) {
+    const ogTitle = document.querySelector('meta[property="og:title"]');
+    title = ogTitle?.getAttribute('content') || document.title || null;
+  }
+  if (!image) {
+    const ogImage = document.querySelector('meta[property="og:image"]');
+    image = ogImage?.getAttribute('content') || null;
+  }
+  if (!price) {
+    const priceMeta = document.querySelector('meta[property="product:price:amount"], meta[property="og:price:amount"]');
+    if (priceMeta) price = priceMeta.getAttribute('content');
+  }
+  if (!description) {
+    const ogDesc = document.querySelector('meta[property="og:description"]');
+    description = ogDesc?.getAttribute('content') || null;
+  }
+
   // Clean up price
   let priceValue = 0;
   if (price) {
