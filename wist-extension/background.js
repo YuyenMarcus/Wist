@@ -217,48 +217,6 @@ async function getTokenFromCookies() {
   }
 }
 
-async function getTokenViaSilentTab() {
-  return new Promise(async (resolve) => {
-    let tabId = null;
-    let resolved = false;
-
-    const finish = (token) => {
-      if (resolved) return;
-      resolved = true;
-      if (tabId) chrome.tabs.remove(tabId).catch(() => {});
-      resolve(token);
-    };
-
-    setTimeout(() => finish(null), 12000);
-
-    const poll = async () => {
-      if (resolved) return;
-      const stored = await chrome.storage.local.get(['wist_auth_token']);
-      if (stored.wist_auth_token) {
-        try {
-          const payload = JSON.parse(atob(stored.wist_auth_token.split('.')[1]));
-          if (payload.exp * 1000 > Date.now()) {
-            console.log("✅ [Background] Got token via silent tab sync");
-            finish(stored.wist_auth_token);
-            return;
-          }
-        } catch (_) {}
-      }
-      if (!resolved) setTimeout(poll, 1500);
-    };
-
-    try {
-      console.log("🔄 [Background] Opening silent tab to trigger ExtensionSync...");
-      const tab = await chrome.tabs.create({ url: `${API_BASE_URL}/dashboard`, active: false });
-      tabId = tab.id;
-      setTimeout(poll, 4000);
-    } catch (e) {
-      console.error("❌ [Background] Silent tab failed:", e.message);
-      finish(null);
-    }
-  });
-}
-
 async function getValidToken() {
   const stored = await chrome.storage.local.get([
     'wist_auth_token',
@@ -292,16 +250,11 @@ async function getValidToken() {
     tokenSource = 'supabase_session (legacy)';
   }
   
-  // No stored token — try cookies, then silent tab
+  // No stored token — try cookies
   if (!token) {
     console.log("⚠️ [Background] No stored token, trying cookies...");
     const cookieToken = await getTokenFromCookies();
     if (cookieToken) return cookieToken;
-
-    console.log("⚠️ [Background] Cookies failed, trying silent tab sync...");
-    const tabToken = await getTokenViaSilentTab();
-    if (tabToken) return tabToken;
-
     throw new Error("Not logged in. Please visit wishlist.nuvio.cloud and log in.");
   }
   
@@ -318,11 +271,6 @@ async function getValidToken() {
       console.warn(`⚠️ [Background] Stored token expired ${minutesAgo}m ago, trying cookies...`);
       const cookieToken = await getTokenFromCookies();
       if (cookieToken) return cookieToken;
-
-      console.log("⚠️ [Background] Cookies failed, trying silent tab sync...");
-      const tabToken = await getTokenViaSilentTab();
-      if (tabToken) return tabToken;
-
       throw new Error("Token expired. Please visit wishlist.nuvio.cloud to refresh.");
     }
     
@@ -350,6 +298,29 @@ async function getValidToken() {
 // ============================================================================
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  // Handle AUTH_TOKEN relayed from content script (works without hardcoded extension ID)
+  if (request.type === 'AUTH_TOKEN' && request.token) {
+    console.log("🔑 [Background] Token received via content script relay");
+    const token = request.token;
+    const session = request.session;
+
+    chrome.storage.local.set({
+      wist_auth_token: token,
+      wist_session: session,
+      wist_last_sync: Date.now(),
+      supabase_token: token,
+      supabase_session: session
+    }, () => {
+      if (chrome.runtime.lastError) {
+        sendResponse({ success: false, error: chrome.runtime.lastError.message });
+      } else {
+        console.log("✅ [Background] Token stored via content script relay");
+        sendResponse({ success: true });
+      }
+    });
+    return true;
+  }
+
   if (request.action === "PREVIEW_LINK") {
     console.log("🔒 WIST: Preview requested for", request.url);
     handlePreviewLink(request.url, sendResponse).catch(error => {

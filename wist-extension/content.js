@@ -8,11 +8,33 @@ document.documentElement.setAttribute('data-wist-installed', 'true');
 // SCRAPE REQUEST HANDLER - For webapp "paste link" feature
 // ============================================================================
 
-// Listen for scrape requests from the webapp
+// Listen for messages from the webapp (auth tokens + scrape requests)
 window.addEventListener('message', async (event) => {
-  // Only accept messages from the same window
   if (event.source !== window) return;
-  
+
+  // Relay auth token from the website to the background script
+  // This works regardless of extension ID — no hardcoded ID needed
+  if (event.data?.type === 'WIST_AUTH_TOKEN' || event.data?.type === 'AUTH_TOKEN') {
+    const token = event.data.token;
+    const session = event.data.session;
+    if (!token) return;
+
+    console.log('🔑 [ContentScript] Relaying auth token to background...');
+    chrome.runtime.sendMessage({
+      type: 'AUTH_TOKEN',
+      token: token,
+      session: session,
+      timestamp: Date.now()
+    }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.warn('⚠️ [ContentScript] Token relay failed:', chrome.runtime.lastError.message);
+      } else {
+        console.log('✅ [ContentScript] Token relayed to background');
+      }
+    });
+    return;
+  }
+
   if (event.data?.type === 'WIST_SCRAPE_REQUEST') {
     const { messageId, url } = event.data;
     console.log('🧩 [ContentScript] Received scrape request for:', url);

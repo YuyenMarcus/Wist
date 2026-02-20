@@ -229,13 +229,9 @@ async function handleSave(item) {
         saveBtn.style.backgroundColor = "#EF4444";
         console.error("Save Error:", response?.error);
         
-        // Show error message if auth required — open dashboard (triggers token sync)
         if (response?.error && (response.error.includes("logged in") || response.error.includes("Unauthorized") || response.error.includes("Token"))) {
-          errorMsg.textContent = "Syncing your session — please try again in a moment.";
+          errorMsg.textContent = "Please visit wishlist.nuvio.cloud and make sure you're logged in, then try again.";
           showState('error');
-          setTimeout(() => {
-            chrome.tabs.create({ url: 'https://wishlist.nuvio.cloud/dashboard' });
-          }, 1500);
         } else {
           errorMsg.textContent = response?.error || "Failed to save item.";
           showState('error');
