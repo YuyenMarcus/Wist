@@ -151,30 +151,52 @@ async function getTokenFromCookies() {
     // Try URL-decode first
     try { sessionStr = decodeURIComponent(sessionStr); } catch (_) {}
 
-    // Try multiple parse strategies
     let session = null;
 
     // Strategy 1: Raw JSON
     try { session = JSON.parse(sessionStr); } catch (_) {}
 
-    // Strategy 2: base64url → JSON
+    // Strategy 2: Supabase SSR "base64-" prefix format
+    // Cookies are prefixed with "base64-" followed by base64-encoded JSON
+    if (!session && sessionStr.startsWith('base64-')) {
+      try {
+        const b64 = sessionStr.slice(7);
+        const decoded = atob(b64);
+        session = JSON.parse(decoded);
+        console.log("✅ [Background] Parsed cookie via base64- prefix");
+      } catch (_) {}
+    }
+
+    // Strategy 3: Chunked cookies — each chunk has its own "base64-" prefix
+    if (!session && authCookies.length > 1) {
+      try {
+        const combined = authCookies.map(c => {
+          let val = c.value;
+          try { val = decodeURIComponent(val); } catch (_) {}
+          if (val.startsWith('base64-')) val = val.slice(7);
+          return val;
+        }).join('');
+        const decoded = atob(combined);
+        session = JSON.parse(decoded);
+        console.log("✅ [Background] Parsed cookie via chunked base64- prefix");
+      } catch (_) {}
+    }
+
+    // Strategy 4: Chunked cookies — no prefix, just concatenate and decode
+    if (!session && authCookies.length > 1) {
+      try {
+        const combined = authCookies.map(c => c.value).join('');
+        const decoded = atob(combined);
+        session = JSON.parse(decoded);
+      } catch (_) {}
+    }
+
+    // Strategy 5: base64url → JSON (no prefix)
     if (!session) {
       try {
         const base64 = sessionStr.replace(/-/g, '+').replace(/_/g, '/');
         const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
         session = JSON.parse(atob(padded));
-      } catch (_) {}
-    }
-
-    // Strategy 3: Each chunk is separate base64, decode individually then join
-    if (!session && authCookies.length > 1) {
-      try {
-        const decoded = authCookies.map(c => {
-          const b64 = c.value.replace(/-/g, '+').replace(/_/g, '/');
-          const padded = b64 + '='.repeat((4 - b64.length % 4) % 4);
-          return atob(padded);
-        }).join('');
-        session = JSON.parse(decoded);
       } catch (_) {}
     }
 
