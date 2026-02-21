@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, AlertCircle, Check, Instagram, Link as LinkIcon, ShoppingCart, Video, Shield, Lock } from 'lucide-react'
+import { Loader2, AlertCircle, Check, Instagram, Link as LinkIcon, ShoppingCart, Video, Shield, Lock, ArrowLeft } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { getProfile, updateProfile } from '@/lib/supabase/profile'
 import LavenderLoader from '@/components/ui/LavenderLoader'
@@ -133,7 +133,15 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-zinc-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold text-zinc-900 mb-8">Profile Settings</h1>
+        <div className="flex items-center gap-4 mb-8">
+          <button
+            onClick={() => router.back()}
+            className="p-2 hover:bg-zinc-200 rounded-lg transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5 text-zinc-600" />
+          </button>
+          <h1 className="text-3xl font-bold text-zinc-900">Profile Settings</h1>
+        </div>
 
         <form onSubmit={handleUpdate} className="space-y-8">
           
@@ -361,15 +369,6 @@ export default function SettingsPage() {
           </button>
         </form>
 
-        {/* Back Button */}
-        <div className="mt-6 text-center">
-          <button
-            onClick={() => router.back()}
-            className="text-sm text-zinc-600 hover:text-violet-600 font-medium transition-colors"
-          >
-            ← Back
-          </button>
-        </div>
       </div>
     </div>
   )
