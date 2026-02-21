@@ -85,15 +85,15 @@ async function getUserItems(userId: string): Promise<{
  */
 export async function getUserProducts(userId: string, viewerId?: string): Promise<{
   data: SupabaseProduct[] | null;
+  queued: any[];
   error: any;
 }> {
   // Fetch from BOTH tables in parallel with pagination
   // Limit to 100 items per table to prevent large data transfers
   const ITEMS_LIMIT = 100;
   
-  const [itemsResult, productsResult] = await Promise.all([
-    // Query items table (limited to 100 most recent) - include last_price_check
-    // Only fetch active items (not purchased)
+  const [itemsResult, queuedResult, productsResult] = await Promise.all([
+    // Query items table - active items
     supabase
       .from('items')
       .select(`
@@ -115,6 +115,27 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
       .order('created_at', { ascending: false })
       .limit(ITEMS_LIMIT),
     
+    // Query items table - queued items (waiting for extension scrape)
+    supabase
+      .from('items')
+      .select(`
+        id,
+        user_id,
+        title,
+        current_price,
+        image_url,
+        url,
+        note,
+        status,
+        retailer,
+        collection_id,
+        created_at
+      `)
+      .eq('user_id', userId)
+      .eq('status', 'queued')
+      .order('created_at', { ascending: false })
+      .limit(50),
+    
     // Query products table (limited to 100 most recent)
     supabase
       .from('products')
@@ -135,6 +156,9 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
 
   if (itemsResult.error) {
     console.error('❌ Error fetching items:', itemsResult.error);
+  }
+  if (queuedResult.error) {
+    console.error('❌ Error fetching queued items:', queuedResult.error);
   }
   if (productsResult.error) {
     console.error('❌ Error fetching products:', productsResult.error);
@@ -282,9 +306,35 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
     return dateB - dateA;
   });
 
+  // Convert queued items
+  const queuedItems: any[] = [];
+  if (queuedResult.data) {
+    queuedResult.data.forEach((item: any) => {
+      let priceValue = null;
+      if (item.current_price !== null && item.current_price !== undefined && item.current_price !== '') {
+        const numPrice = typeof item.current_price === 'string'
+          ? parseFloat(item.current_price)
+          : Number(item.current_price);
+        priceValue = isNaN(numPrice) || numPrice === 0 ? null : numPrice;
+      }
+      
+      queuedItems.push({
+        id: item.id,
+        title: item.title || null,
+        price: priceValue,
+        image: item.image_url || null,
+        url: item.url || '#',
+        user_id: item.user_id,
+        created_at: item.created_at,
+        status: 'queued',
+        domain: item.retailer?.toLowerCase() || null,
+      });
+    });
+  }
+
   const error = itemsResult.error || productsResult.error;
 
-  return { data: deduplicatedItems, error: error || null };
+  return { data: deduplicatedItems, queued: queuedItems, error: error || null };
 }
 
 /**

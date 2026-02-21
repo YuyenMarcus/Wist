@@ -236,8 +236,8 @@ export async function POST(request: Request) {
     } else if (url && (!title || !price)) {
       // C. SCRAPE MODE (Only for manual dashboard adds - no extension data)
       console.log("🔍 [API] No extension data provided, attempting server-side scrape for:", url);
+      let scrapeQuality: 'good' | 'poor' = 'poor';
       try {
-        // Use the advanced scraper from lib/scraper/index.ts (supports Playwright, Scrapy, structured data)
         const scraperModule = await import('@/lib/scraper/index');
         const scrapeResult = await scraperModule.scrapeProduct(url) as { ok: boolean; data?: { title?: string; price?: number; image?: string; domain?: string }; error?: string; detail?: string } | null;
         
@@ -247,18 +247,27 @@ export async function POST(request: Request) {
           image_url = image_url || scrapeResult.data.image || null;
           retailer = retailer || scrapeResult.data.domain || 'Unknown';
           console.log("✅ [API] Scrape successful:", title, "Price:", currentPrice);
+          
+          const hasGoodTitle = title && title.length > 10 && title !== 'New Item';
+          const hasImage = !!image_url;
+          scrapeQuality = (hasGoodTitle && hasImage) ? 'good' : 'poor';
         } else {
           const errorMsg = scrapeResult?.error || scrapeResult?.detail || 'Unknown error';
           console.warn("⚠️ [API] Server scrape failed (non-fatal):", errorMsg);
-          // Fallback defaults if scrape fails entirely
           title = title || 'New Item';
           currentPrice = price ? parseFloat(price.toString().replace(/[^0-9.]/g, '')) : 0;
         }
       } catch (err: any) {
         console.warn("⚠️ [API] Server scrape failed (non-fatal):", err.message);
-        // Fallback defaults if scrape fails entirely
         title = title || 'New Item';
         currentPrice = price ? parseFloat(price.toString().replace(/[^0-9.]/g, '')) : 0;
+      }
+      
+      // If scrape quality is poor (no real title or image), queue the item
+      // so the extension can scrape it properly later
+      if (scrapeQuality === 'poor' && !status) {
+        status = 'queued';
+        console.log("📋 [API] Poor scrape result, saving as queued for extension scrape later");
       }
     } else {
       return NextResponse.json(
@@ -454,6 +463,128 @@ export async function DELETE(request: Request) {
 
   } catch (error: any) {
     console.error('❌ Server Error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Server Error' },
+      { status: 500, headers: corsHeaders(origin) }
+    );
+  }
+}
+
+export async function PATCH(request: Request) {
+  const origin = request.headers.get('origin');
+
+  try {
+    const body = await request.json();
+    const { id, title, price, image_url, status: newStatus } = body;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Item ID is required' },
+        { status: 400, headers: corsHeaders(origin) }
+      );
+    }
+
+    // Auth: try cookie then bearer
+    let user = null;
+    let supabaseClient = null;
+
+    const cookieHeader = request.headers.get('cookie') || '';
+    const cookieMap = new Map<string, string>();
+    if (cookieHeader) {
+      cookieHeader.split(';').forEach(cookie => {
+        const [name, ...valueParts] = cookie.trim().split('=');
+        if (name && valueParts.length > 0) {
+          cookieMap.set(name.trim(), valueParts.join('='));
+        }
+      });
+    }
+
+    if (cookieMap.size > 0) {
+      const response = NextResponse.next();
+      supabaseClient = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          cookies: {
+            getAll() {
+              return Array.from(cookieMap.entries()).map(([name, value]) => ({ name, value }));
+            },
+            setAll(cookiesToSet) {
+              cookiesToSet.forEach(({ name, value, options }) => {
+                cookieMap.set(name, value);
+                response.cookies.set(name, value, options);
+              });
+            },
+          },
+        }
+      );
+      const cookieAuth = await supabaseClient.auth.getUser();
+      if (cookieAuth.data?.user) {
+        user = cookieAuth.data.user;
+      }
+    }
+
+    if (!user) {
+      const authHeader = request.headers.get('Authorization');
+      if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.replace('Bearer ', '').trim();
+        if (token && token !== 'undefined' && token !== 'null') {
+          const supabaseWithToken = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            { auth: { persistSession: false, autoRefreshToken: false }, global: { headers: { Authorization: `Bearer ${token}` } } }
+          );
+          const { data: { user: tokenUser } } = await supabaseWithToken.auth.getUser();
+          if (tokenUser) {
+            user = tokenUser;
+            supabaseClient = supabaseWithToken;
+          }
+        }
+      }
+    }
+
+    if (!user || !supabaseClient) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401, headers: corsHeaders(origin) }
+      );
+    }
+
+    const updateData: any = {};
+    if (title !== undefined) updateData.title = title;
+    if (price !== undefined) updateData.current_price = parseFloat(price.toString().replace(/[^0-9.]/g, '')) || 0;
+    if (image_url !== undefined) updateData.image_url = image_url;
+    if (newStatus !== undefined) updateData.status = newStatus;
+
+    const { data, error } = await supabaseClient
+      .from('items')
+      .update(updateData)
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select()
+      .single();
+
+    if (error) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 500, headers: corsHeaders(origin) }
+      );
+    }
+
+    // If upgrading from queued to active and now has a price, add price history
+    if (newStatus === 'active' && updateData.current_price > 0) {
+      await supabaseClient.from('price_history').insert({
+        item_id: id,
+        price: updateData.current_price
+      });
+    }
+
+    return NextResponse.json(
+      { success: true, item: data },
+      { headers: corsHeaders(origin) }
+    );
+  } catch (error: any) {
+    console.error('❌ PATCH Error:', error);
     return NextResponse.json(
       { error: error.message || 'Server Error' },
       { status: 500, headers: corsHeaders(origin) }

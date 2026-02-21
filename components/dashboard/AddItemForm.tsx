@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { Puzzle, Check, Download } from 'lucide-react'
+import { Puzzle, Check, Download, Smartphone, Link as LinkIcon } from 'lucide-react'
 
 type Priority = 'high' | 'medium' | 'low'
 
@@ -18,7 +18,21 @@ interface PreviewData {
 }
 
 declare const chrome: any;
-const EXTENSION_ID = typeof chrome !== 'undefined' ? chrome?.runtime?.id || '' : ''
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const check = () => {
+      const ua = navigator.userAgent || ''
+      const mobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua) || window.innerWidth < 768
+      setIsMobile(mobile)
+    }
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+  return isMobile
+}
 
 function useFakeProgress(isActive: boolean) {
   const [progress, setProgress] = useState(0)
@@ -58,52 +72,26 @@ export default function AddItemForm() {
   const [priority, setPriority] = useState<Priority>('medium')
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
   const [isExpanded, setIsExpanded] = useState(false)
   const [extensionInstalled, setExtensionInstalled] = useState(false)
   const [scrapeMethod, setScrapeMethod] = useState<'extension' | 'server' | null>(null)
   const progress = useFakeProgress(loading)
   const router = useRouter()
+  const isMobile = useIsMobile()
 
-  // Check if extension is installed on mount
   useEffect(() => {
     const checkExtension = () => {
-      // Method 1: Check for data attribute set by content script
       const hasAttribute = document.documentElement.getAttribute('data-wist-installed') === 'true'
-      
-      // Method 2: Try to communicate with the extension
-      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-        // Try sending a ping to the extension
-        try {
-          // Get extension ID from manifest or use a known ID
-          const extensionIds = [
-            // Add your extension ID here after publishing
-            // You can find it in chrome://extensions
-          ]
-          
-          // For development, the extension might be using a dynamic ID
-          // We rely on the content script setting the data attribute
-        } catch (e) {
-          console.log('Extension communication not available')
-        }
-      }
-      
       setExtensionInstalled(hasAttribute)
-      console.log('🧩 Extension installed:', hasAttribute)
     }
-    
-    // Check immediately and after a short delay (in case content script hasn't run yet)
     checkExtension()
     const timeout = setTimeout(checkExtension, 500)
-    
     return () => clearTimeout(timeout)
   }, [])
 
-  // Scrape using the extension (browser-based, avoids bot detection)
   const scrapeWithExtension = useCallback(async (targetUrl: string): Promise<PreviewData | null> => {
     return new Promise((resolve) => {
-      console.log('🧩 Attempting extension-based scraping for:', targetUrl)
-      
-      // Send message to extension via window postMessage (content script will relay it)
       const messageId = `scrape-${Date.now()}`
       
       const handleResponse = (event: MessageEvent) => {
@@ -111,7 +99,6 @@ export default function AddItemForm() {
           window.removeEventListener('message', handleResponse)
           
           if (event.data.success && event.data.data) {
-            console.log('✅ Extension scrape successful:', event.data.data)
             resolve({
               title: event.data.data.title || 'Unknown Item',
               image: event.data.data.image || event.data.data.image_url || null,
@@ -120,36 +107,22 @@ export default function AddItemForm() {
               url: targetUrl,
             })
           } else {
-            console.log('❌ Extension scrape failed:', event.data.error)
             resolve(null)
           }
         }
       }
       
       window.addEventListener('message', handleResponse)
-      
-      // Send scrape request to content script
-      window.postMessage({
-        type: 'WIST_SCRAPE_REQUEST',
-        messageId,
-        url: targetUrl,
-      }, '*')
-      
-      // Timeout after 30 seconds
+      window.postMessage({ type: 'WIST_SCRAPE_REQUEST', messageId, url: targetUrl }, '*')
       setTimeout(() => {
         window.removeEventListener('message', handleResponse)
-        console.log('⏱️ Extension scrape timed out')
         resolve(null)
       }, 30000)
     })
   }, [])
 
-  // Scrape using server-side API (fallback)
   const scrapeWithServer = useCallback(async (targetUrl: string): Promise<PreviewData | null> => {
-    console.log('🖥️ Using server-side scraping for:', targetUrl)
-    
-    const metadataUrl = `/api/metadata?url=${encodeURIComponent(targetUrl)}`
-    const response = await fetch(metadataUrl)
+    const response = await fetch(`/api/metadata?url=${encodeURIComponent(targetUrl)}`)
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Failed to fetch metadata' }))
@@ -157,12 +130,6 @@ export default function AddItemForm() {
     }
 
     const metadata = await response.json()
-    console.log('🔍 Server metadata:', metadata)
-    
-    // Check if extension is recommended for better results
-    if (metadata.extensionRequired && !extensionInstalled) {
-      console.log('⚠️ Extension recommended for this site')
-    }
     
     return {
       title: metadata.title || 'Unknown Item',
@@ -172,9 +139,8 @@ export default function AddItemForm() {
       url: targetUrl,
       extensionRequired: metadata.extensionRequired,
     }
-  }, [extensionInstalled])
+  }, [])
 
-  // Fetch metadata when URL is pasted/changed
   const handleUrlChange = async (newUrl: string) => {
     setUrl(newUrl)
     setError(null)
@@ -186,7 +152,6 @@ export default function AddItemForm() {
       return
     }
 
-    // Validate URL
     try {
       new URL(newUrl.trim())
     } catch {
@@ -201,25 +166,19 @@ export default function AddItemForm() {
     try {
       let previewData: PreviewData | null = null
       
-      // Try extension-based scraping first if extension is installed
-      if (extensionInstalled) {
-        console.log('🧩 Extension detected, trying extension-based scraping...')
+      if (extensionInstalled && !isMobile) {
         previewData = await scrapeWithExtension(newUrl.trim())
-        
         if (previewData && previewData.title && previewData.title !== 'Unknown Item') {
           setScrapeMethod('extension')
         }
       }
       
-      // Fall back to server-side scraping if extension fails or is not installed
       if (!previewData || !previewData.title || previewData.title === 'Unknown Item') {
-        console.log('🖥️ Falling back to server-side scraping...')
         previewData = await scrapeWithServer(newUrl.trim())
         setScrapeMethod('server')
       }
       
       if (previewData) {
-        console.log('📦 Setting preview:', previewData)
         setPreview(previewData)
       } else {
         throw new Error('Could not fetch product data')
@@ -232,7 +191,6 @@ export default function AddItemForm() {
     }
   }
 
-  // Save to wishlist
   const handleSave = async () => {
     if (!url.trim()) return
 
@@ -247,7 +205,6 @@ export default function AddItemForm() {
     setSuccess(false)
 
     try {
-      // 1. Fetch Metadata if we don't have preview yet
       let metadata = preview
       if (!metadata || !metadata.title) {
         const metadataUrl = `/api/metadata?url=${encodeURIComponent(url.trim())}`
@@ -260,92 +217,58 @@ export default function AddItemForm() {
         const metadataData = await metadataResponse.json()
         metadata = {
           title: metadataData.title || url.trim(),
-          image: metadataData.imageUrl || null, // API returns imageUrl, we map it to image
+          image: metadataData.imageUrl || null,
           price: metadataData.price || null,
           description: metadataData.description || null,
           url: url.trim(),
         }
       }
 
-      // 2. Parse price if it's a string (e.g., "$99.99" -> 99.99)
       let priceValue: string | null = null
       if (metadata.price) {
         if (typeof metadata.price === 'string') {
-          // Extract number from price string (handles "$99.99", "99.99", etc.)
           const priceMatch = metadata.price.replace(/[^0-9.]/g, '')
-          priceValue = priceMatch ? parseFloat(priceMatch).toString() : null
+          priceValue = priceMatch ? priceMatch : null
         } else {
           priceValue = metadata.price.toString()
         }
       }
 
-      // 3. Save to Supabase
-      // Map API result (camelCase imageUrl) to DB columns (snake_case image)
-      const insertData: any = {
-        url: metadata.url,
-        title: metadata.title || url.trim(), // Fallback to URL if title is missing
-        image: metadata.image || null,       // Use metadata.image (from preview which has imageUrl mapped to image)
-        price: priceValue,
-        description: metadata.description || null,
-        domain: new URL(metadata.url).hostname.replace('www.', ''),
-        user_id: user.id,
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      const response = await fetch('/api/items', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({
+          url: metadata.url,
+          title: metadata.title || url.trim(),
+          price: priceValue,
+          image_url: metadata.image || null,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to save item')
       }
 
-      // Only include meta if the column exists (handle gracefully if it doesn't)
-      // Try to insert with meta first, if it fails, retry without meta
-      let insertError: any = null
-      try {
-        const { error } = await supabase
-          .from('products')
-          .insert({
-            ...insertData,
-            meta: { priority },
-          })
-        
-        insertError = error
-        
-        // If error is about meta column not found, retry without it
-        if (error && (error.message?.includes('meta') || error.code === '42703')) {
-          console.warn('meta column not found, saving without meta field')
-          const { error: retryError } = await supabase
-            .from('products')
-            .insert(insertData)
-          insertError = retryError
-        }
-      } catch (err: any) {
-        insertError = err
-      }
+      const wasQueued = result.item?.status === 'queued'
 
-      if (insertError) {
-        console.error('Supabase Error:', insertError)
-        
-        // Handle unique constraint violation (duplicate URL)
-        if (insertError.code === '23505') {
-          setError("You've already saved this link!")
-          setSaving(false)
-          return // Stop here, don't crash
-        }
-        
-        // Provide helpful error message for meta column issues
-        if (insertError.message?.includes('meta') || insertError.code === '42703') {
-          throw new Error('Database schema issue: meta column may not exist. Please check your Supabase table schema or reload the schema cache in Settings -> API.')
-        }
-        
-        throw insertError
-      }
-
-      // Success! Reset form
       setUrl('')
       setPreview(null)
       setPriority('medium')
       setIsExpanded(false)
       setSuccess(true)
-      
-      // Hide success message after 3 seconds
-      setTimeout(() => setSuccess(false), 3000)
-      
-      // Refresh the page or trigger real-time update
+      setSuccessMessage(wasQueued
+        ? 'Saved to queue! Full details will load on desktop with the extension.'
+        : 'Item added to wishlist!')
+      setTimeout(() => setSuccess(false), wasQueued ? 5000 : 3000)
       router.refresh()
+      window.location.reload()
     } catch (err: any) {
       console.error('Error saving item:', err)
       setError(err.message || 'Failed to save item')
@@ -354,24 +277,35 @@ export default function AddItemForm() {
     }
   }
 
+  const canPasteLinks = isMobile || extensionInstalled
+  const showExtensionPrompt = !isMobile && !extensionInstalled
+
   return (
     <div className="max-w-2xl mx-auto">
-      {/* Extension Status Indicator */}
-      {extensionInstalled ? (
+      {/* Extension / mobile status */}
+      {extensionInstalled && !isMobile ? (
         <div className="flex items-center justify-center gap-2 mb-3 text-xs text-green-600">
           <Check className="w-3.5 h-3.5" />
           <span>Extension connected</span>
         </div>
-      ) : (
+      ) : isMobile ? (
+        <div className="flex items-center justify-center gap-2 mb-3 text-xs text-violet-600">
+          <Smartphone className="w-3.5 h-3.5" />
+          <span>Paste a link or use Share to save items</span>
+        </div>
+      ) : null}
+
+      {/* Desktop: Extension prompt (non-blocking) */}
+      {showExtensionPrompt && (
         <div className="mb-4 p-3 sm:p-4 bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-200 rounded-xl">
           <div className="flex flex-col sm:flex-row items-start gap-3">
             <div className="p-2 bg-violet-100 rounded-lg flex-shrink-0">
               <Puzzle className="w-5 h-5 text-violet-600" />
             </div>
             <div className="flex-1 min-w-0">
-              <h4 className="text-sm font-medium text-zinc-900">Install our extension to add items from links</h4>
+              <h4 className="text-sm font-medium text-zinc-900">Install the extension for the best experience</h4>
               <p className="mt-1 text-xs text-zinc-500 leading-relaxed">
-                The Wist extension enables instant scraping from any shopping site including Amazon, Etsy, and more.
+                The Wist extension enables one-click saving from any shopping site. You can also paste links below.
               </p>
               <a
                 href="/wist-extension-download.zip"
@@ -386,14 +320,15 @@ export default function AddItemForm() {
         </div>
       )}
 
-      {/* Magic Input Bar */}
+      {/* URL Input - always enabled */}
       <div className="relative">
         <div
           className={`relative bg-white rounded-2xl border border-zinc-200 shadow-sm transition-all duration-300 overflow-hidden ${
             isExpanded ? 'shadow-xl border-violet-200 ring-2 ring-violet-200' : ''
-          } ${!extensionInstalled ? 'opacity-60' : ''}`}
+          }`}
         >
           <div className="flex items-center h-14 px-4">
+            <LinkIcon className="w-4 h-4 text-zinc-400 mr-2 flex-shrink-0" />
             <input
               type="url"
               value={url}
@@ -401,9 +336,9 @@ export default function AddItemForm() {
               onFocus={() => {
                 if (url.trim()) setIsExpanded(true)
               }}
-              placeholder={extensionInstalled ? "Paste a link to add to wishlist..." : "Install extension to paste links..."}
+              placeholder="Paste a product link..."
               className="flex-1 bg-transparent border-none outline-none text-zinc-900 placeholder-zinc-400 text-sm focus:ring-0"
-              disabled={loading || saving || !extensionInstalled}
+              disabled={loading || saving}
             />
             {loading && (
               <div className="ml-3 flex items-center gap-2">
@@ -420,7 +355,6 @@ export default function AddItemForm() {
               </button>
             )}
           </div>
-          {/* Progress bar */}
           {progress > 0 && (
             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-zinc-100 rounded-b-2xl overflow-hidden">
               <div
@@ -438,15 +372,10 @@ export default function AddItemForm() {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              transition={{
-                type: 'spring',
-                stiffness: 300,
-                damping: 30,
-              }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               className="mt-3 overflow-hidden"
             >
               <div className="bg-white rounded-xl border border-zinc-200 shadow-sm p-4">
-                {/* Loading status */}
                 {loading && (
                   <div className="mb-3 flex items-center gap-2 text-xs text-zinc-400">
                     <div className="w-3.5 h-3.5 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />
@@ -459,21 +388,18 @@ export default function AddItemForm() {
                   </div>
                 )}
 
-                {/* Error Message */}
                 {error && (
                   <div className="mb-3 text-xs text-red-600">
                     {error}
                   </div>
                 )}
 
-                {/* Success Toast */}
                 {success && (
                   <div className="mb-3 text-xs text-green-600">
-                    ✓ Item added to wishlist successfully!
+                    {successMessage || 'Item added to wishlist!'}
                   </div>
                 )}
 
-                {/* Scrape Method Indicator */}
                 {scrapeMethod === 'extension' && preview && (
                   <div className="mb-3 flex items-center gap-2 text-xs text-green-600">
                     <Check className="w-3.5 h-3.5" />
@@ -481,7 +407,6 @@ export default function AddItemForm() {
                   </div>
                 )}
 
-                {/* Preview Card */}
                 {preview && (
                   <div className="mb-4">
                     <div className="flex items-center gap-3">
@@ -508,7 +433,7 @@ export default function AddItemForm() {
                         </p>
                         {preview.price && (
                           <p className="text-xs text-zinc-500 mt-0.5">
-                            ${typeof preview.price === 'number' ? preview.price.toFixed(2) : preview.price}
+                            ${typeof preview.price === 'number' ? preview.price.toFixed(2) : preview.price.toString().replace(/^\$/, '')}
                           </p>
                         )}
                       </div>
@@ -516,7 +441,12 @@ export default function AddItemForm() {
                   </div>
                 )}
 
-                {/* Priority Selector */}
+                {preview?.extensionRequired && !extensionInstalled && !isMobile && (
+                  <div className="mb-3 p-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
+                    This site may have limited data. Install the extension for better results.
+                  </div>
+                )}
+
                 <div className="flex items-center gap-2">
                   <label className="text-xs text-zinc-500">Priority:</label>
                   <div className="flex gap-1">

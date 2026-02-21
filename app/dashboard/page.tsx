@@ -11,8 +11,9 @@ import { getUserProducts, SupabaseProduct, deleteUserProduct } from '@/lib/supab
 import { getProfile, Profile } from '@/lib/supabase/profile'
 import LavenderLoader from '@/components/ui/LavenderLoader'
 import OnboardingFlow from '@/components/onboarding/OnboardingFlow'
-import { Layers, LayoutGrid, Sparkles, Loader2 } from 'lucide-react'
+import { Layers, LayoutGrid, Sparkles, Loader2, Clock } from 'lucide-react'
 import Link from 'next/link'
+import QueuedItemCard from '@/components/dashboard/QueuedItemCard'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -20,6 +21,7 @@ export default function DashboardPage() {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [products, setProducts] = useState<SupabaseProduct[]>([])
+  const [queuedItems, setQueuedItems] = useState<any[]>([])
   const [collections, setCollections] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -94,9 +96,10 @@ export default function DashboardPage() {
         }
         
         // Load products
-        const { data, error } = await getUserProducts(currentUser.id, currentUser.id)
-        if (!error && data) {
-          setProducts(data)
+        const result = await getUserProducts(currentUser.id, currentUser.id)
+        if (!result.error && result.data) {
+          setProducts(result.data)
+          setQueuedItems(result.queued || [])
           
           // Seed price history for items that have no entries yet (runs once, non-blocking)
           fetch('/api/seed-price-history', { method: 'POST' }).catch(() => {})
@@ -136,15 +139,17 @@ export default function DashboardPage() {
         getProfile(session.user.id).then(({ data }) => {
           if (data) setProfile(data)
         })
-        getUserProducts(session.user.id, session.user.id).then(({ data, error }) => {
-          if (!error && data) {
-            setProducts(data)
+        getUserProducts(session.user.id, session.user.id).then((result) => {
+          if (!result.error && result.data) {
+            setProducts(result.data)
+            setQueuedItems(result.queued || [])
           }
         })
       } else {
         setUser(null)
         setProfile(null)
         setProducts([])
+        setQueuedItems([])
         router.push('/login')
       }
     })
@@ -164,9 +169,10 @@ export default function DashboardPage() {
         (payload) => {
           console.log('Real-time item update:', payload.eventType, payload.new)
           if (user) {
-            getUserProducts(user.id, user.id).then(({ data, error }) => {
-              if (!error && data) {
-                setProducts(data)
+            getUserProducts(user.id, user.id).then((result) => {
+              if (!result.error && result.data) {
+                setProducts(result.data)
+                setQueuedItems(result.queued || [])
               }
             })
           }
@@ -216,6 +222,83 @@ export default function DashboardPage() {
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [user])
+
+  // Auto-scrape queued items when extension is available
+  useEffect(() => {
+    if (queuedItems.length === 0) return
+
+    const extensionInstalled = document.documentElement.getAttribute('data-wist-installed') === 'true'
+    if (!extensionInstalled) return
+
+    let cancelled = false
+
+    async function autoScrapeQueue() {
+      console.log(`🔄 Auto-scraping ${queuedItems.length} queued items via extension...`)
+
+      for (const item of queuedItems) {
+        if (cancelled) break
+
+        try {
+          const result = await new Promise<any>((resolve) => {
+            const messageId = `auto-scrape-${item.id}-${Date.now()}`
+
+            const handleResponse = (event: MessageEvent) => {
+              if (event.data?.type === 'WIST_SCRAPE_RESULT' && event.data?.messageId === messageId) {
+                window.removeEventListener('message', handleResponse)
+                resolve(event.data)
+              }
+            }
+
+            window.addEventListener('message', handleResponse)
+            window.postMessage({ type: 'WIST_SCRAPE_REQUEST', messageId, url: item.url }, '*')
+
+            setTimeout(() => {
+              window.removeEventListener('message', handleResponse)
+              resolve(null)
+            }, 20000)
+          })
+
+          if (cancelled) break
+
+          if (result?.success && result?.data) {
+            const scraped = result.data
+            const hasGoodData = scraped.title && scraped.title.length > 5
+
+            if (hasGoodData) {
+              const { data: { session } } = await supabase.auth.getSession()
+              await fetch('/api/items', {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+                },
+                body: JSON.stringify({
+                  id: item.id,
+                  title: scraped.title,
+                  price: scraped.price || undefined,
+                  image_url: scraped.image || scraped.image_url || undefined,
+                  status: 'active',
+                }),
+              })
+              console.log(`✅ Auto-scraped: ${scraped.title?.substring(0, 40)}`)
+            }
+          }
+        } catch (err) {
+          console.warn(`⚠️ Auto-scrape failed for ${item.url}:`, err)
+        }
+      }
+
+      if (!cancelled) {
+        fetchItems()
+      }
+    }
+
+    const timer = setTimeout(autoScrapeQueue, 2000)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [queuedItems.length > 0 ? 'has-items' : 'no-items'])
 
   const handleHide = (productId: string) => {
     setProducts(prev => prev.filter(p => p.id !== productId))
@@ -277,9 +360,10 @@ export default function DashboardPage() {
   // Function to fetch items (used by refresh)
   const fetchItems = async () => {
     if (!user) return
-    const { data, error } = await getUserProducts(user.id, user.id)
-    if (!error && data) {
-      setProducts(data)
+    const result = await getUserProducts(user.id, user.id)
+    if (!result.error && result.data) {
+      setProducts(result.data)
+      setQueuedItems(result.queued || [])
     }
   }
 
@@ -409,6 +493,17 @@ export default function DashboardPage() {
 
   const adultFilterEnabled = profile?.adult_content_filter ?? true
 
+  const handleQueuedUpdate = (id: string, updatedItem: any) => {
+    setQueuedItems(prev => prev.filter(q => q.id !== id))
+    if (updatedItem.status === 'active') {
+      fetchItems()
+    }
+  }
+
+  const handleQueuedDelete = (id: string) => {
+    setQueuedItems(prev => prev.filter(q => q.id !== id))
+  }
+
   const handleOnboardingComplete = async () => {
     setShowOnboarding(false)
     if (user) {
@@ -439,6 +534,31 @@ export default function DashboardPage() {
 
       {/* The Content Grid */}
       <main className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        {/* Queued Items Banner */}
+        {queuedItems.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <Clock className="w-4 h-4 text-amber-600" />
+              <h3 className="text-sm font-semibold text-zinc-900">
+                Queue ({queuedItems.length})
+              </h3>
+              <span className="text-xs text-zinc-500">
+                Open Wist on desktop with the extension to auto-scrape
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {queuedItems.map((item: any) => (
+                <QueuedItemCard
+                  key={item.id}
+                  item={item}
+                  onUpdate={handleQueuedUpdate}
+                  onDelete={handleQueuedDelete}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Timeline View (Pinterest Grid) */}
         {viewMode === 'timeline' && (
           <WishlistGrid 
