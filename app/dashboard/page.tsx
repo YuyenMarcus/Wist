@@ -217,6 +217,10 @@ export default function DashboardPage() {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [user])
 
+  const handleHide = (productId: string) => {
+    setProducts(prev => prev.filter(p => p.id !== productId))
+  }
+
   const handleDelete = async (productId: string) => {
     if (!user) return
     
@@ -442,6 +446,7 @@ export default function DashboardPage() {
             isOwner={true}
             onDelete={handleDelete}
             onUpdate={handleUpdate}
+            onHide={handleHide}
             userCollections={collections}
             adultFilterEnabled={adultFilterEnabled}
           />
@@ -502,6 +507,7 @@ export default function DashboardPage() {
                       item={item} 
                       userCollections={collections} 
                       onDelete={handleDelete}
+                      onHide={handleHide}
                       adultFilterEnabled={adultFilterEnabled}
                     />
                   ))}
@@ -523,6 +529,7 @@ export default function DashboardPage() {
                       item={item} 
                       userCollections={collections} 
                       onDelete={handleDelete}
+                      onHide={handleHide}
                       adultFilterEnabled={adultFilterEnabled}
                     />
                   ))}
@@ -556,6 +563,7 @@ export default function DashboardPage() {
                         item={item} 
                         userCollections={collections} 
                         onDelete={handleDelete}
+                        onHide={handleHide}
                         adultFilterEnabled={adultFilterEnabled}
                       />
                     ))}

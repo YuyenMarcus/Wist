@@ -18,11 +18,12 @@ interface WishlistGridProps {
   onDelete?: (id: string) => void
   onReserve?: (id: string) => void
   onUpdate?: (id: string, updatedItem: SupabaseProduct) => void
+  onHide?: (id: string) => void
   userCollections?: Collection[]
   adultFilterEnabled?: boolean
 }
 
-export default function WishlistGrid({ items, isOwner = true, onDelete, onReserve, onUpdate, userCollections = [], adultFilterEnabled = false }: WishlistGridProps) {
+export default function WishlistGrid({ items, isOwner = true, onDelete, onReserve, onUpdate, onHide, userCollections = [], adultFilterEnabled = false }: WishlistGridProps) {
   
   // Empty State
   if (!items || items.length === 0) {
@@ -68,6 +69,7 @@ export default function WishlistGrid({ items, isOwner = true, onDelete, onReserv
             onDelete={onDelete}
             onReserve={onReserve}
             onUpdate={onUpdate}
+            onHide={onHide}
             userCollections={userCollections}
             adultFilterEnabled={adultFilterEnabled}
           />

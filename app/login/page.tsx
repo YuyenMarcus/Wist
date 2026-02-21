@@ -147,7 +147,18 @@ function LoginForm() {
         />
       </div>
 
-      <div className="mt-6 text-center">
+      <p className="mt-4 text-center text-xs text-zinc-400 max-w-sm mx-auto leading-relaxed">
+        By signing in, you agree to our{' '}
+        <Link href="/terms" className="text-violet-500 hover:text-violet-600 underline underline-offset-2">
+          Terms of Service
+        </Link>{' '}
+        and{' '}
+        <Link href="/terms#privacy" className="text-violet-500 hover:text-violet-600 underline underline-offset-2">
+          Privacy Policy
+        </Link>.
+      </p>
+
+      <div className="mt-4 text-center">
         <p className="text-sm text-zinc-600">
           Don't have an account?{' '}
           <Link href="/signup" className="text-violet-600 hover:text-violet-700 font-medium">

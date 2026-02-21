@@ -221,7 +221,7 @@ export default function SettingsPage() {
           </div>
 
           {/* --- SECTION 2: CREATOR & SOCIAL --- */}
-          <div className="bg-white p-8 rounded-2xl border border-zinc-200 shadow-sm space-y-6">
+          <div id="creator" className="bg-white p-8 rounded-2xl border border-zinc-200 shadow-sm space-y-6 scroll-mt-20">
             <h2 className="text-lg font-semibold text-zinc-900 border-b border-zinc-100 pb-2 flex items-center gap-2">
               Creator Links <span className="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-medium">Monetization</span>
             </h2>
@@ -294,7 +294,7 @@ export default function SettingsPage() {
           </div>
 
           {/* --- SECTION 3: CONTENT PREFERENCES --- */}
-          <div className="bg-white p-8 rounded-2xl border border-zinc-200 shadow-sm space-y-6">
+          <div id="content" className="bg-white p-8 rounded-2xl border border-zinc-200 shadow-sm space-y-6 scroll-mt-20">
             <h2 className="text-lg font-semibold text-zinc-900 border-b border-zinc-100 pb-2 flex items-center gap-2">
               <Shield size={16} /> Content Preferences
             </h2>

@@ -35,10 +35,11 @@ interface Props {
   item: ProductItem;
   userCollections?: Collection[];
   onDelete?: (id: string) => void;
+  onHide?: (id: string) => void;
   adultFilterEnabled?: boolean;
 }
 
-export default function ProductCard({ item, userCollections = [], onDelete, adultFilterEnabled = false }: Props) {
+export default function ProductCard({ item, userCollections = [], onDelete, onHide, adultFilterEnabled = false }: Props) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -262,6 +263,33 @@ export default function ProductCard({ item, userCollections = [], onDelete, adul
     }
   };
 
+  const handleHide = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from('items')
+        .update({ status: 'hidden' })
+        .eq('id', item.id)
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error hiding item:', error);
+        return;
+      }
+
+      setIsMenuOpen(false);
+      if (onHide) {
+        onHide(item.id);
+      } else {
+        window.location.reload();
+      }
+    } catch (err: any) {
+      console.error('Error hiding item:', err);
+    }
+  };
+
   const handleMarkAsPurchased = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -404,6 +432,15 @@ export default function ProductCard({ item, userCollections = [], onDelete, adul
                 >
                   <ShoppingBag size={14} />
                   <span>Just Got It!</span>
+                </button>
+
+                {/* Hide Option */}
+                <button
+                  onClick={handleHide}
+                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 text-zinc-600 transition-colors"
+                >
+                  <EyeOff size={14} />
+                  <span>Hide</span>
                 </button>
 
                 {/* Delete Option */}

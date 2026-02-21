@@ -8,7 +8,7 @@ import {
   Heart, Home, ShoppingBag, Star, Bookmark, Tag, Box, Package, 
   Sparkles, Zap, Coffee, Music, Gamepad2, Shirt, Car, Plane, 
   Camera, Palette, Dumbbell, BookOpen, Laptop, Phone, Watch, 
-  Headphones, Utensils, Bed, Sofa, TreePine, Menu, X
+  Headphones, Utensils, Bed, Sofa, TreePine, Menu, X, EyeOff
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
@@ -464,6 +464,17 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
         >
           <Gift size={18} />
           Purchased
+        </Link>
+        <Link 
+          href="/dashboard/hidden" 
+          className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+            pathname === '/dashboard/hidden'
+              ? 'bg-violet-50 text-violet-600'
+              : 'text-zinc-400 hover:text-violet-600'
+          }`}
+        >
+          <EyeOff size={18} />
+          Hidden
         </Link>
       </div>
 

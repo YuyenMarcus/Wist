@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Trash2, Edit2, Check, X, MoreHorizontal, FolderInput, TrendingDown, TrendingUp, EyeOff } from 'lucide-react'
+import { Trash2, Edit2, Check, X, MoreHorizontal, FolderInput, TrendingDown, TrendingUp, EyeOff, ShoppingBag } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -28,11 +28,12 @@ interface ItemCardProps {
   onDelete?: (id: string) => void
   onReserve?: (id: string) => void
   onUpdate?: (id: string, updatedItem: SupabaseProduct) => void
+  onHide?: (id: string) => void
   userCollections?: Collection[]
   adultFilterEnabled?: boolean
 }
 
-export default function ItemCard({ item, isOwner = true, onDelete, onReserve, onUpdate, userCollections = [], adultFilterEnabled = false }: ItemCardProps) {
+export default function ItemCard({ item, isOwner = true, onDelete, onReserve, onUpdate, onHide, userCollections = [], adultFilterEnabled = false }: ItemCardProps) {
   const router = useRouter()
   const [isHovered, setIsHovered] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -40,8 +41,7 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
   const [editedTitle, setEditedTitle] = useState(item.title || '')
   const [isSaving, setIsSaving] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const menuButtonRef = useRef<HTMLButtonElement>(null)
-  const [menuPosition, setMenuPosition] = useState({ top: 0, right: 0 })
+  const menuRef = useRef<HTMLDivElement>(null)
 
   const title = item.title || 'Untitled Item'
   const imageUrl = item.image || null
@@ -339,6 +339,49 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
     }
   }
 
+  const handleHide = async () => {
+    try {
+      const { supabase } = await import('@/lib/supabase/client')
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { error } = await supabase
+        .from('items')
+        .update({ status: 'hidden' })
+        .eq('id', item.id)
+        .eq('user_id', user.id)
+
+      if (error) {
+        console.error('Error hiding item:', error)
+        return
+      }
+
+      setIsMenuOpen(false)
+      if (onHide) {
+        onHide(item.id)
+      } else {
+        window.location.reload()
+      }
+    } catch (err: any) {
+      console.error('Error hiding item:', err)
+    }
+  }
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false)
+      }
+    }
+    if (isMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isMenuOpen])
+
   // Get collection_id from item (might be in different fields)
   const itemCollectionId = (item as any).collection_id || null
 
@@ -420,128 +463,108 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
             </div>
           )}
 
-          {/* Hover Actions Overlay */}
-          {isOwner ? (
-            <div className={`absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 transition-opacity duration-300 flex items-end justify-end p-2 sm:p-4 gap-1.5 sm:gap-2 ${
-              isHovered && !isEditing ? 'opacity-100' : 'opacity-0'
-            }`}>
-              {/* Move to Collection Button */}
-              {userCollections.length > 0 && (
-                <div className="relative">
-                  <button 
-                    ref={menuButtonRef}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      if (menuButtonRef.current) {
-                        const rect = menuButtonRef.current.getBoundingClientRect()
-                        setMenuPosition({
-                          top: rect.top - 10,
-                          right: window.innerWidth - rect.right
-                        })
-                      }
-                      setIsMenuOpen(!isMenuOpen)
-                    }}
-                    className="p-1.5 sm:p-2.5 bg-white/90 backdrop-blur-md rounded-full text-zinc-700 hover:bg-violet-500 hover:text-white transition-colors shadow-sm"
-                    title="Move to Collection"
-                  >
-                    <MoreHorizontal size={14} className="sm:hidden" strokeWidth={2} />
-                    <MoreHorizontal size={16} className="hidden sm:block" strokeWidth={2} />
-                  </button>
-
-                  {/* Dropdown Menu - Using fixed positioning to avoid overflow */}
-                  {isMenuOpen && (
-                    <>
-                      {/* Backdrop to close menu */}
-                      <div 
-                        className="fixed inset-0 z-[9998]"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setIsMenuOpen(false)
-                        }}
-                      />
-                      <div 
-                        className="fixed w-48 bg-white dark:bg-zinc-900 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-800 p-1 z-[9999]"
-                        style={{
-                          top: `${menuPosition.top}px`,
-                          right: `${menuPosition.right}px`,
-                          transform: 'translateY(-100%)',
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                      <div className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 px-2 py-1.5 uppercase tracking-wider">
-                        Move to...
-                      </div>
-                      
-                      {/* Option to remove from collection */}
-                      <button
-                        onClick={() => handleMoveToCollection(null)}
-                        className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 transition-colors"
-                      >
-                        <FolderInput size={14} />
-                        <span>Uncategorized</span>
-                        {!itemCollectionId && (
-                          <Check size={14} className="ml-auto text-blue-500" />
-                        )}
-                      </button>
-
-                      <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-1" />
-
-                      {/* List user collections */}
-                      {userCollections.map(col => (
-                        <button
-                          key={col.id}
-                          onClick={() => handleMoveToCollection(col.id)}
-                          className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 transition-colors"
-                        >
-                          <span className="truncate">{col.name}</span>
-                          {itemCollectionId === col.id && (
-                            <Check size={14} className="ml-auto text-blue-500" />
-                          )}
-                        </button>
-                      ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* Edit Button */}
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleStartEdit()
-                }}
-                className="p-1.5 sm:p-2.5 bg-white/90 backdrop-blur-md rounded-full text-zinc-700 hover:bg-violet-500 hover:text-white transition-colors shadow-sm"
-                title="Edit Title"
-              >
-                <Edit2 size={14} className="sm:hidden" strokeWidth={2} />
-                <Edit2 size={16} className="hidden sm:block" strokeWidth={2} />
-              </button>
-
-              {/* Delete Button */}
-              {onDelete && (
-                <button 
+          {/* Menu Button - Always visible on mobile, visible on hover on desktop */}
+          {isOwner && (
+            <div className="absolute top-2 right-2 sm:top-3 sm:right-3 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200 z-20" ref={menuRef}>
+              <div className="relative">
+                <button
                   onClick={(e) => {
                     e.stopPropagation()
-                    handleDelete()
+                    setIsMenuOpen(!isMenuOpen)
                   }}
-                  disabled={isDeleting}
-                  className="p-1.5 sm:p-2.5 bg-white/90 backdrop-blur-md rounded-full text-red-500 hover:bg-red-500 hover:text-white transition-colors shadow-sm disabled:opacity-50"
-                  title="Remove Item"
+                  className="p-1.5 sm:p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white text-zinc-600 transition-colors"
+                  aria-label="More options"
                 >
-                  {isDeleting ? (
-                    <div className="h-3 w-3 sm:h-4 sm:w-4 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
-                  ) : (
-                    <>
-                      <Trash2 size={14} className="sm:hidden" strokeWidth={2} />
-                      <Trash2 size={16} className="hidden sm:block" strokeWidth={2} />
-                    </>
-                  )}
+                  <MoreHorizontal size={14} className="sm:hidden" />
+                  <MoreHorizontal size={16} className="hidden sm:block" />
                 </button>
-              )}
+
+                {/* Dropdown Menu */}
+                {isMenuOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-44 sm:w-48 bg-white rounded-lg shadow-xl border border-zinc-200 p-1 z-[9999] max-h-[70vh] overflow-y-auto">
+                    {/* Move to Collection */}
+                    {userCollections.length > 0 && (
+                      <>
+                        <div className="text-xs font-semibold text-zinc-400 px-2 py-1.5 uppercase tracking-wider">
+                          Move to...
+                        </div>
+                        <button
+                          onClick={() => handleMoveToCollection(null)}
+                          className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 text-zinc-600 transition-colors"
+                        >
+                          <FolderInput size={14} />
+                          <span>Uncategorized</span>
+                          {!itemCollectionId && (
+                            <Check size={14} className="ml-auto text-violet-500" />
+                          )}
+                        </button>
+                        {userCollections.map(col => (
+                          <button
+                            key={col.id}
+                            onClick={() => handleMoveToCollection(col.id)}
+                            className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 text-zinc-600 transition-colors"
+                          >
+                            <span className="truncate">{col.name}</span>
+                            {itemCollectionId === col.id && (
+                              <Check size={14} className="ml-auto text-violet-500" />
+                            )}
+                          </button>
+                        ))}
+                        <div className="h-px bg-zinc-100 my-1" />
+                      </>
+                    )}
+
+                    {/* Edit */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setIsMenuOpen(false)
+                        handleStartEdit()
+                      }}
+                      className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 text-zinc-600 transition-colors"
+                    >
+                      <Edit2 size={14} />
+                      <span>Edit Title</span>
+                    </button>
+
+                    {/* Hide */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleHide()
+                      }}
+                      className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 text-zinc-600 transition-colors"
+                    >
+                      <EyeOff size={14} />
+                      <span>Hide</span>
+                    </button>
+
+                    {/* Delete */}
+                    {onDelete && (
+                      <>
+                        <div className="h-px bg-zinc-100 my-1" />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setIsMenuOpen(false)
+                            handleDelete()
+                          }}
+                          disabled={isDeleting}
+                          className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-red-50 text-red-600 transition-colors"
+                        >
+                          <Trash2 size={14} />
+                          <span>Delete</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-          ) : (
-            // Guest view - Reserve button
+          )}
+
+          {/* Guest Reserve Overlay */}
+          {!isOwner && (
             <div className={`absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 transition-opacity duration-300 flex items-center justify-center ${
               isHovered && !isReserved ? 'opacity-100' : 'opacity-0'
             }`}>

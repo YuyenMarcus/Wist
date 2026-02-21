@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { Check, X, LogOut, ArrowLeft } from 'lucide-react'
+import { Check, X, LogOut, ArrowLeft, ChevronRight, Shield, User, Link as LinkIcon, Bell } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { getProfile, updateProfile, Profile } from '@/lib/supabase/profile'
 import { useUsername } from '@/hooks/useUsername'
@@ -509,8 +509,70 @@ export default function AccountPage() {
             </div>
           </form>
 
-          {/* Back to Dashboard Section */}
+          {/* Settings Navigation */}
           <div className="mt-8 pt-8 border-t border-zinc-200">
+            <h3 className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-3">Settings</h3>
+            <div className="space-y-1">
+              <button
+                onClick={() => router.push('/settings')}
+                className="w-full flex items-center gap-3 rounded-xl px-4 py-3 text-left text-zinc-700 hover:bg-violet-50 hover:text-violet-700 transition-colors group"
+              >
+                <div className="w-9 h-9 rounded-lg bg-zinc-100 group-hover:bg-violet-100 flex items-center justify-center transition-colors">
+                  <User size={16} className="text-zinc-500 group-hover:text-violet-600 transition-colors" />
+                </div>
+                <div className="flex-1">
+                  <span className="text-sm font-medium">Profile Settings</span>
+                  <p className="text-xs text-zinc-400">Name, username, bio, social links</p>
+                </div>
+                <ChevronRight size={16} className="text-zinc-300 group-hover:text-violet-400 transition-colors" />
+              </button>
+
+              <button
+                onClick={() => router.push('/settings#content')}
+                className="w-full flex items-center gap-3 rounded-xl px-4 py-3 text-left text-zinc-700 hover:bg-violet-50 hover:text-violet-700 transition-colors group"
+              >
+                <div className="w-9 h-9 rounded-lg bg-zinc-100 group-hover:bg-violet-100 flex items-center justify-center transition-colors">
+                  <Shield size={16} className="text-zinc-500 group-hover:text-violet-600 transition-colors" />
+                </div>
+                <div className="flex-1">
+                  <span className="text-sm font-medium">Content & Privacy</span>
+                  <p className="text-xs text-zinc-400">Adult content filter, preferences</p>
+                </div>
+                <ChevronRight size={16} className="text-zinc-300 group-hover:text-violet-400 transition-colors" />
+              </button>
+
+              <button
+                onClick={() => router.push('/settings#creator')}
+                className="w-full flex items-center gap-3 rounded-xl px-4 py-3 text-left text-zinc-700 hover:bg-violet-50 hover:text-violet-700 transition-colors group"
+              >
+                <div className="w-9 h-9 rounded-lg bg-zinc-100 group-hover:bg-violet-100 flex items-center justify-center transition-colors">
+                  <LinkIcon size={16} className="text-zinc-500 group-hover:text-violet-600 transition-colors" />
+                </div>
+                <div className="flex-1">
+                  <span className="text-sm font-medium">Creator & Monetization</span>
+                  <p className="text-xs text-zinc-400">Amazon affiliate, social links</p>
+                </div>
+                <ChevronRight size={16} className="text-zinc-300 group-hover:text-violet-400 transition-colors" />
+              </button>
+
+              <button
+                onClick={() => router.push('/support')}
+                className="w-full flex items-center gap-3 rounded-xl px-4 py-3 text-left text-zinc-700 hover:bg-violet-50 hover:text-violet-700 transition-colors group"
+              >
+                <div className="w-9 h-9 rounded-lg bg-zinc-100 group-hover:bg-violet-100 flex items-center justify-center transition-colors">
+                  <Bell size={16} className="text-zinc-500 group-hover:text-violet-600 transition-colors" />
+                </div>
+                <div className="flex-1">
+                  <span className="text-sm font-medium">Help & Support</span>
+                  <p className="text-xs text-zinc-400">FAQs, troubleshooting, contact</p>
+                </div>
+                <ChevronRight size={16} className="text-zinc-300 group-hover:text-violet-400 transition-colors" />
+              </button>
+            </div>
+          </div>
+
+          {/* Back to Dashboard */}
+          <div className="mt-6 pt-6 border-t border-zinc-200">
             <button 
               onClick={() => router.push('/dashboard')}
               className="w-full flex items-center justify-center gap-2 rounded-lg bg-zinc-50 px-4 py-3 text-zinc-600 font-semibold hover:bg-zinc-100 transition-colors"
@@ -521,7 +583,7 @@ export default function AccountPage() {
         </div>
 
         {/* Footer Link - Sign Out */}
-        <div className="bg-zinc-50 p-4 text-center border-t border-zinc-200">
+        <div className="mt-4 p-4 text-center">
           <button
             onClick={async () => {
               await supabase.auth.signOut()

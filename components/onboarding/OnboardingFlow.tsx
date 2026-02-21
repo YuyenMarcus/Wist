@@ -250,10 +250,9 @@ export default function OnboardingFlow({ userId, onComplete }: OnboardingFlowPro
 
     setSaving(true)
     try {
-      const adultFilter = parsed < 18
       const { error } = await supabase
         .from('profiles')
-        .update({ age: parsed, adult_content_filter: adultFilter })
+        .update({ age: parsed, adult_content_filter: true })
         .eq('id', userId)
         .select()
 
