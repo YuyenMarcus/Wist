@@ -15,11 +15,13 @@ export interface Profile {
   username_changed_at: string | null; // NEW: when username was last changed
   website: string | null;
   instagram_handle: string | null;
+  instagram_igsid: string | null;
   tiktok_handle: string | null;
   amazon_affiliate_id: string | null;
   age: number | null;
   adult_content_filter: boolean;
   onboarding_completed: boolean;
+  auto_activate_queued: boolean;
 }
 
 /**
@@ -111,6 +113,7 @@ export async function updateProfile(
     age?: number | null;
     adult_content_filter?: boolean;
     onboarding_completed?: boolean;
+    auto_activate_queued?: boolean;
   }
 ): Promise<{
   data: Profile | null;

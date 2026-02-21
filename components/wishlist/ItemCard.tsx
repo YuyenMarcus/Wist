@@ -32,9 +32,10 @@ interface ItemCardProps {
   onHide?: (id: string) => void
   userCollections?: Collection[]
   adultFilterEnabled?: boolean
+  index?: number
 }
 
-export default function ItemCard({ item, isOwner = true, onDelete, onReserve, onUpdate, onHide, userCollections = [], adultFilterEnabled = false }: ItemCardProps) {
+export default function ItemCard({ item, isOwner = true, onDelete, onReserve, onUpdate, onHide, userCollections = [], adultFilterEnabled = false, index = 0 }: ItemCardProps) {
   const router = useRouter()
   const [isHovered, setIsHovered] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -386,9 +387,10 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }}
+      transition={{ duration: 0.35, delay: Math.min(index * 0.04, 0.4), ease: [0.25, 0.1, 0.25, 1] }}
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
       className="relative mb-3 sm:mb-6 break-inside-avoid"

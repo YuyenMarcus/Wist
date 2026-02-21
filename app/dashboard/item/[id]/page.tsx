@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase/client';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import PageTransition from '@/components/ui/PageTransition';
 
 export default function ItemDetail() {
   const params = useParams(); 
@@ -141,7 +142,7 @@ export default function ItemDetail() {
   const isCheaper = diff < 0;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <PageTransition className="min-h-screen bg-gray-50 p-8">
       <div className="mx-auto max-w-6xl">
         <Link href="/dashboard" className="mb-6 inline-flex items-center text-sm font-medium text-gray-500 hover:text-indigo-600">
           ← Back to Dashboard
@@ -321,6 +322,6 @@ export default function ItemDetail() {
           </div>
         </div>
       </div>
-    </div>
+    </PageTransition>
   );
 }

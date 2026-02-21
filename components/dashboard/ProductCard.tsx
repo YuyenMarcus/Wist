@@ -38,9 +38,10 @@ interface Props {
   onDelete?: (id: string) => void;
   onHide?: (id: string) => void;
   adultFilterEnabled?: boolean;
+  index?: number;
 }
 
-export default function ProductCard({ item, userCollections = [], onDelete, onHide, adultFilterEnabled = false }: Props) {
+export default function ProductCard({ item, userCollections = [], onDelete, onHide, adultFilterEnabled = false, index = 0 }: Props) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
@@ -316,9 +317,10 @@ export default function ProductCard({ item, userCollections = [], onDelete, onHi
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }}
+      transition={{ duration: 0.35, delay: Math.min(index * 0.04, 0.4), ease: [0.25, 0.1, 0.25, 1] }}
       className="group relative bg-white rounded-xl overflow-hidden border border-zinc-200 hover:border-violet-500 hover:shadow-lg transition-all duration-300"
     >
       {/* Image Container */}

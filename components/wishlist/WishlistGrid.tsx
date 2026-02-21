@@ -61,10 +61,11 @@ export default function WishlistGrid({ items, isOwner = true, onDelete, onReserv
                  gap-3 sm:gap-6 space-y-3 sm:space-y-6"
     >
       <AnimatePresence mode="popLayout">
-        {items.map((item) => (
+        {items.map((item, i) => (
           <ItemCard 
             key={item.id}
             item={item}
+            index={i}
             isOwner={isOwner}
             onDelete={onDelete}
             onReserve={onReserve}

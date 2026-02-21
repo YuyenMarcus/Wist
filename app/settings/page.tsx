@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, AlertCircle, Check, Instagram, Link as LinkIcon, ShoppingCart, Video, Shield, Lock, ArrowLeft } from 'lucide-react'
+import { Loader2, AlertCircle, Check, Instagram, Link as LinkIcon, ShoppingCart, Video, Shield, Lock, ArrowLeft, Zap } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { getProfile, updateProfile } from '@/lib/supabase/profile'
 import LavenderLoader from '@/components/ui/LavenderLoader'
+import PageTransition from '@/components/ui/PageTransition'
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -24,6 +25,7 @@ export default function SettingsPage() {
     tiktok: '',
     amazonId: '',
     adultFilter: true,
+    autoActivate: true,
   })
 
   // 1. Load All Profile Data
@@ -51,6 +53,7 @@ export default function SettingsPage() {
             tiktok: data.tiktok_handle || '',
             amazonId: data.amazon_affiliate_id || '',
             adultFilter: data.adult_content_filter ?? true,
+            autoActivate: data.auto_activate_queued ?? true,
           })
         }
       } catch (error: any) {
@@ -91,6 +94,7 @@ export default function SettingsPage() {
         tiktok_handle: cleanTikTok || null,
         amazon_affiliate_id: formData.amazonId.trim() || null,
         adult_content_filter: isMinor ? true : formData.adultFilter,
+        auto_activate_queued: formData.autoActivate,
       })
 
       if (error) {
@@ -131,7 +135,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 py-12 px-4 sm:px-6 lg:px-8">
+    <PageTransition className="min-h-screen bg-zinc-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center gap-4 mb-8">
           <button
@@ -339,6 +343,34 @@ export default function SettingsPage() {
                 )}
               </div>
             </div>
+
+            {/* Divider */}
+            <div className="border-t border-zinc-100" />
+
+            {/* Auto-activate queued items */}
+            <div className="flex items-center justify-between">
+              <div className="flex-1 pr-4">
+                <label className="block text-sm font-medium text-zinc-700 flex items-center gap-2">
+                  <Zap size={14} /> Auto-activate Queued Items
+                </label>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  When on, queued items are automatically scraped and activated when you open Wist on desktop with the extension. Turn off to manually activate each item.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, autoActivate: !prev.autoActivate }))}
+                className={`relative w-11 h-6 rounded-full transition-colors ${
+                  formData.autoActivate ? 'bg-violet-600' : 'bg-zinc-300'
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                    formData.autoActivate ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
           </div>
 
           {/* --- FEEDBACK MESSAGE --- */}
@@ -370,6 +402,6 @@ export default function SettingsPage() {
         </form>
 
       </div>
-    </div>
+    </PageTransition>
   )
 }

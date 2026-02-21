@@ -13,6 +13,7 @@ import {
   Mail,
   ArrowLeft,
 } from 'lucide-react'
+import PageTransition from '@/components/ui/PageTransition'
 import Link from 'next/link'
 
 interface FAQItem {
@@ -217,7 +218,7 @@ function FAQAccordion({ item }: { item: FAQItem }) {
 
 export default function SupportPage() {
   return (
-    <div className="min-h-screen bg-white">
+    <PageTransition className="min-h-screen bg-white">
       {/* Hero header with radial gradient */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient pointer-events-none" />
@@ -308,6 +309,6 @@ export default function SupportPage() {
           </a>
         </div>
       </div>
-    </div>
+    </PageTransition>
   )
 }

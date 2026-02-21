@@ -10,10 +10,12 @@ import ProductCard from '@/components/dashboard/ProductCard'
 import { getUserProducts, SupabaseProduct, deleteUserProduct } from '@/lib/supabase/products'
 import { getProfile, Profile } from '@/lib/supabase/profile'
 import LavenderLoader from '@/components/ui/LavenderLoader'
+import SkeletonDashboard from '@/components/ui/SkeletonDashboard'
 import OnboardingFlow from '@/components/onboarding/OnboardingFlow'
 import { Layers, LayoutGrid, Sparkles, Loader2, Clock } from 'lucide-react'
 import Link from 'next/link'
 import QueuedItemCard from '@/components/dashboard/QueuedItemCard'
+import PageTransition from '@/components/ui/PageTransition'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -223,9 +225,12 @@ export default function DashboardPage() {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [user])
 
-  // Auto-scrape queued items when extension is available
+  // Auto-scrape queued items when extension is available AND auto-activate is on
+  const autoActivateEnabled = profile?.auto_activate_queued ?? true
+
   useEffect(() => {
     if (queuedItems.length === 0) return
+    if (!autoActivateEnabled) return
 
     const extensionInstalled = document.documentElement.getAttribute('data-wist-installed') === 'true'
     if (!extensionInstalled) return
@@ -298,7 +303,7 @@ export default function DashboardPage() {
       cancelled = true
       clearTimeout(timer)
     }
-  }, [queuedItems.length > 0 ? 'has-items' : 'no-items'])
+  }, [queuedItems.length > 0 ? 'has-items' : 'no-items', autoActivateEnabled])
 
   const handleHide = (productId: string) => {
     setProducts(prev => prev.filter(p => p.id !== productId))
@@ -480,11 +485,7 @@ export default function DashboardPage() {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-50">
-        <LavenderLoader size="lg" />
-      </div>
-    )
+    return <SkeletonDashboard />
   }
 
   if (!user) {
@@ -513,7 +514,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white pb-32">
+    <PageTransition className="min-h-screen bg-white pb-32">
 
       {/* Onboarding Tutorial */}
       {showOnboarding && user && (
@@ -543,7 +544,9 @@ export default function DashboardPage() {
                 Queue ({queuedItems.length})
               </h3>
               <span className="text-xs text-zinc-500">
-                Open Wist on desktop with the extension to auto-scrape
+                {autoActivateEnabled
+                  ? 'Items auto-activate on desktop with the extension'
+                  : 'Press Activate on each item to scrape and add it'}
               </span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -621,10 +624,11 @@ export default function DashboardPage() {
                   </span>
                 </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
-                  {products.map((item: any) => (
+                  {products.map((item: any, i: number) => (
                     <ProductCard 
                       key={item.id} 
-                      item={item} 
+                      item={item}
+                      index={i}
                       userCollections={collections} 
                       onDelete={handleDelete}
                       onHide={handleHide}
@@ -643,10 +647,11 @@ export default function DashboardPage() {
                   Uncategorized
                 </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
-                  {uncategorizedItems.map((item: any) => (
+                  {uncategorizedItems.map((item: any, i: number) => (
                     <ProductCard 
                       key={item.id} 
-                      item={item} 
+                      item={item}
+                      index={i}
                       userCollections={collections} 
                       onDelete={handleDelete}
                       onHide={handleHide}
@@ -677,10 +682,11 @@ export default function DashboardPage() {
                   </div>
                   
                   <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
-                    {group.items.map((item: any) => (
+                    {group.items.map((item: any, i: number) => (
                       <ProductCard 
                         key={item.id} 
-                        item={item} 
+                        item={item}
+                        index={i}
                         userCollections={collections} 
                         onDelete={handleDelete}
                         onHide={handleHide}
@@ -715,6 +721,6 @@ export default function DashboardPage() {
           </div>
         )}
       </main>
-    </div>
+    </PageTransition>
   )
 }
