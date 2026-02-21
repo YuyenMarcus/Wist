@@ -87,6 +87,11 @@ export default function DashboardPage() {
         // Load profile
         const { data: profileData } = await getProfile(currentUser.id)
         if (profileData) {
+          // Fix: old onboarding incorrectly set adult_content_filter=false for 18+ users
+          if (profileData.adult_content_filter === false) {
+            profileData.adult_content_filter = true
+            supabase.from('profiles').update({ adult_content_filter: true }).eq('id', currentUser.id).then(() => {})
+          }
           setProfile(profileData)
           if (profileData.onboarding_completed === false) {
             setShowOnboarding(true)
