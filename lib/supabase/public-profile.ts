@@ -87,74 +87,31 @@ async function fetchActiveItems(userId: string): Promise<{
 }> {
   const supabase = getSupabaseAdmin();
 
-  const [itemsResult, productsResult] = await Promise.all([
-    supabase
-      .from('items')
-      .select('id, title, url, current_price, image_url, retailer, created_at')
-      .eq('user_id', userId)
-      .eq('status', 'active')
-      .order('created_at', { ascending: false }),
-    supabase
-      .from('products')
-      .select('id, title, url, price, image, created_at')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false }),
-  ]);
+  // Only fetch from items table (the source of truth for a user's active wishlist)
+  // The products table is used purely for hydration of missing images/prices
+  const { data, error } = await supabase
+    .from('items')
+    .select('id, title, url, current_price, image_url, retailer, created_at')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false });
 
-  if (itemsResult.error) {
-    console.error('Error fetching active items:', itemsResult.error);
-  }
-  if (productsResult.error) {
-    console.error('Error fetching products:', productsResult.error);
+  if (error) {
+    console.error('Error fetching active items:', error);
+    return { items: [], error };
   }
 
-  const allItems: any[] = [];
+  const items = (data || []).map((item: any) => ({
+    id: item.id,
+    title: item.title,
+    url: item.url,
+    current_price: item.current_price,
+    image_url: item.image_url,
+    retailer: item.retailer,
+    created_at: item.created_at,
+  }));
 
-  if (itemsResult.data) {
-    itemsResult.data.forEach((item: any) => {
-      allItems.push({
-        id: item.id,
-        title: item.title,
-        url: item.url,
-        current_price: item.current_price,
-        image_url: item.image_url,
-        retailer: item.retailer,
-        created_at: item.created_at,
-      });
-    });
-  }
-
-  if (productsResult.data) {
-    productsResult.data.forEach((product: any) => {
-      allItems.push({
-        id: product.id,
-        title: product.title,
-        url: product.url,
-        current_price: product.price,
-        image_url: product.image,
-        retailer: null,
-        created_at: product.created_at,
-      });
-    });
-  }
-
-  // Deduplicate by URL - items table takes priority
-  const seenUrls = new Set<string>();
-  const deduped: any[] = [];
-  allItems.forEach(item => {
-    const normalizedUrl = item.url?.toLowerCase().trim();
-    if (normalizedUrl && !seenUrls.has(normalizedUrl)) {
-      seenUrls.add(normalizedUrl);
-      deduped.push(item);
-    } else if (!normalizedUrl) {
-      deduped.push(item);
-    }
-  });
-
-  deduped.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-  const error = itemsResult.error || productsResult.error;
-  return { items: deduped, error: error || null };
+  return { items, error: null };
 }
 
 /**

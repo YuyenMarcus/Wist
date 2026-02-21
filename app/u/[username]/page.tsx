@@ -3,6 +3,8 @@ import { Metadata } from 'next';
 import { getPublicProfile } from '@/lib/supabase/public-profile';
 import PublicProfileView from '@/components/public/PublicProfileView';
 
+export const dynamic = 'force-dynamic';
+
 interface PageProps {
   params: {
     username: string;
