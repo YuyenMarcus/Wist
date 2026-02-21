@@ -72,7 +72,7 @@ export default function ShareButton() {
 
     // If user has username, copy link
     if (username) {
-      const shareUrl = `https://wishlist.nuvio.cloud/u/${username}`
+      const shareUrl = `${window.location.origin}/u/${username}`
       await navigator.clipboard.writeText(shareUrl)
       setSuccess(true)
       setTimeout(() => setSuccess(false), 3000)
@@ -108,7 +108,7 @@ export default function ShareButton() {
       setNewUsername('')
 
       // Copy link after saving
-      const shareUrl = `https://wishlist.nuvio.cloud/u/${data?.username}`
+      const shareUrl = `${window.location.origin}/u/${data?.username}`
       await navigator.clipboard.writeText(shareUrl)
       setSuccess(true)
       setTimeout(() => setSuccess(false), 3000)
