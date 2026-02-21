@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import { Trash2, Edit2, Check, X, MoreHorizontal, FolderInput, TrendingDown, TrendingUp, EyeOff, ShoppingBag } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { SupabaseProduct } from '@/lib/supabase/products'
@@ -41,7 +42,8 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
   const [editedTitle, setEditedTitle] = useState(item.title || '')
   const [isSaving, setIsSaving] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 })
 
   const title = item.title || 'Untitled Item'
   const imageUrl = item.image || null
@@ -367,19 +369,15 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
     }
   }
 
-  // Close menu when clicking outside
+  // Close menu on Escape key
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsMenuOpen(false)
-      }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setIsMenuOpen(false)
     }
     if (isMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
+      document.addEventListener('keydown', handleKeyDown)
     }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
+    return () => document.removeEventListener('keydown', handleKeyDown)
   }, [isMenuOpen])
 
   // Get collection_id from item (might be in different fields)
@@ -465,101 +463,32 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
 
           {/* Menu Button - Always visible on mobile, visible on hover on desktop */}
           {isOwner && (
-            <div className="absolute top-2 right-2 sm:top-3 sm:right-3 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200 z-20" ref={menuRef}>
-              <div className="relative">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setIsMenuOpen(!isMenuOpen)
-                  }}
-                  className="p-1.5 sm:p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white text-zinc-600 transition-colors"
-                  aria-label="More options"
-                >
-                  <MoreHorizontal size={14} className="sm:hidden" />
-                  <MoreHorizontal size={16} className="hidden sm:block" />
-                </button>
-
-                {/* Dropdown Menu */}
-                {isMenuOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-44 sm:w-48 bg-white rounded-lg shadow-xl border border-zinc-200 p-1 z-[9999] max-h-[70vh] overflow-y-auto">
-                    {/* Move to Collection */}
-                    {userCollections.length > 0 && (
-                      <>
-                        <div className="text-xs font-semibold text-zinc-400 px-2 py-1.5 uppercase tracking-wider">
-                          Move to...
-                        </div>
-                        <button
-                          onClick={() => handleMoveToCollection(null)}
-                          className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 text-zinc-600 transition-colors"
-                        >
-                          <FolderInput size={14} />
-                          <span>Uncategorized</span>
-                          {!itemCollectionId && (
-                            <Check size={14} className="ml-auto text-violet-500" />
-                          )}
-                        </button>
-                        {userCollections.map(col => (
-                          <button
-                            key={col.id}
-                            onClick={() => handleMoveToCollection(col.id)}
-                            className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 text-zinc-600 transition-colors"
-                          >
-                            <span className="truncate">{col.name}</span>
-                            {itemCollectionId === col.id && (
-                              <Check size={14} className="ml-auto text-violet-500" />
-                            )}
-                          </button>
-                        ))}
-                        <div className="h-px bg-zinc-100 my-1" />
-                      </>
-                    )}
-
-                    {/* Edit */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setIsMenuOpen(false)
-                        handleStartEdit()
-                      }}
-                      className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 text-zinc-600 transition-colors"
-                    >
-                      <Edit2 size={14} />
-                      <span>Edit Title</span>
-                    </button>
-
-                    {/* Hide */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleHide()
-                      }}
-                      className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 text-zinc-600 transition-colors"
-                    >
-                      <EyeOff size={14} />
-                      <span>Hide</span>
-                    </button>
-
-                    {/* Delete */}
-                    {onDelete && (
-                      <>
-                        <div className="h-px bg-zinc-100 my-1" />
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setIsMenuOpen(false)
-                            handleDelete()
-                          }}
-                          disabled={isDeleting}
-                          className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-red-50 text-red-600 transition-colors"
-                        >
-                          <Trash2 size={14} />
-                          <span>Delete</span>
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
+            <div className="absolute top-2 right-2 sm:top-3 sm:right-3 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200 z-20">
+              <button
+                ref={menuButtonRef}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (!isMenuOpen && menuButtonRef.current) {
+                    const rect = menuButtonRef.current.getBoundingClientRect()
+                    const menuWidth = 192
+                    const menuHeight = 320
+                    let left = rect.right - menuWidth
+                    if (left < 8) left = 8
+                    let top = rect.bottom + 6
+                    if (top + menuHeight > window.innerHeight - 8) {
+                      top = rect.top - menuHeight - 6
+                      if (top < 8) top = 8
+                    }
+                    setMenuPos({ top, left })
+                  }
+                  setIsMenuOpen(!isMenuOpen)
+                }}
+                className="p-1.5 sm:p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white text-zinc-600 transition-colors"
+                aria-label="More options"
+              >
+                <MoreHorizontal size={14} className="sm:hidden" />
+                <MoreHorizontal size={16} className="hidden sm:block" />
+              </button>
             </div>
           )}
 
@@ -592,13 +521,13 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                 value={editedTitle}
                 onChange={(e) => setEditedTitle(e.target.value)}
                 onKeyDown={handleKeyDown}
-                onBlur={handleCancelEdit}
                 autoFocus
                 className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-zinc-900 bg-white border border-violet-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400"
                 disabled={isSaving}
               />
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <button
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={handleSaveEdit}
                   disabled={isSaving}
                   className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 bg-violet-500 text-white text-[10px] sm:text-xs font-medium rounded-md sm:rounded-lg hover:bg-violet-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -617,6 +546,7 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                   )}
                 </button>
                 <button
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={handleCancelEdit}
                   disabled={isSaving}
                   className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 bg-zinc-100 text-zinc-600 text-[10px] sm:text-xs font-medium rounded-md sm:rounded-lg hover:bg-zinc-200 transition-colors disabled:opacity-50"
@@ -695,6 +625,91 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
           )}
         </div>
       </div>
+
+      {/* Dropdown Menu - Portaled to body to escape overflow:hidden + transform */}
+      {isMenuOpen && isOwner && createPortal(
+        <>
+          <div className="fixed inset-0 z-[9998]" onClick={() => setIsMenuOpen(false)} />
+          <div
+            className="fixed w-48 bg-white rounded-lg shadow-xl border border-zinc-200 p-1 z-[9999] max-h-[70vh] overflow-y-auto"
+            style={{ top: `${menuPos.top}px`, left: `${menuPos.left}px` }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {userCollections.length > 0 && (
+              <>
+                <div className="text-xs font-semibold text-zinc-400 px-2 py-1.5 uppercase tracking-wider">
+                  Move to...
+                </div>
+                <button
+                  onClick={() => handleMoveToCollection(null)}
+                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 text-zinc-600 transition-colors"
+                >
+                  <FolderInput size={14} />
+                  <span>Uncategorized</span>
+                  {!itemCollectionId && (
+                    <Check size={14} className="ml-auto text-violet-500" />
+                  )}
+                </button>
+                {userCollections.map(col => (
+                  <button
+                    key={col.id}
+                    onClick={() => handleMoveToCollection(col.id)}
+                    className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 text-zinc-600 transition-colors"
+                  >
+                    <span className="truncate">{col.name}</span>
+                    {itemCollectionId === col.id && (
+                      <Check size={14} className="ml-auto text-violet-500" />
+                    )}
+                  </button>
+                ))}
+                <div className="h-px bg-zinc-100 my-1" />
+              </>
+            )}
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setIsMenuOpen(false)
+                handleStartEdit()
+              }}
+              className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 text-zinc-600 transition-colors"
+            >
+              <Edit2 size={14} />
+              <span>Edit Title</span>
+            </button>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                handleHide()
+              }}
+              className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 text-zinc-600 transition-colors"
+            >
+              <EyeOff size={14} />
+              <span>Hide</span>
+            </button>
+
+            {onDelete && (
+              <>
+                <div className="h-px bg-zinc-100 my-1" />
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setIsMenuOpen(false)
+                    handleDelete()
+                  }}
+                  disabled={isDeleting}
+                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-red-50 text-red-600 transition-colors"
+                >
+                  <Trash2 size={14} />
+                  <span>Delete</span>
+                </button>
+              </>
+            )}
+          </div>
+        </>,
+        document.body
+      )}
     </motion.div>
   )
 }

@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { ExternalLink, Trash2, MoreHorizontal, Check, FolderInput, TrendingDown, TrendingUp, Minus, ShoppingBag, EyeOff } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -42,7 +43,8 @@ interface Props {
 export default function ProductCard({ item, userCollections = [], onDelete, onHide, adultFilterEnabled = false }: Props) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const router = useRouter();
   
   const formatPrice = (price: number | null | undefined): string => {
@@ -64,21 +66,15 @@ export default function ProductCard({ item, userCollections = [], onDelete, onHi
   const domain = getDomain(item.url);
   const isNsfw = adultFilterEnabled && isAdultContent(item.title);
 
-  // Close menu when clicking outside
+  // Close menu on Escape key
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsMenuOpen(false);
-      }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setIsMenuOpen(false);
     }
-
     if (isMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
     }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isMenuOpen]);
 
   const handleMoveToCollection = async (collectionId: string | null) => {
@@ -372,94 +368,111 @@ export default function ProductCard({ item, userCollections = [], onDelete, onHi
         )}
 
         {/* Menu Button - Top Right Corner - Always visible on mobile */}
-        <div className="absolute top-2 right-2 sm:top-3 sm:right-3 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200 z-10" ref={menuRef}>
-          <div className="relative">
-            <button 
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="p-1.5 sm:p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white text-zinc-600 transition-colors"
-              aria-label="More options"
-            >
-              <MoreHorizontal size={14} className="sm:hidden" />
-              <MoreHorizontal size={16} className="hidden sm:block" />
-            </button>
-
-            {/* Dropdown Menu - Positioned to avoid overflow on mobile */}
-            {isMenuOpen && (
-              <div className="absolute right-0 sm:right-0 top-full mt-2 w-44 sm:w-48 bg-white rounded-lg shadow-xl border border-zinc-200 p-1 z-20 max-h-[70vh] overflow-y-auto">
-                <div className="text-xs font-semibold text-zinc-400 px-2 py-1.5 uppercase tracking-wider">
-                  Move to...
-                </div>
-                
-                {/* Option to remove from collection */}
-                <button
-                  onClick={() => handleMoveToCollection(null)}
-                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 text-zinc-600 transition-colors"
-                >
-                  <FolderInput size={14} />
-                  <span>Uncategorized</span>
-                  {!item.collection_id && (
-                    <Check size={14} className="ml-auto text-violet-500" />
-                  )}
-                </button>
-
-                <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-1" />
-
-                {/* List user collections */}
-                {userCollections.length === 0 ? (
-                  <div className="px-2 py-1.5 text-xs text-zinc-400">
-                    No collections yet
-                  </div>
-                ) : (
-                  userCollections.map(col => (
-                    <button
-                      key={col.id}
-                      onClick={() => handleMoveToCollection(col.id)}
-                      className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 text-zinc-600 transition-colors"
-                    >
-                      <span className="truncate">{col.name}</span>
-                      {item.collection_id === col.id && (
-                        <Check size={14} className="ml-auto text-violet-500" />
-                      )}
-                    </button>
-                  ))
-                )}
-
-                {/* Mark as Purchased Option */}
-                <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-1" />
-                <button
-                  onClick={handleMarkAsPurchased}
-                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400 transition-colors"
-                >
-                  <ShoppingBag size={14} />
-                  <span>Just Got It!</span>
-                </button>
-
-                {/* Hide Option */}
-                <button
-                  onClick={handleHide}
-                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 text-zinc-600 transition-colors"
-                >
-                  <EyeOff size={14} />
-                  <span>Hide</span>
-                </button>
-
-                {/* Delete Option */}
-                {onDelete && (
-                  <>
-                    <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-1" />
-                    <button
-                      onClick={handleDelete}
-                      className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-red-50 text-red-600 transition-colors"
-                    >
-                      <Trash2 size={14} />
-                      <span>Delete</span>
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
+        <div className="absolute top-2 right-2 sm:top-3 sm:right-3 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200 z-10">
+          <button 
+            ref={menuButtonRef}
+            onClick={() => {
+              if (!isMenuOpen && menuButtonRef.current) {
+                const rect = menuButtonRef.current.getBoundingClientRect();
+                const menuWidth = 192;
+                const menuHeight = 320;
+                let left = rect.right - menuWidth;
+                if (left < 8) left = 8;
+                let top = rect.bottom + 6;
+                if (top + menuHeight > window.innerHeight - 8) {
+                  top = rect.top - menuHeight - 6;
+                  if (top < 8) top = 8;
+                }
+                setMenuPos({ top, left });
+              }
+              setIsMenuOpen(!isMenuOpen);
+            }}
+            className="p-1.5 sm:p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white text-zinc-600 transition-colors"
+            aria-label="More options"
+          >
+            <MoreHorizontal size={14} className="sm:hidden" />
+            <MoreHorizontal size={16} className="hidden sm:block" />
+          </button>
         </div>
+
+        {/* Dropdown Menu - Portaled to body to escape overflow:hidden + transform */}
+        {isMenuOpen && createPortal(
+          <>
+            <div className="fixed inset-0 z-[9998]" onClick={() => setIsMenuOpen(false)} />
+            <div
+              className="fixed w-48 bg-white rounded-lg shadow-xl border border-zinc-200 p-1 z-[9999] max-h-[70vh] overflow-y-auto"
+              style={{ top: `${menuPos.top}px`, left: `${menuPos.left}px` }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="text-xs font-semibold text-zinc-400 px-2 py-1.5 uppercase tracking-wider">
+                Move to...
+              </div>
+              
+              <button
+                onClick={() => handleMoveToCollection(null)}
+                className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 text-zinc-600 transition-colors"
+              >
+                <FolderInput size={14} />
+                <span>Uncategorized</span>
+                {!item.collection_id && (
+                  <Check size={14} className="ml-auto text-violet-500" />
+                )}
+              </button>
+
+              <div className="h-px bg-zinc-100 my-1" />
+
+              {userCollections.length === 0 ? (
+                <div className="px-2 py-1.5 text-xs text-zinc-400">
+                  No collections yet
+                </div>
+              ) : (
+                userCollections.map(col => (
+                  <button
+                    key={col.id}
+                    onClick={() => handleMoveToCollection(col.id)}
+                    className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 text-zinc-600 transition-colors"
+                  >
+                    <span className="truncate">{col.name}</span>
+                    {item.collection_id === col.id && (
+                      <Check size={14} className="ml-auto text-violet-500" />
+                    )}
+                  </button>
+                ))
+              )}
+
+              <div className="h-px bg-zinc-100 my-1" />
+              <button
+                onClick={handleMarkAsPurchased}
+                className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-green-50 text-green-600 transition-colors"
+              >
+                <ShoppingBag size={14} />
+                <span>Just Got It!</span>
+              </button>
+
+              <button
+                onClick={handleHide}
+                className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 text-zinc-600 transition-colors"
+              >
+                <EyeOff size={14} />
+                <span>Hide</span>
+              </button>
+
+              {onDelete && (
+                <>
+                  <div className="h-px bg-zinc-100 my-1" />
+                  <button
+                    onClick={handleDelete}
+                    className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-red-50 text-red-600 transition-colors"
+                  >
+                    <Trash2 size={14} />
+                    <span>Delete</span>
+                  </button>
+                </>
+              )}
+            </div>
+          </>,
+          document.body
+        )}
 
         {/* Site Favicon Badge - Bottom Left */}
         {domain && (
