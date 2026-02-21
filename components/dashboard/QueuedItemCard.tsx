@@ -1,8 +1,23 @@
 'use client'
 
-import { useState } from 'react'
-import { Clock, Edit2, Trash2, Check, X, ExternalLink, CircleCheck } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Clock, Edit2, Trash2, Check, X, ExternalLink, CircleCheck, Loader2, Smartphone } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const check = () => {
+      const ua = navigator.userAgent || ''
+      const mobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua) || window.innerWidth < 768
+      setIsMobile(mobile)
+    }
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+  return isMobile
+}
 
 interface QueuedItem {
   id: string
@@ -21,6 +36,7 @@ interface Props {
 }
 
 export default function QueuedItemCard({ item, onUpdate, onDelete }: Props) {
+  const isMobile = useIsMobile()
   const [isEditing, setIsEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(item.title || '')
   const [editPrice, setEditPrice] = useState(item.price ? item.price.toString() : '')
@@ -58,6 +74,27 @@ export default function QueuedItemCard({ item, onUpdate, onDelete }: Props) {
   async function handleActivate() {
     setIsActivating(true)
     try {
+      const extensionInstalled = document.documentElement.getAttribute('data-wist-installed') === 'true'
+
+      let scraped: any = null
+      if (extensionInstalled) {
+        scraped = await new Promise<any>((resolve) => {
+          const messageId = `activate-${item.id}-${Date.now()}`
+          const handleResponse = (event: MessageEvent) => {
+            if (event.data?.type === 'WIST_SCRAPE_RESULT' && event.data?.messageId === messageId) {
+              window.removeEventListener('message', handleResponse)
+              resolve(event.data?.success ? event.data.data : null)
+            }
+          }
+          window.addEventListener('message', handleResponse)
+          window.postMessage({ type: 'WIST_SCRAPE_REQUEST', messageId, url: item.url }, '*')
+          setTimeout(() => {
+            window.removeEventListener('message', handleResponse)
+            resolve(null)
+          }, 25000)
+        })
+      }
+
       const { data: { session } } = await supabase.auth.getSession()
       const res = await fetch('/api/items', {
         method: 'PATCH',
@@ -67,6 +104,9 @@ export default function QueuedItemCard({ item, onUpdate, onDelete }: Props) {
         },
         body: JSON.stringify({
           id: item.id,
+          title: scraped?.title || item.title,
+          price: scraped?.price?.replace?.(/[^0-9.]/g, '') || undefined,
+          image_url: scraped?.image || scraped?.image_url || undefined,
           status: 'active',
         }),
       })
@@ -96,7 +136,6 @@ export default function QueuedItemCard({ item, onUpdate, onDelete }: Props) {
           id: item.id,
           title: editTitle.trim(),
           price: editPrice ? editPrice.replace(/[^0-9.]/g, '') : undefined,
-          status: 'active',
         }),
       })
       const result = await res.json()
@@ -151,7 +190,7 @@ export default function QueuedItemCard({ item, onUpdate, onDelete }: Props) {
             disabled={isSaving || !editTitle.trim()}
             className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-violet-600 text-white text-xs font-medium rounded-lg hover:bg-violet-700 disabled:opacity-50 transition-colors"
           >
-            {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+            {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
             Save
           </button>
           <button
@@ -213,29 +252,44 @@ export default function QueuedItemCard({ item, onUpdate, onDelete }: Props) {
       </div>
 
       {/* Actions */}
-      <div className="mt-3 flex gap-2">
-        <button
-          onClick={handleActivate}
-          disabled={isActivating}
-          className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-violet-50 text-violet-700 text-xs font-medium rounded-lg hover:bg-violet-100 disabled:opacity-50 transition-colors"
-        >
-          <CircleCheck className={`w-3 h-3 ${isActivating ? 'animate-pulse' : ''}`} />
-          {isActivating ? 'Activating...' : 'Activate'}
-        </button>
-        <button
-          onClick={() => setIsEditing(true)}
-          className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-zinc-50 text-zinc-700 text-xs font-medium rounded-lg hover:bg-zinc-100 transition-colors"
-        >
-          <Edit2 className="w-3 h-3" />
-          Edit
-        </button>
-        <button
-          onClick={handleDelete}
-          className="px-2.5 py-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-        >
-          <Trash2 className="w-3 h-3" />
-        </button>
-      </div>
+      {isMobile ? (
+        <div className="mt-3 flex items-center justify-between">
+          <p className="text-[10px] text-zinc-400 flex items-center gap-1">
+            <Smartphone className="w-3 h-3" />
+            Open on PC to activate
+          </p>
+          <button
+            onClick={handleDelete}
+            className="px-2.5 py-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
+        </div>
+      ) : (
+        <div className="mt-3 flex gap-2">
+          <button
+            onClick={handleActivate}
+            disabled={isActivating}
+            className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-violet-50 text-violet-700 text-xs font-medium rounded-lg hover:bg-violet-100 disabled:opacity-50 transition-colors"
+          >
+            {isActivating ? <Loader2 className="w-3 h-3 animate-spin" /> : <CircleCheck className="w-3 h-3" />}
+            {isActivating ? 'Scraping...' : 'Activate'}
+          </button>
+          <button
+            onClick={() => setIsEditing(true)}
+            className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-zinc-50 text-zinc-700 text-xs font-medium rounded-lg hover:bg-zinc-100 transition-colors"
+          >
+            <Edit2 className="w-3 h-3" />
+            Edit
+          </button>
+          <button
+            onClick={handleDelete}
+            className="px-2.5 py-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
+        </div>
+      )}
     </div>
   )
 }
