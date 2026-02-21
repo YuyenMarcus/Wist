@@ -17,6 +17,9 @@ export interface PublicProfileData {
   full_name: string | null;
   avatar_url: string | null;
   bio: string | null;
+  instagram_handle: string | null;
+  tiktok_handle: string | null;
+  website: string | null;
 }
 
 export interface PublicItem {
@@ -47,7 +50,7 @@ async function resolveUsernameToUserId(username: string): Promise<{
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, username, full_name, avatar_url, bio')
+    .select('id, username, full_name, avatar_url, bio, instagram_handle, tiktok_handle, website')
     .eq('username', decodedUsername)
     .maybeSingle();
 
@@ -68,6 +71,9 @@ async function resolveUsernameToUserId(username: string): Promise<{
       full_name: data.full_name,
       avatar_url: data.avatar_url,
       bio: data.bio,
+      instagram_handle: data.instagram_handle || null,
+      tiktok_handle: data.tiktok_handle || null,
+      website: data.website || null,
     },
     error: null,
   };
