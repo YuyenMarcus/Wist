@@ -148,7 +148,7 @@ export default function ShareButton() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="fixed top-4 right-4 px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-medium shadow-lg z-50"
+            className="fixed top-4 right-4 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm font-medium shadow-lg z-50"
           >
             Link copied to clipboard!
           </motion.div>
