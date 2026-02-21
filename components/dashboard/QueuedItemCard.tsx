@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Clock, RefreshCw, Edit2, Trash2, Check, X, ExternalLink } from 'lucide-react'
+import { Clock, Edit2, Trash2, Check, X, ExternalLink, CircleCheck } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 
 interface QueuedItem {
@@ -24,7 +24,7 @@ export default function QueuedItemCard({ item, onUpdate, onDelete }: Props) {
   const [isEditing, setIsEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(item.title || '')
   const [editPrice, setEditPrice] = useState(item.price ? item.price.toString() : '')
-  const [isScraping, setIsScraping] = useState(false)
+  const [isActivating, setIsActivating] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
 
   const domain = (() => {
@@ -55,18 +55,11 @@ export default function QueuedItemCard({ item, onUpdate, onDelete }: Props) {
     return `${days}d ago`
   })()
 
-  async function handleRetryScrape() {
-    setIsScraping(true)
+  async function handleActivate() {
+    setIsActivating(true)
     try {
-      const res = await fetch(`/api/metadata?url=${encodeURIComponent(item.url)}`)
-      if (!res.ok) throw new Error('Scrape failed')
-      
-      const metadata = await res.json()
-      
-      const hasGoodData = metadata.title && metadata.title.length > 10 && metadata.imageUrl
-      
       const { data: { session } } = await supabase.auth.getSession()
-      const patchRes = await fetch('/api/items', {
+      const res = await fetch('/api/items', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -74,21 +67,17 @@ export default function QueuedItemCard({ item, onUpdate, onDelete }: Props) {
         },
         body: JSON.stringify({
           id: item.id,
-          title: metadata.title || item.title,
-          price: metadata.price?.replace(/[^0-9.]/g, '') || undefined,
-          image_url: metadata.imageUrl || undefined,
-          status: hasGoodData ? 'active' : undefined,
+          status: 'active',
         }),
       })
-      
-      const result = await patchRes.json()
+      const result = await res.json()
       if (result.success) {
         onUpdate(item.id, result.item)
       }
     } catch (err) {
-      console.error('Retry scrape failed:', err)
+      console.error('Activate failed:', err)
     } finally {
-      setIsScraping(false)
+      setIsActivating(false)
     }
   }
 
@@ -163,7 +152,7 @@ export default function QueuedItemCard({ item, onUpdate, onDelete }: Props) {
             className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-violet-600 text-white text-xs font-medium rounded-lg hover:bg-violet-700 disabled:opacity-50 transition-colors"
           >
             {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-            Save & Activate
+            Save
           </button>
           <button
             onClick={() => setIsEditing(false)}
@@ -226,12 +215,12 @@ export default function QueuedItemCard({ item, onUpdate, onDelete }: Props) {
       {/* Actions */}
       <div className="mt-3 flex gap-2">
         <button
-          onClick={handleRetryScrape}
-          disabled={isScraping}
+          onClick={handleActivate}
+          disabled={isActivating}
           className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-violet-50 text-violet-700 text-xs font-medium rounded-lg hover:bg-violet-100 disabled:opacity-50 transition-colors"
         >
-          <RefreshCw className={`w-3 h-3 ${isScraping ? 'animate-spin' : ''}`} />
-          {isScraping ? 'Scraping...' : 'Retry'}
+          <CircleCheck className={`w-3 h-3 ${isActivating ? 'animate-pulse' : ''}`} />
+          {isActivating ? 'Activating...' : 'Activate'}
         </button>
         <button
           onClick={() => setIsEditing(true)}
