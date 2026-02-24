@@ -77,7 +77,7 @@ const PLANS: {
 
 export default function PricingSection() {
   return (
-    <section className="relative py-28 sm:py-32 px-4 sm:px-6 overflow-hidden" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+    <section id="pricing" className="relative py-28 sm:py-32 px-4 sm:px-6 overflow-hidden" style={{ fontFamily: "'DM Sans', sans-serif" }}>
       {/* Background */}
       <div className="absolute inset-0 bg-gradient-to-b from-white via-violet-50/30 to-white pointer-events-none" />
       <div className="absolute inset-0 opacity-[0.015] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, #8b5cf6 1px, transparent 0)', backgroundSize: '40px 40px' }} />

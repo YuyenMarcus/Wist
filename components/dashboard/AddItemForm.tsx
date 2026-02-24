@@ -329,7 +329,7 @@ export default function AddItemForm() {
         </div>
       )}
 
-      {/* URL Input - always enabled */}
+      {/* URL Input */}
       <div className="relative">
         <div
           className={`relative bg-white dark:bg-dpurple-900 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm transition-all duration-300 overflow-hidden ${
@@ -338,6 +338,15 @@ export default function AddItemForm() {
         >
           <div className="flex items-center h-14 px-4">
             <LinkIcon className="w-4 h-4 text-zinc-400 mr-2 flex-shrink-0" />
+            {showExtensionPrompt ? (
+              <a
+                href="/wist-extension-download.zip"
+                download
+                className="flex-1 text-zinc-400 dark:text-zinc-500 text-sm cursor-pointer hover:text-violet-500 dark:hover:text-violet-400 transition-colors"
+              >
+                Install the extension to add items...
+              </a>
+            ) : (
             <input
               type="url"
               value={url}
@@ -349,6 +358,7 @@ export default function AddItemForm() {
               className="flex-1 bg-transparent border-none outline-none text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 text-sm focus:ring-0"
               disabled={loading || saving}
             />
+            )}
             {loading && (
               <div className="ml-3 flex items-center gap-2">
                 <span className="text-xs text-zinc-400 tabular-nums">{Math.round(progress)}%</span>

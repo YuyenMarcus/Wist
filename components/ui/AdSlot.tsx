@@ -29,7 +29,7 @@ export default function AdSlot({ variant, tier }: AdSlotProps) {
             </div>
           </div>
           <Link
-            href="/signup"
+            href="/#pricing"
             className="flex-shrink-0 inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/50 border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-colors"
           >
             Upgrade <ArrowRight className="w-3 h-3" />
@@ -53,7 +53,7 @@ export default function AdSlot({ variant, tier }: AdSlotProps) {
           <p className="text-sm font-medium text-zinc-600 dark:text-zinc-300 mb-1">Your ad here</p>
           <p className="text-xs text-zinc-400 mb-3">Sponsored placement</p>
           <Link
-            href="/signup"
+            href="/#pricing"
             className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/50 border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-colors"
           >
             Go ad-free <ArrowRight className="w-3 h-3" />
@@ -76,7 +76,7 @@ export default function AdSlot({ variant, tier }: AdSlotProps) {
           </div>
           <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-2">Sponsored</p>
           <Link
-            href="/signup"
+            href="/#pricing"
             className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/50 border border-violet-200 dark:border-violet-800 rounded-md hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-colors"
           >
             Go ad-free <ArrowRight className="w-2.5 h-2.5" />
