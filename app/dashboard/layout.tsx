@@ -59,7 +59,7 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-white">
+    <div className="flex min-h-screen bg-white dark:bg-dpurple-950 transition-colors">
       {/* Sidebar - Includes mobile header and slide-out menu */}
       <Sidebar initialCollections={collections} tier={userTier} />
       

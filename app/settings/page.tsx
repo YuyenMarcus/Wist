@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, AlertCircle, Check, Instagram, Link as LinkIcon, ShoppingCart, Video, Shield, Lock, ArrowLeft, Zap, Palette, Gift, DollarSign } from 'lucide-react'
+import { Loader2, AlertCircle, Check, Instagram, Link as LinkIcon, ShoppingCart, Video, Shield, Lock, ArrowLeft, Zap, Palette, Gift, DollarSign, Moon, Sun } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { getProfile, updateProfile } from '@/lib/supabase/profile'
 import { PROFILE_THEMES, THEME_KEYS } from '@/lib/constants/profile-themes'
@@ -10,6 +10,39 @@ import { isTierAtLeast } from '@/lib/tier-guards'
 import { CURRENCY_INFO, SUPPORTED_CURRENCIES } from '@/lib/currency'
 import LavenderLoader from '@/components/ui/LavenderLoader'
 import PageTransition from '@/components/ui/PageTransition'
+import { useDarkMode } from '@/lib/hooks/useDarkMode'
+
+function AppearanceSection() {
+  const { isDark, toggle } = useDarkMode()
+  return (
+    <div className="bg-white dark:bg-dpurple-900 p-8 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm space-y-6 scroll-mt-20">
+      <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-dpurple-700 pb-2 flex items-center gap-2">
+        {isDark ? <Moon size={16} /> : <Sun size={16} />} Appearance
+      </h2>
+      <div className="flex items-center justify-between">
+        <div className="flex-1 pr-4">
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Dark Mode</label>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+            Switch the dashboard and settings to a dark theme. This only affects the app interface.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={toggle}
+          className={`relative w-11 h-6 rounded-full transition-colors ${
+            isDark ? 'bg-violet-600' : 'bg-zinc-300'
+          }`}
+        >
+          <span
+            className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+              isDark ? 'translate-x-5' : 'translate-x-0'
+            }`}
+          />
+        </button>
+      </div>
+    </div>
+  )
+}
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -143,44 +176,44 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-zinc-50">
+      <div className="flex justify-center items-center min-h-screen bg-zinc-50 dark:bg-dpurple-950">
         <LavenderLoader size="lg" />
       </div>
     )
   }
 
   return (
-    <PageTransition className="min-h-screen bg-zinc-50 py-12 px-4 sm:px-6 lg:px-8">
+    <PageTransition className="min-h-screen bg-zinc-50 dark:bg-dpurple-950 py-12 px-4 sm:px-6 lg:px-8 transition-colors">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center gap-4 mb-8">
           <button
             onClick={() => router.back()}
-            className="p-2 hover:bg-zinc-200 rounded-lg transition-colors"
+            className="p-2 hover:bg-zinc-200 dark:hover:bg-dpurple-800 rounded-lg transition-colors"
           >
-            <ArrowLeft className="w-5 h-5 text-zinc-600" />
+            <ArrowLeft className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
           </button>
-          <h1 className="text-3xl font-bold text-zinc-900">Profile Settings</h1>
+          <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">Profile Settings</h1>
         </div>
 
         <form onSubmit={handleUpdate} className="space-y-8">
           
           {/* --- SECTION 1: BASIC INFO --- */}
-          <div className="bg-white p-8 rounded-2xl border border-zinc-200 shadow-sm space-y-6">
-            <h2 className="text-lg font-semibold text-zinc-900 border-b border-zinc-100 pb-2">Basic Info</h2>
+          <div className="bg-white dark:bg-dpurple-900 p-8 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm space-y-6">
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-dpurple-700 pb-2">Basic Info</h2>
             
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-2">Display Name</label>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Display Name</label>
               <input
                 type="text"
                 value={formData.fullName}
                 onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                className="w-full px-4 py-2 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition text-zinc-900"
+                className="w-full px-4 py-2 border border-zinc-200 dark:border-dpurple-600 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition text-zinc-900 dark:text-zinc-100 bg-white dark:bg-dpurple-800"
                 placeholder="Enter your full name"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-2">Username</label>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Username</label>
               {(() => {
                 const isLocked = profile?.username_changed_at && profile.username_changed_at !== null;
                 let daysRemaining = 0;
@@ -197,13 +230,13 @@ export default function SettingsPage() {
                 return (
                   <>
                     <div className="relative">
-                      <span className="absolute left-3 top-3 text-zinc-400">@</span>
+                      <span className="absolute left-3 top-3 text-zinc-400 dark:text-zinc-500">@</span>
                       <input
                         type="text"
                         value={formData.username}
                         onChange={(e) => setFormData({ ...formData, username: e.target.value.toLowerCase().replace(/\s/g, '').replace(/[^a-zA-Z0-9_]/g, '') })}
                         disabled={!canChange && !isChanging}
-                        className={`w-full pl-8 pr-4 py-2 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition text-zinc-900 ${
+                        className={`w-full pl-8 pr-4 py-2 border border-zinc-200 dark:border-dpurple-600 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition text-zinc-900 dark:text-zinc-100 bg-white dark:bg-dpurple-800 ${
                           !canChange && !isChanging ? 'opacity-60 cursor-not-allowed' : ''
                         }`}
                         placeholder="username"
@@ -228,7 +261,7 @@ export default function SettingsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-2">Bio</label>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Bio</label>
               <textarea
                 value={formData.bio}
                 onChange={(e) => {
@@ -236,7 +269,7 @@ export default function SettingsPage() {
                     setFormData({ ...formData, bio: e.target.value })
                   }
                 }}
-                className="w-full px-4 py-2 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition resize-none text-zinc-900"
+                className="w-full px-4 py-2 border border-zinc-200 dark:border-dpurple-600 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition resize-none text-zinc-900 dark:text-zinc-100 bg-white dark:bg-dpurple-800"
                 rows={3}
                 placeholder="Tell us a bit about yourself..."
                 maxLength={160}
@@ -248,49 +281,49 @@ export default function SettingsPage() {
           </div>
 
           {/* --- SECTION 2: CREATOR & SOCIAL --- */}
-          <div id="creator" className="bg-white p-8 rounded-2xl border border-zinc-200 shadow-sm space-y-6 scroll-mt-20">
-            <h2 className="text-lg font-semibold text-zinc-900 border-b border-zinc-100 pb-2 flex items-center gap-2">
-              Creator Links <span className="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-medium">Monetization</span>
+          <div id="creator" className="bg-white dark:bg-dpurple-900 p-8 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm space-y-6 scroll-mt-20">
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-dpurple-700 pb-2 flex items-center gap-2">
+              Creator Links <span className="text-xs bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 px-2 py-0.5 rounded-full font-medium">Monetization</span>
             </h2>
 
             {/* Social Row */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-2 flex items-center gap-2">
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2 flex items-center gap-2">
                   <Instagram size={14} /> Instagram Handle
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-3 text-zinc-400">@</span>
+                  <span className="absolute left-3 top-3 text-zinc-400 dark:text-zinc-500">@</span>
                   <input
                     type="text"
                     value={formData.instagram}
                     onChange={(e) => setFormData({ ...formData, instagram: e.target.value })}
                     placeholder="username"
-                    className="w-full pl-8 pr-4 py-2 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition text-zinc-900"
+                    className="w-full pl-8 pr-4 py-2 border border-zinc-200 dark:border-dpurple-600 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition text-zinc-900 dark:text-zinc-100 bg-white dark:bg-dpurple-800"
                   />
                 </div>
-                <p className="text-xs text-zinc-500 mt-1">We'll remove the @ when saving</p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">We'll remove the @ when saving</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-2 flex items-center gap-2">
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2 flex items-center gap-2">
                   <Video size={14} /> TikTok Handle
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-3 text-zinc-400">@</span>
+                  <span className="absolute left-3 top-3 text-zinc-400 dark:text-zinc-500">@</span>
                   <input
                     type="text"
                     value={formData.tiktok}
                     onChange={(e) => setFormData({ ...formData, tiktok: e.target.value })}
                     placeholder="username"
-                    className="w-full pl-8 pr-4 py-2 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition text-zinc-900"
+                    className="w-full pl-8 pr-4 py-2 border border-zinc-200 dark:border-dpurple-600 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition text-zinc-900 dark:text-zinc-100 bg-white dark:bg-dpurple-800"
                   />
                 </div>
-                <p className="text-xs text-zinc-500 mt-1">We'll remove the @ when saving</p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">We'll remove the @ when saving</p>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-2 flex items-center gap-2">
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2 flex items-center gap-2">
                 <LinkIcon size={14} /> Website / Blog
               </label>
               <input
@@ -298,16 +331,16 @@ export default function SettingsPage() {
                 value={formData.website}
                 onChange={(e) => setFormData({ ...formData, website: e.target.value })}
                 placeholder="https://mysite.com"
-                className="w-full px-4 py-2 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition text-zinc-900"
+                className="w-full px-4 py-2 border border-zinc-200 dark:border-dpurple-600 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition text-zinc-900 dark:text-zinc-100 bg-white dark:bg-dpurple-800"
               />
             </div>
 
             {/* Amazon Affiliate - The Money Maker */}
-            <div className="bg-violet-50 p-4 rounded-xl border border-violet-200">
-              <label className="block text-sm font-bold text-zinc-900 mb-1 flex items-center gap-2">
+            <div className="bg-violet-50 dark:bg-violet-950/30 p-4 rounded-xl border border-violet-200 dark:border-violet-800">
+              <label className="block text-sm font-bold text-zinc-900 dark:text-zinc-100 mb-1 flex items-center gap-2">
                 <ShoppingCart size={14} /> Amazon Associate Store ID
               </label>
-              <p className="text-xs text-zinc-600 mb-3">
+              <p className="text-xs text-zinc-600 dark:text-zinc-400 mb-3">
                 Enter your ID (e.g., <code className="bg-white px-1.5 py-0.5 rounded text-violet-700 font-mono">sarah-20</code>). We will automatically replace our links with yours on your profile so you keep 100% of commissions.
               </p>
               <input
@@ -315,21 +348,21 @@ export default function SettingsPage() {
                 value={formData.amazonId}
                 onChange={(e) => setFormData({ ...formData, amazonId: e.target.value })}
                 placeholder="tag-20"
-                className="w-full px-4 py-2 border border-violet-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none bg-white text-zinc-900"
+                className="w-full px-4 py-2 border border-violet-300 dark:border-violet-700 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none bg-white dark:bg-dpurple-800 text-zinc-900 dark:text-zinc-100"
               />
             </div>
           </div>
 
           {/* --- SECTION 3: CONTENT PREFERENCES --- */}
-          <div id="content" className="bg-white p-8 rounded-2xl border border-zinc-200 shadow-sm space-y-6 scroll-mt-20">
-            <h2 className="text-lg font-semibold text-zinc-900 border-b border-zinc-100 pb-2 flex items-center gap-2">
+          <div id="content" className="bg-white dark:bg-dpurple-900 p-8 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm space-y-6 scroll-mt-20">
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-dpurple-700 pb-2 flex items-center gap-2">
               <Shield size={16} /> Content Preferences
             </h2>
 
             <div className="flex items-center justify-between">
               <div className="flex-1 pr-4">
-                <label className="block text-sm font-medium text-zinc-700">Adult Content Filter</label>
-                <p className="text-xs text-zinc-500 mt-0.5">
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Adult Content Filter</label>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
                   {profile?.age != null && profile.age < 18
                     ? 'Adult content is blocked for users under 18.'
                     : 'When enabled, adult items will have their images blurred with an 18+ overlay.'}
@@ -360,15 +393,15 @@ export default function SettingsPage() {
             </div>
 
             {/* Divider */}
-            <div className="border-t border-zinc-100" />
+            <div className="border-t border-zinc-100 dark:border-dpurple-700" />
 
             {/* Auto-activate queued items */}
             <div className="flex items-center justify-between">
               <div className="flex-1 pr-4">
-                <label className="block text-sm font-medium text-zinc-700 flex items-center gap-2">
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
                   <Zap size={14} /> Auto-activate Queued Items
                 </label>
-                <p className="text-xs text-zinc-500 mt-0.5">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
                   When on, queued items are automatically scraped and activated when you open Wist on desktop with the extension. Turn off to manually activate each item.
                 </p>
               </div>
@@ -388,22 +421,25 @@ export default function SettingsPage() {
             </div>
           </div>
 
+          {/* --- SECTION: APPEARANCE --- */}
+          <AppearanceSection />
+
           {/* --- SECTION: CURRENCY --- */}
-          <div className="bg-white p-8 rounded-2xl border border-zinc-200 shadow-sm space-y-6 scroll-mt-20">
-            <h2 className="text-lg font-semibold text-zinc-900 border-b border-zinc-100 pb-2 flex items-center gap-2">
+          <div className="bg-white dark:bg-dpurple-900 p-8 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm space-y-6 scroll-mt-20">
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-dpurple-700 pb-2 flex items-center gap-2">
               <DollarSign size={16} /> Currency
             </h2>
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
                 Display Currency
               </label>
-              <p className="text-xs text-zinc-500 mb-3">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
                 Prices from foreign stores will be converted to your preferred currency. Original prices are always preserved.
               </p>
               <select
                 value={formData.preferredCurrency}
                 onChange={(e) => setFormData(prev => ({ ...prev, preferredCurrency: e.target.value }))}
-                className="w-full sm:w-64 px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                className="w-full sm:w-64 px-3 py-2 border border-zinc-300 dark:border-dpurple-600 rounded-lg text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent bg-white dark:bg-dpurple-800 text-zinc-900 dark:text-zinc-100"
               >
                 {SUPPORTED_CURRENCIES.map(code => {
                   const info = CURRENCY_INFO[code]
@@ -418,8 +454,8 @@ export default function SettingsPage() {
           </div>
 
           {/* --- SECTION 4: PROFILE THEME (Creator+) --- */}
-          <div id="theme" className="bg-white p-8 rounded-2xl border border-zinc-200 shadow-sm space-y-6 scroll-mt-20">
-            <h2 className="text-lg font-semibold text-zinc-900 border-b border-zinc-100 pb-2 flex items-center gap-2">
+          <div id="theme" className="bg-white dark:bg-dpurple-900 p-8 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm space-y-6 scroll-mt-20">
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-dpurple-700 pb-2 flex items-center gap-2">
               <Palette size={16} /> Profile Theme
             </h2>
 
@@ -458,8 +494,8 @@ export default function SettingsPage() {
           </div>
 
           {/* --- SECTION 5: GIFTING (Pro+) --- */}
-          <div id="gifting" className="bg-white p-8 rounded-2xl border border-zinc-200 shadow-sm space-y-6 scroll-mt-20">
-            <h2 className="text-lg font-semibold text-zinc-900 border-b border-zinc-100 pb-2 flex items-center gap-2">
+          <div id="gifting" className="bg-white dark:bg-dpurple-900 p-8 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm space-y-6 scroll-mt-20">
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-dpurple-700 pb-2 flex items-center gap-2">
               <Gift size={16} /> Gifting
             </h2>
 

@@ -321,7 +321,7 @@ export default function ProductCard({ item, userCollections = [], onDelete, onHi
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }}
       transition={{ duration: 0.35, delay: Math.min(index * 0.04, 0.4), ease: [0.25, 0.1, 0.25, 1] }}
-      className="group relative bg-white rounded-xl overflow-hidden border border-zinc-200 hover:border-violet-500 hover:shadow-lg transition-all duration-300"
+      className="group relative bg-white dark:bg-dpurple-900 rounded-xl overflow-hidden border border-zinc-200 dark:border-dpurple-700 hover:border-violet-500 hover:shadow-lg transition-all duration-300"
     >
       {/* Image Container */}
       <div className="relative aspect-[2/3] overflow-hidden bg-zinc-100">
@@ -402,7 +402,7 @@ export default function ProductCard({ item, userCollections = [], onDelete, onHi
           <>
             <div className="fixed inset-0 z-[9998]" onClick={() => setIsMenuOpen(false)} />
             <div
-              className="fixed w-48 bg-white rounded-lg shadow-xl border border-zinc-200 p-1 z-[9999] max-h-[70vh] overflow-y-auto"
+              className="fixed w-48 bg-white dark:bg-dpurple-900 rounded-lg shadow-xl border border-zinc-200 dark:border-dpurple-600 p-1 z-[9999] max-h-[70vh] overflow-y-auto"
               style={{ top: `${menuPos.top}px`, left: `${menuPos.left}px` }}
               onClick={(e) => e.stopPropagation()}
             >
@@ -412,7 +412,7 @@ export default function ProductCard({ item, userCollections = [], onDelete, onHi
               
               <button
                 onClick={() => handleMoveToCollection(null)}
-                className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 text-zinc-600 transition-colors"
+                className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 dark:hover:bg-dpurple-800 text-zinc-600 dark:text-zinc-300 transition-colors"
               >
                 <FolderInput size={14} />
                 <span>Uncategorized</span>
@@ -432,7 +432,7 @@ export default function ProductCard({ item, userCollections = [], onDelete, onHi
                   <button
                     key={col.id}
                     onClick={() => handleMoveToCollection(col.id)}
-                    className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 text-zinc-600 transition-colors"
+                    className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 dark:hover:bg-dpurple-800 text-zinc-600 dark:text-zinc-300 transition-colors"
                   >
                     <span className="truncate">{col.name}</span>
                     {item.collection_id === col.id && (
@@ -453,7 +453,7 @@ export default function ProductCard({ item, userCollections = [], onDelete, onHi
 
               <button
                 onClick={handleHide}
-                className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 text-zinc-600 transition-colors"
+                className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 dark:hover:bg-dpurple-800 text-zinc-600 dark:text-zinc-300 transition-colors"
               >
                 <EyeOff size={14} />
                 <span>Hide</span>
@@ -498,7 +498,7 @@ export default function ProductCard({ item, userCollections = [], onDelete, onHi
           href={item.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1.5 sm:p-2 bg-white/90 dark:bg-black/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300"
+          className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1.5 sm:p-2 bg-white/90 dark:bg-black/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white dark:hover:bg-dpurple-800 text-zinc-600 dark:text-zinc-300"
           onClick={(e) => e.stopPropagation()}
           title="Visit product page"
         >
@@ -509,7 +509,7 @@ export default function ProductCard({ item, userCollections = [], onDelete, onHi
 
       {/* Content Section */}
       <div className="p-2.5 sm:p-4">
-        <h3 className="font-medium text-zinc-900 text-xs sm:text-sm mb-1 sm:mb-2 line-clamp-2">
+        <h3 className="font-medium text-zinc-900 dark:text-zinc-100 text-xs sm:text-sm mb-1 sm:mb-2 line-clamp-2">
           {title}
         </h3>
         
@@ -553,7 +553,7 @@ export default function ProductCard({ item, userCollections = [], onDelete, onHi
           {/* View History Link */}
           <Link 
             href={`/dashboard/item/${item.id}`}
-            className="flex-1 inline-flex items-center justify-center gap-0.5 sm:gap-1 text-[10px] sm:text-xs text-zinc-600 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200 px-2 sm:px-3 py-1.5 sm:py-2 rounded-md sm:rounded-lg transition-colors"
+            className="flex-1 inline-flex items-center justify-center gap-0.5 sm:gap-1 text-[10px] sm:text-xs text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white bg-zinc-100 dark:bg-dpurple-800 hover:bg-zinc-200 dark:hover:bg-dpurple-700 px-2 sm:px-3 py-1.5 sm:py-2 rounded-md sm:rounded-lg transition-colors"
             onClick={(e) => e.stopPropagation()}
           >
             <BarChart3 className="w-2.5 h-2.5 sm:w-3 sm:h-3" />

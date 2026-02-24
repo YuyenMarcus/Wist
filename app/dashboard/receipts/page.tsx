@@ -45,7 +45,7 @@ export default function ReceiptsPage() {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gray-50">
+      <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-dpurple-900">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-violet-600 border-t-transparent" />
       </div>
     );
@@ -63,26 +63,26 @@ export default function ReceiptsPage() {
 
   return (
     <PageTransition>
-      <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gray-50 dark:bg-dpurple-900 py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center gap-3 mb-8">
-            <Link href="/dashboard" className="p-2 rounded-lg hover:bg-gray-200 transition-colors">
-              <ArrowLeft className="w-5 h-5 text-gray-600" />
+            <Link href="/dashboard" className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-dpurple-800 transition-colors">
+              <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-zinc-400" />
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-zinc-100 flex items-center gap-2">
                 <Receipt className="w-6 h-6 text-violet-500" />
                 Receipts & Warranties
               </h1>
-              <p className="text-sm text-gray-500 mt-1">Track your purchases and warranty expiry dates</p>
+              <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">Track your purchases and warranty expiry dates</p>
             </div>
           </div>
 
           {!isPremium ? (
-            <div className="rounded-xl bg-white p-12 shadow-sm ring-1 ring-gray-900/5 text-center space-y-3">
-              <Shield className="w-12 h-12 text-gray-300 mx-auto" />
-              <h2 className="text-lg font-semibold text-gray-900">Wist Pro Feature</h2>
-              <p className="text-sm text-gray-500 max-w-md mx-auto">
+            <div className="rounded-xl bg-white dark:bg-dpurple-950 p-12 shadow-sm ring-1 ring-gray-900/5 dark:ring-dpurple-700 text-center space-y-3">
+              <Shield className="w-12 h-12 text-gray-300 dark:text-zinc-500 mx-auto" />
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-100">Wist Pro Feature</h2>
+              <p className="text-sm text-gray-500 dark:text-zinc-400 max-w-md mx-auto">
                 Upgrade to Wist Pro to track receipts, warranty dates, and never miss a return window.
               </p>
             </div>
@@ -105,19 +105,19 @@ export default function ReceiptsPage() {
               )}
 
               {receipts.length === 0 ? (
-                <div className="rounded-xl bg-white p-12 shadow-sm ring-1 ring-gray-900/5 text-center space-y-3">
-                  <FileText className="w-12 h-12 text-gray-300 mx-auto" />
-                  <h2 className="text-lg font-semibold text-gray-600">No receipts yet</h2>
-                  <p className="text-sm text-gray-400">Add receipts from individual item pages to start tracking warranties.</p>
+                <div className="rounded-xl bg-white dark:bg-dpurple-950 p-12 shadow-sm ring-1 ring-gray-900/5 dark:ring-dpurple-700 text-center space-y-3">
+                  <FileText className="w-12 h-12 text-gray-300 dark:text-zinc-500 mx-auto" />
+                  <h2 className="text-lg font-semibold text-gray-600 dark:text-zinc-400">No receipts yet</h2>
+                  <p className="text-sm text-gray-400 dark:text-zinc-400">Add receipts from individual item pages to start tracking warranties.</p>
                 </div>
               ) : (
-                <div className="rounded-xl bg-white shadow-sm ring-1 ring-gray-900/5 divide-y divide-gray-100">
+                <div className="rounded-xl bg-white dark:bg-dpurple-950 shadow-sm ring-1 ring-gray-900/5 dark:ring-dpurple-700 divide-y divide-gray-100 dark:divide-dpurple-700">
                   {receipts.map(r => (
-                    <div key={r.id} className="flex items-start justify-between p-4 hover:bg-gray-50 transition-colors gap-4">
+                    <div key={r.id} className="flex items-start justify-between p-4 hover:bg-gray-50 dark:hover:bg-dpurple-900 transition-colors gap-4">
                       <div className="flex items-start gap-3 min-w-0">
                         <FileText className="w-5 h-5 text-violet-500 mt-0.5 flex-shrink-0" />
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-gray-900 truncate">{r.title}</p>
+                          <p className="text-sm font-semibold text-gray-900 dark:text-zinc-100 truncate">{r.title}</p>
                           {r.items && (
                             <Link
                               href={`/dashboard/item/${r.item_id}`}
@@ -128,7 +128,7 @@ export default function ReceiptsPage() {
                           )}
                           <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1">
                             {r.purchase_date && (
-                              <span className="text-xs text-gray-500">
+                              <span className="text-xs text-gray-500 dark:text-zinc-400">
                                 Purchased: {new Date(r.purchase_date).toLocaleDateString()}
                               </span>
                             )}
@@ -139,7 +139,7 @@ export default function ReceiptsPage() {
                               </span>
                             )}
                           </div>
-                          {r.notes && <p className="text-xs text-gray-400 mt-1 line-clamp-2">{r.notes}</p>}
+                          {r.notes && <p className="text-xs text-gray-400 dark:text-zinc-400 mt-1 line-clamp-2">{r.notes}</p>}
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -148,7 +148,7 @@ export default function ReceiptsPage() {
                             href={r.receipt_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="p-2 text-gray-400 hover:text-violet-600 transition-colors rounded-lg hover:bg-gray-100"
+                            className="p-2 text-gray-400 dark:text-zinc-400 hover:text-violet-600 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-dpurple-800"
                             title="View receipt"
                           >
                             <FileText className="w-4 h-4" />
@@ -156,7 +156,7 @@ export default function ReceiptsPage() {
                         )}
                         <button
                           onClick={() => handleDelete(r.id)}
-                          className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-gray-100"
+                          className="p-2 text-gray-400 dark:text-zinc-400 hover:text-red-500 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-dpurple-800"
                           title="Delete receipt"
                         >
                           <Trash2 className="w-4 h-4" />

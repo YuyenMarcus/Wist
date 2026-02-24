@@ -395,14 +395,14 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
       onHoverEnd={() => setIsHovered(false)}
       className="relative mb-3 sm:mb-6 break-inside-avoid"
     >
-      <div className={`group relative overflow-hidden rounded-xl sm:rounded-2xl bg-white border transition-all duration-300 ${
+      <div className={`group relative overflow-hidden rounded-xl sm:rounded-2xl bg-white dark:bg-dpurple-900 border transition-all duration-300 ${
         isHovered 
           ? 'border-violet-500 shadow-lg -translate-y-1' 
-          : 'border-zinc-100 shadow-sm'
+          : 'border-zinc-100 dark:border-dpurple-700 shadow-sm'
       } ${isReserved && !isOwner ? 'opacity-60' : ''}`}>
         
         {/* Image Container */}
-        <div className="relative w-full bg-zinc-50">
+        <div className="relative w-full bg-zinc-50 dark:bg-dpurple-800">
           {imageUrl ? (
             <img 
               src={imageUrl} 
@@ -524,7 +524,7 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                 onChange={(e) => setEditedTitle(e.target.value)}
                 onKeyDown={handleKeyDown}
                 autoFocus
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-zinc-900 bg-white border border-violet-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400"
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-zinc-900 dark:text-zinc-100 bg-white dark:bg-dpurple-800 border border-violet-300 dark:border-violet-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-200 dark:focus:ring-violet-800 focus:border-violet-400"
                 disabled={isSaving}
               />
               <div className="flex items-center gap-1.5 sm:gap-2">
@@ -562,7 +562,7 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
           ) : (
             <>
               <h3 
-                className="font-medium text-zinc-900 text-xs sm:text-sm leading-snug line-clamp-2 cursor-text"
+                className="font-medium text-zinc-900 dark:text-zinc-100 text-xs sm:text-sm leading-snug line-clamp-2 cursor-text"
                 onDoubleClick={isOwner ? handleStartEdit : undefined}
                 title={isOwner ? 'Double-click to edit' : undefined}
               >
@@ -590,10 +590,10 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
               )}
 
               {/* Footer with History and Buy buttons */}
-              <div className="mt-2 sm:mt-4 flex items-end justify-between pt-2 sm:pt-4 border-t border-zinc-100">
+              <div className="mt-2 sm:mt-4 flex items-end justify-between pt-2 sm:pt-4 border-t border-zinc-100 dark:border-dpurple-700">
                 <div className="flex flex-col">
-                  <span className="text-[10px] sm:text-xs text-gray-500">Price</span>
-                  <span className="text-xs sm:text-lg font-bold text-gray-900">
+                  <span className="text-[10px] sm:text-xs text-gray-500 dark:text-zinc-400">Price</span>
+                  <span className="text-xs sm:text-lg font-bold text-gray-900 dark:text-zinc-100">
                     {price || 'N/A'}
                   </span>
                   {previousPrice && priceChange !== 0 && (
@@ -606,7 +606,7 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                 <div className="flex gap-1 sm:gap-2">
                   <Link
                     href={`/dashboard/item/${item.id}`}
-                    className="rounded-md sm:rounded-lg bg-gray-100 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold text-gray-900 transition hover:bg-gray-200"
+                    className="rounded-md sm:rounded-lg bg-gray-100 dark:bg-dpurple-800 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold text-gray-900 dark:text-zinc-200 transition hover:bg-gray-200 dark:hover:bg-dpurple-700"
                     onClick={(e) => e.stopPropagation()}
                   >
                     History
@@ -646,18 +646,18 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
         <>
           <div className="fixed inset-0 z-[9998]" onClick={() => setIsMenuOpen(false)} />
           <div
-            className="fixed w-48 bg-white rounded-lg shadow-xl border border-zinc-200 p-1 z-[9999] max-h-[70vh] overflow-y-auto"
+            className="fixed w-48 bg-white dark:bg-dpurple-900 rounded-lg shadow-xl border border-zinc-200 dark:border-dpurple-600 p-1 z-[9999] max-h-[70vh] overflow-y-auto"
             style={{ top: `${menuPos.top}px`, left: `${menuPos.left}px` }}
             onClick={(e) => e.stopPropagation()}
           >
             {userCollections.length > 0 && (
               <>
-                <div className="text-xs font-semibold text-zinc-400 px-2 py-1.5 uppercase tracking-wider">
+                <div className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 px-2 py-1.5 uppercase tracking-wider">
                   Move to...
                 </div>
                 <button
                   onClick={() => handleMoveToCollection(null)}
-                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 text-zinc-600 transition-colors"
+                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 dark:hover:bg-dpurple-800 text-zinc-600 dark:text-zinc-300 transition-colors"
                 >
                   <FolderInput size={14} />
                   <span>Uncategorized</span>
@@ -669,7 +669,7 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                   <button
                     key={col.id}
                     onClick={() => handleMoveToCollection(col.id)}
-                    className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 text-zinc-600 transition-colors"
+                    className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 dark:hover:bg-dpurple-800 text-zinc-600 dark:text-zinc-300 transition-colors"
                   >
                     <span className="truncate">{col.name}</span>
                     {itemCollectionId === col.id && (
@@ -677,7 +677,7 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                     )}
                   </button>
                 ))}
-                <div className="h-px bg-zinc-100 my-1" />
+                <div className="h-px bg-zinc-100 dark:bg-dpurple-800 my-1" />
               </>
             )}
 
@@ -687,7 +687,7 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                 setIsMenuOpen(false)
                 handleStartEdit()
               }}
-              className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 text-zinc-600 transition-colors"
+              className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 dark:hover:bg-dpurple-800 text-zinc-600 dark:text-zinc-300 transition-colors"
             >
               <Edit2 size={14} />
               <span>Edit Title</span>
@@ -698,7 +698,7 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                 e.stopPropagation()
                 handleHide()
               }}
-              className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 text-zinc-600 transition-colors"
+              className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 dark:hover:bg-dpurple-800 text-zinc-600 dark:text-zinc-300 transition-colors"
             >
               <EyeOff size={14} />
               <span>Hide</span>
@@ -706,7 +706,7 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
 
             {onDelete && (
               <>
-                <div className="h-px bg-zinc-100 my-1" />
+                <div className="h-px bg-zinc-100 dark:bg-dpurple-800 my-1" />
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
@@ -714,7 +714,7 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                     handleDelete()
                   }}
                   disabled={isDeleting}
-                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-red-50 text-red-600 transition-colors"
+                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 transition-colors"
                 >
                   <Trash2 size={14} />
                   <span>Delete</span>

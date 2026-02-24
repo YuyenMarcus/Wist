@@ -123,7 +123,7 @@ export default function ShareButton() {
     <>
       <button
         onClick={handleShare}
-        className="flex items-center gap-2 px-4 py-2 bg-white text-zinc-600 rounded-full text-sm font-medium border border-zinc-200 hover:bg-violet-50 hover:text-violet-600 hover:border-violet-300 transition-colors"
+        className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-dpurple-900 text-zinc-600 dark:text-zinc-400 rounded-full text-sm font-medium border border-zinc-200 dark:border-dpurple-600 hover:bg-violet-50 dark:hover:bg-violet-950 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-300 dark:hover:border-violet-800 transition-colors"
       >
         <svg
           className="w-4 h-4"
@@ -176,7 +176,7 @@ export default function ShareButton() {
               className="fixed inset-0 flex items-center justify-center z-50 p-4"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+              <div className="bg-white dark:bg-dpurple-900 rounded-2xl shadow-xl max-w-md w-full p-6">
                 <h2 className="text-xl font-semibold text-zinc-900 mb-2">
                   Claim a Username
                 </h2>

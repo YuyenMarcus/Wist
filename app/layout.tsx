@@ -137,7 +137,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body className="bg-white font-sans tracking-tight">
+      <body className="bg-white dark:bg-dpurple-950 font-sans tracking-tight transition-colors">
         <ThemeProvider>
           <ClientProvider>
             {children}

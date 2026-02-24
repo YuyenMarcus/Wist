@@ -8,11 +8,13 @@ import {
   Heart, Home, ShoppingBag, Star, Bookmark, Tag, Box, Package, 
   Sparkles, Zap, Coffee, Music, Gamepad2, Shirt, Car, Plane, 
   Camera, Palette, Dumbbell, BookOpen, Laptop, Phone, Watch, 
-  Headphones, Utensils, Bed, Sofa, TreePine, Menu, X, EyeOff
+  Headphones, Utensils, Bed, Sofa, TreePine, Menu, X, EyeOff,
+  Moon, Sun
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import AdSlot from '@/components/ui/AdSlot';
+import { useDarkMode } from '@/lib/hooks/useDarkMode';
 
 interface Collection {
   id: string;
@@ -114,7 +116,7 @@ function CollectionItem({
   }, [showIconPicker]);
 
   return (
-    <div className="group/item flex items-center justify-between px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors relative" ref={iconPickerRef}>
+    <div className="group/item flex items-center justify-between px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-dpurple-900 transition-colors relative" ref={iconPickerRef}>
       <div
         className={`flex-1 flex items-center gap-3 text-sm font-medium truncate ${
           pathname?.includes(collection.slug)
@@ -137,7 +139,7 @@ function CollectionItem({
               }
               setShowIconPicker(!showIconPicker);
             }}
-            className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded transition-colors"
+            className="p-1 hover:bg-zinc-200 dark:hover:bg-dpurple-800 rounded transition-colors"
             title="Change icon"
           >
             <IconComponent size={18} className={colorClass} />
@@ -160,7 +162,7 @@ function CollectionItem({
             }}
           />
           <div 
-            className="fixed z-[9999] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl p-2 w-64 max-h-64 overflow-y-auto"
+            className="fixed z-[9999] bg-white dark:bg-dpurple-900 border border-zinc-200 dark:border-dpurple-700 rounded-lg shadow-xl p-2 w-64 max-h-64 overflow-y-auto"
             style={{
               top: `${iconPickerPosition.top}px`,
               left: `${iconPickerPosition.left}px`,
@@ -182,7 +184,7 @@ function CollectionItem({
                     }
                     setShowIconPicker(false);
                   }}
-                  className={`p-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors ${
+                  className={`p-2 rounded hover:bg-zinc-100 dark:hover:bg-dpurple-800 transition-colors ${
                     isSelected ? 'bg-violet-100 dark:bg-violet-900/20 ring-1 ring-violet-500' : ''
                   }`}
                   title={name}
@@ -218,7 +220,7 @@ function CollectionItem({
 // Mobile Menu Context - allows mobile header to control sidebar state
 export function MobileHeader({ onMenuClick }: { onMenuClick: () => void }) {
   return (
-    <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-zinc-200 px-4 py-3 flex items-center justify-between">
+    <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white dark:bg-dpurple-950 border-b border-zinc-200 dark:border-dpurple-700 px-4 py-3 flex items-center justify-between transition-colors">
       <Link href="/dashboard" className="flex items-center gap-2">
         <Image 
           src="/logo.svg" 
@@ -227,18 +229,31 @@ export function MobileHeader({ onMenuClick }: { onMenuClick: () => void }) {
           height={32}
           className="w-8 h-8"
         />
-        <span className="px-1.5 py-0.5 text-[9px] font-semibold text-violet-600 bg-violet-50 rounded-full border border-violet-200">
+        <span className="px-1.5 py-0.5 text-[9px] font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950 rounded-full border border-violet-200 dark:border-violet-800">
           BETA
         </span>
       </Link>
       <button 
         onClick={onMenuClick}
-        className="p-2 -mr-2 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors"
+        className="p-2 -mr-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-dpurple-800 rounded-lg transition-colors"
         aria-label="Open menu"
       >
         <Menu size={24} />
       </button>
     </header>
+  );
+}
+
+function DarkModeToggle() {
+  const { isDark, toggle } = useDarkMode();
+  return (
+    <button
+      onClick={toggle}
+      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-zinc-50 dark:hover:bg-dpurple-900 transition-colors"
+    >
+      {isDark ? <Sun size={18} /> : <Moon size={18} />}
+      {isDark ? 'Light Mode' : 'Dark Mode'}
+    </button>
   );
 }
 
@@ -427,13 +442,13 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
     <>
       {/* View Switcher (Timeline / Categories) */}
       <div className="px-4 pt-4 mb-4">
-        <div className="flex p-1 bg-white border border-zinc-200 rounded-lg shadow-sm">
+        <div className="flex p-1 bg-white dark:bg-dpurple-900 border border-zinc-200 dark:border-dpurple-600 rounded-lg shadow-sm">
           <Link 
             href="/dashboard" 
             className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
               viewMode === 'timeline' 
-                ? 'bg-violet-50 text-violet-600 shadow-sm' 
-                : 'text-zinc-500 hover:text-violet-600'
+                ? 'bg-violet-50 dark:bg-violet-950 text-violet-600 dark:text-violet-400 shadow-sm' 
+                : 'text-zinc-500 dark:text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400'
             }`}
           >
             <LayoutGrid size={16} />
@@ -443,8 +458,8 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
             href="/dashboard?view=grouped" 
             className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
               viewMode === 'grouped' 
-                ? 'bg-violet-50 text-violet-600 shadow-sm' 
-                : 'text-zinc-500 hover:text-violet-600'
+                ? 'bg-violet-50 dark:bg-violet-950 text-violet-600 dark:text-violet-400 shadow-sm' 
+                : 'text-zinc-500 dark:text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400'
             }`}
           >
             <Layers size={16} />
@@ -459,8 +474,8 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
           href="/dashboard/purchased" 
           className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
             pathname === '/dashboard/purchased'
-              ? 'bg-violet-50 text-violet-600'
-              : 'text-zinc-500 hover:text-violet-600'
+              ? 'bg-violet-50 dark:bg-violet-950 text-violet-600 dark:text-violet-400'
+              : 'text-zinc-500 dark:text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400'
           }`}
         >
           <Gift size={18} />
@@ -470,8 +485,8 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
           href="/dashboard/hidden" 
           className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
             pathname === '/dashboard/hidden'
-              ? 'bg-violet-50 text-violet-600'
-              : 'text-zinc-400 hover:text-violet-600'
+              ? 'bg-violet-50 dark:bg-violet-950 text-violet-600 dark:text-violet-400'
+              : 'text-zinc-400 dark:text-zinc-500 hover:text-violet-600 dark:hover:text-violet-400'
           }`}
         >
           <EyeOff size={18} />
@@ -485,19 +500,17 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
       <div className="flex items-center justify-between mb-2 px-4 group">
         <h3 className="text-xs font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-wider">Collections</h3>
         <div className="flex gap-1 md:opacity-40 md:group-hover:opacity-100 transition-opacity">
-          {/* Manage/Delete Button */}
           <button 
             onClick={() => setIsManaging(!isManaging)}
-            className={`p-1 rounded transition-all ${isManaging ? 'bg-violet-100 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400' : 'text-zinc-400 hover:text-violet-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
+            className={`p-1 rounded transition-all ${isManaging ? 'bg-violet-100 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400' : 'text-zinc-400 hover:text-violet-500 hover:bg-zinc-100 dark:hover:bg-dpurple-800'}`}
             title="Manage Lists"
             aria-label="Manage collections"
           >
             <Settings size={14} />
           </button>
-          {/* Add Button */}
           <button 
             onClick={() => setIsCreating(true)}
-            className="p-1 text-zinc-400 hover:text-violet-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-all"
+            className="p-1 text-zinc-400 hover:text-violet-500 hover:bg-zinc-100 dark:hover:bg-dpurple-800 rounded transition-all"
             aria-label="Create new collection"
           >
             <Plus size={16} />
@@ -522,9 +535,9 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
           />
           
           {/* Slide-out Menu */}
-          <aside className="absolute left-0 top-0 bottom-0 w-[280px] bg-white shadow-xl flex flex-col animate-slide-in-left">
+          <aside className="absolute left-0 top-0 bottom-0 w-[280px] bg-white dark:bg-dpurple-950 shadow-xl flex flex-col animate-slide-in-left transition-colors">
             {/* Mobile Menu Header */}
-            <div className="flex items-center justify-between px-4 py-4 border-b border-zinc-200">
+            <div className="flex items-center justify-between px-4 py-4 border-b border-zinc-200 dark:border-dpurple-700">
               <Link href="/dashboard" className="flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
                 <Image 
                   src="/logo.svg" 
@@ -533,13 +546,13 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
                   height={36}
                   className="w-9 h-9"
                 />
-                <span className="px-1.5 py-0.5 text-[9px] font-semibold text-violet-600 bg-violet-50 rounded-full border border-violet-200">
+                <span className="px-1.5 py-0.5 text-[9px] font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950 rounded-full border border-violet-200 dark:border-violet-800">
                   BETA
                 </span>
               </Link>
               <button 
                 onClick={() => setMobileMenuOpen(false)}
-                className="p-2 -mr-2 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors"
+                className="p-2 -mr-2 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-dpurple-800 rounded-lg transition-colors"
                 aria-label="Close menu"
               >
                 <X size={24} />
@@ -552,7 +565,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
             {/* Inline Create Form with Buttons */}
             {isCreating && (
               <div className="mb-3 px-4">
-                <form onSubmit={handleCreate} className="bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-3 shadow-sm">
+                <form onSubmit={handleCreate} className="bg-zinc-50 dark:bg-dpurple-900 rounded-lg border border-zinc-200 dark:border-dpurple-700 p-3 shadow-sm">
                   
                   {/* Icon and Color Picker Row */}
                   <div className="flex items-center gap-2 mb-3 flex-wrap">
@@ -573,7 +586,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
                           }
                           setShowCreateIconPicker(!showCreateIconPicker);
                         }}
-                        className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded transition-colors"
+                        className="p-2 hover:bg-zinc-200 dark:hover:bg-dpurple-800 rounded transition-colors"
                         title="Choose icon"
                       >
                         {(() => {
@@ -595,7 +608,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
                             }}
                           />
                           <div 
-                            className="fixed z-[9999] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl p-2 w-64 max-h-64 overflow-y-auto"
+                            className="fixed z-[9999] bg-white dark:bg-dpurple-900 border border-zinc-200 dark:border-dpurple-700 rounded-lg shadow-xl p-2 w-64 max-h-64 overflow-y-auto"
                             style={{
                               top: `${createIconPickerPosition.top}px`,
                               left: `${createIconPickerPosition.left}px`,
@@ -616,7 +629,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
                                     setNewCollectionIcon(name);
                                     setShowCreateIconPicker(false);
                                   }}
-                                  className={`p-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors ${
+                                  className={`p-2 rounded hover:bg-zinc-100 dark:hover:bg-dpurple-800 transition-colors ${
                                     isSelected ? 'bg-violet-100 dark:bg-violet-900/20 ring-1 ring-violet-500' : ''
                                   }`}
                                   title={name}
@@ -643,7 +656,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
                           }}
                           className={`w-5 h-5 rounded-full transition-all flex-shrink-0 ${
                             newCollectionColor === color.name 
-                              ? 'ring-2 ring-zinc-400 dark:ring-zinc-600 ring-inset scale-110' 
+                              ? 'ring-2 ring-zinc-400 dark:ring-dpurple-600 ring-inset scale-110' 
                               : 'hover:scale-105'
                           }`}
                           style={{ backgroundColor: color.value }}
@@ -658,7 +671,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
                     autoFocus
                     type="text" 
                     placeholder="List Name..."
-                    className="w-full bg-transparent text-sm focus:outline-none text-zinc-900 dark:text-white px-2 py-2 mb-3 border-b border-zinc-200 dark:border-zinc-800"
+                    className="w-full bg-transparent text-sm focus:outline-none text-zinc-900 dark:text-white px-2 py-2 mb-3 border-b border-zinc-200 dark:border-dpurple-700"
                     value={newCollectionName}
                     onChange={(e) => setNewCollectionName(e.target.value)}
                     onKeyDown={(e) => {
@@ -682,7 +695,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
                       type="button" 
                       onClick={handleCancel}
                       disabled={loading}
-                      className="flex-1 bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-xs py-1.5 px-2 rounded font-medium hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50"
+                      className="flex-1 bg-zinc-200 dark:bg-dpurple-800 text-zinc-600 dark:text-zinc-400 text-xs py-1.5 px-2 rounded font-medium hover:bg-zinc-300 dark:hover:bg-dpurple-700 transition-colors disabled:opacity-50"
                     >
                       Cancel
                     </button>
@@ -713,26 +726,27 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
               ))}
             </div>
 
-            {/* Settings Link at Bottom */}
-            <div className="border-t border-zinc-200 px-4 py-4 mt-auto">
+            {/* Settings & Dark Mode at Bottom */}
+            <div className="border-t border-zinc-200 dark:border-dpurple-700 px-4 py-4 mt-auto space-y-1">
               <Link 
                 href="/settings" 
-                className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-zinc-500 hover:text-violet-600 hover:bg-zinc-50 transition-colors"
+                className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-zinc-50 dark:hover:bg-dpurple-900 transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 <Settings size={18} />
                 Settings
               </Link>
+              <DarkModeToggle />
             </div>
           </aside>
         </div>
       )}
 
       {/* Desktop Sidebar */}
-      <aside className="w-64 border-r border-zinc-200 h-screen sticky top-0 hidden md:flex flex-col bg-white">
+      <aside className="w-64 border-r border-zinc-200 dark:border-dpurple-700 h-screen sticky top-0 hidden md:flex flex-col bg-white dark:bg-dpurple-950 transition-colors">
         
         {/* Logo - Top Corner */}
-        <Link href="/dashboard" className="flex items-center gap-2 px-4 pt-4 pb-6 hover:opacity-80 transition-opacity border-b border-zinc-200">
+        <Link href="/dashboard" className="flex items-center gap-2 px-4 pt-4 pb-6 hover:opacity-80 transition-opacity border-b border-zinc-200 dark:border-dpurple-700">
           <div className="relative flex items-center">
             <Image 
               src="/logo.svg" 
@@ -741,7 +755,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
               height={40}
               className="w-10 h-10"
             />
-            <span className="ml-2 px-1.5 py-0.5 text-[10px] font-semibold text-violet-600 bg-violet-50 rounded-full border border-violet-200">
+            <span className="ml-2 px-1.5 py-0.5 text-[10px] font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950 rounded-full border border-violet-200 dark:border-violet-800">
               BETA
             </span>
           </div>
@@ -752,7 +766,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
       {/* Inline Create Form with Buttons */}
       {isCreating && (
         <div className="mb-3 px-4">
-          <form onSubmit={handleCreate} className="bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-3 shadow-sm">
+          <form onSubmit={handleCreate} className="bg-zinc-50 dark:bg-dpurple-900 rounded-lg border border-zinc-200 dark:border-dpurple-700 p-3 shadow-sm">
             
             {/* Icon and Color Picker Row */}
             <div className="flex items-center gap-2 mb-3 flex-wrap">
@@ -773,7 +787,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
                     }
                     setShowCreateIconPicker(!showCreateIconPicker);
                   }}
-                  className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded transition-colors"
+                  className="p-2 hover:bg-zinc-200 dark:hover:bg-dpurple-800 rounded transition-colors"
                   title="Choose icon"
                 >
                   {(() => {
@@ -795,7 +809,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
                       }}
                     />
                     <div 
-                      className="fixed z-[9999] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl p-2 w-64 max-h-64 overflow-y-auto"
+                      className="fixed z-[9999] bg-white dark:bg-dpurple-900 border border-zinc-200 dark:border-dpurple-700 rounded-lg shadow-xl p-2 w-64 max-h-64 overflow-y-auto"
                       style={{
                         top: `${createIconPickerPosition.top}px`,
                         left: `${createIconPickerPosition.left}px`,
@@ -816,7 +830,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
                               setNewCollectionIcon(name);
                               setShowCreateIconPicker(false);
                             }}
-                            className={`p-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors ${
+                            className={`p-2 rounded hover:bg-zinc-100 dark:hover:bg-dpurple-800 transition-colors ${
                               isSelected ? 'bg-violet-100 dark:bg-violet-900/20 ring-1 ring-violet-500' : ''
                             }`}
                             title={name}
@@ -843,7 +857,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
                     }}
                     className={`w-5 h-5 rounded-full transition-all flex-shrink-0 ${
                       newCollectionColor === color.name 
-                        ? 'ring-2 ring-zinc-400 dark:ring-zinc-600 ring-inset scale-110' 
+                        ? 'ring-2 ring-zinc-400 dark:ring-dpurple-600 ring-inset scale-110' 
                         : 'hover:scale-105'
                     }`}
                     style={{ backgroundColor: color.value }}
@@ -858,7 +872,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
               autoFocus
               type="text" 
               placeholder="List Name..."
-              className="w-full bg-transparent text-sm focus:outline-none text-zinc-900 dark:text-white px-2 py-2 mb-3 border-b border-zinc-200 dark:border-zinc-800"
+              className="w-full bg-transparent text-sm focus:outline-none text-zinc-900 dark:text-white px-2 py-2 mb-3 border-b border-zinc-200 dark:border-dpurple-700"
               value={newCollectionName}
               onChange={(e) => setNewCollectionName(e.target.value)}
               onKeyDown={(e) => {
@@ -882,7 +896,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
                 type="button" 
                 onClick={handleCancel}
                 disabled={loading}
-                className="flex-1 bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-xs py-1.5 px-2 rounded font-medium hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50"
+                className="flex-1 bg-zinc-200 dark:bg-dpurple-800 text-zinc-600 dark:text-zinc-400 text-xs py-1.5 px-2 rounded font-medium hover:bg-zinc-300 dark:hover:bg-dpurple-700 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -894,7 +908,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
       {/* Collections List */}
       <div className="space-y-1 overflow-y-auto flex-1 px-4 pb-4">
         {collections.length === 0 && !isCreating && (
-          <p className="text-xs text-zinc-400 px-3 py-2">No collections yet</p>
+          <p className="text-xs text-zinc-400 dark:text-zinc-500 px-3 py-2">No collections yet</p>
         )}
         {collections.map((col) => (
           <CollectionItem
@@ -906,6 +920,11 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
             onIconChange={handleIconChange}
           />
         ))}
+      </div>
+
+      {/* Bottom actions */}
+      <div className="border-t border-zinc-200 dark:border-dpurple-700 px-4 py-3 mt-auto space-y-1">
+        <DarkModeToggle />
       </div>
     </aside>
     </>

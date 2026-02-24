@@ -288,12 +288,64 @@ function scrapeProductData() {
     title = document.querySelector('meta[property="og:title"]')?.getAttribute('content')?.trim() || null;
   }
   
-  // Strategy 3: Amazon-specific selectors
+  // Strategy 3: Agent sites (Kakobuy, Superbuy, Wegobuy, Pandabuy, CSSBuy)
+  if (!title) {
+    const hostname = window.location.hostname.toLowerCase();
+    if (hostname.includes('kakobuy.') || hostname.includes('superbuy.') || hostname.includes('wegobuy.') || hostname.includes('pandabuy.') || hostname.includes('cssbuy.')) {
+      const agentSelectors = [
+        '[class*="goodsName"]', '[class*="goods-name"]', '[class*="GoodsName"]',
+        '[class*="goodsTitle"]', '[class*="goods-title"]', '[class*="GoodsTitle"]',
+        '[class*="product-name"]', '[class*="productName"]', '[class*="ProductName"]',
+        '[class*="product-title"]', '[class*="productTitle"]', '[class*="ProductTitle"]',
+        '[class*="item-name"]', '[class*="itemName"]', '[class*="ItemName"]',
+        '[class*="item-title"]', '[class*="itemTitle"]', '[class*="ItemTitle"]',
+        '[class*="detail-title"]', '[class*="detailTitle"]',
+        '[class*="info-name"]', '[class*="infoName"]',
+      ];
+      for (const sel of agentSelectors) {
+        try {
+          const els = document.querySelectorAll(sel);
+          for (const el of els) {
+            const text = el.textContent?.trim();
+            if (text && text.length > 8 && text.length < 500 &&
+                !/^(Home|Shop|Cart|Login|Kakobuy|Detail|Loading)/i.test(text)) {
+              title = text; break;
+            }
+          }
+          if (title) break;
+        } catch (e) {}
+      }
+      if (!title) {
+        let best = null; let bestLen = 0;
+        const cands = document.querySelectorAll('h1, h2, h3, [class*="title"], [class*="name"], [class*="Title"], [class*="Name"]');
+        for (const el of cands) {
+          const text = el.textContent?.trim();
+          if (text && text.length > 10 && text.length < 300 && text.length > bestLen &&
+              !/kakobuy|superbuy|wegobuy|pandabuy|cssbuy|login|register|cart|home/i.test(text)) {
+            best = text; bestLen = text.length;
+          }
+        }
+        if (best) title = best;
+      }
+      if (!title) {
+        try {
+          const html = document.documentElement.innerHTML;
+          const patterns = [/"goodsName"\s*:\s*"([^"]+)"/, /"goods_name"\s*:\s*"([^"]+)"/, /"productName"\s*:\s*"([^"]+)"/, /"title"\s*:\s*"([^"]{10,200})"/];
+          for (const p of patterns) {
+            const m = html.match(p);
+            if (m && m[1] && m[1].length > 5) { title = m[1]; break; }
+          }
+        } catch (e) {}
+      }
+    }
+  }
+
+  // Strategy 4: Amazon-specific selectors
   if (!title) {
     title = document.getElementById('productTitle')?.innerText.trim() || null;
   }
   
-  // Strategy 4: Generic h1 or title tag
+  // Strategy 5: Generic h1 or title tag
   if (!title) {
     const h1 = document.querySelector('h1');
     if (h1) {
@@ -302,7 +354,7 @@ function scrapeProductData() {
     }
   }
   
-  // Strategy 5: Page title as last resort
+  // Strategy 6: Page title as last resort
   if (!title) {
     title = document.title.trim();
     title = title.replace(/^Amazon\.com:\s*/i, '').replace(/\s*:\s*Amazon\.com$/i, '');

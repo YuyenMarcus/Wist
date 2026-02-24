@@ -111,9 +111,39 @@ const SITE_SELECTORS: Record<string, {
     image: ['meta[property="og:image"]'],
   },
   'kakobuy.': {
-    title: ['meta[property="og:title"]', 'h1', '.product-title', '.goods-title'],
+    title: [
+      '[class*="goodsName"]', '[class*="goods-name"]', '[class*="GoodsName"]',
+      '[class*="goodsTitle"]', '[class*="goods-title"]', '[class*="productName"]',
+      '[class*="product-name"]', '[class*="item-name"]', '[class*="itemName"]',
+      'meta[property="og:title"]', 'h1', '.product-title', '.goods-title',
+    ],
+    price: ['.product-price', '.goods-price', '[class*="price"]'],
+    image: ['meta[property="og:image"]', '[class*="mainImage"] img', '[class*="goodsImage"] img', '.product-image img', '.goods-image img'],
+  },
+  'superbuy.': {
+    title: [
+      '[class*="goodsName"]', '[class*="goods-name"]', '[class*="productName"]',
+      '[class*="product-name"]', '[class*="item-name"]',
+      'meta[property="og:title"]', 'h1',
+    ],
     price: ['.product-price', '.goods-price', '[class*="price"]'],
     image: ['meta[property="og:image"]', '.product-image img', '.goods-image img'],
+  },
+  'wegobuy.': {
+    title: [
+      '[class*="goodsName"]', '[class*="goods-name"]', '[class*="productName"]',
+      'meta[property="og:title"]', 'h1',
+    ],
+    price: ['.product-price', '.goods-price', '[class*="price"]'],
+    image: ['meta[property="og:image"]', '.product-image img'],
+  },
+  'pandabuy.': {
+    title: [
+      '[class*="goodsName"]', '[class*="goods-name"]', '[class*="productName"]',
+      'meta[property="og:title"]', 'h1',
+    ],
+    price: ['.product-price', '.goods-price', '[class*="price"]'],
+    image: ['meta[property="og:image"]', '.product-image img'],
   },
 };
 

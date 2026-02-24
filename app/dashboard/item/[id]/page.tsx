@@ -201,29 +201,29 @@ export default function ItemDetail() {
   const cDec = 2;
 
   return (
-    <PageTransition className="min-h-screen bg-gray-50 p-8">
+    <PageTransition className="min-h-screen bg-gray-50 dark:bg-dpurple-950 p-8 transition-colors">
       <div className="mx-auto max-w-6xl">
-        <Link href="/dashboard" className="mb-6 inline-flex items-center text-sm font-medium text-gray-500 hover:text-indigo-600">
+        <Link href="/dashboard" className="mb-6 inline-flex items-center text-sm font-medium text-gray-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-violet-400">
           ← Back to Dashboard
         </Link>
 
         <div className="grid gap-8 lg:grid-cols-3">
           {/* LEFT COLUMN: Image & Info */}
           <div className="lg:col-span-1">
-            <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-900/5">
-              <div className="aspect-square w-full bg-white p-6 flex items-center justify-center">
+            <div className="overflow-hidden rounded-xl bg-white dark:bg-dpurple-900 shadow-sm ring-1 ring-gray-900/5 dark:ring-dpurple-700">
+              <div className="aspect-square w-full bg-white dark:bg-dpurple-900 p-6 flex items-center justify-center">
                 <img src={item.image_url || item.image} alt={item.title} className="max-h-full max-w-full object-contain" />
               </div>
-              <div className="p-6 border-t border-gray-100">
-                <div className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">
+              <div className="p-6 border-t border-gray-100 dark:border-dpurple-700">
+                <div className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-zinc-400">
                   {item.retailer || item.domain || 'Amazon'}
                 </div>
-                <h1 className="text-lg font-bold text-gray-900 leading-snug">{item.title}</h1>
+                <h1 className="text-lg font-bold text-gray-900 dark:text-zinc-100 leading-snug">{item.title}</h1>
                 
                 <div className="mt-6 space-y-3">
                   {/* Current Price */}
                   <div className="flex items-baseline gap-3">
-                    <span className="text-4xl font-extrabold text-gray-900">{cSym}{currentPrice.toFixed(cDec)}</span>
+                    <span className="text-4xl font-extrabold text-gray-900 dark:text-zinc-100">{cSym}{currentPrice.toFixed(cDec)}</span>
                     {history.length > 1 && (
                       <span className={`text-sm font-semibold ${isCheaper ? 'text-green-600' : 'text-red-600'}`}>
                         {isCheaper ? '▼' : '▲'} {cSym}{Math.abs(diff).toFixed(cDec)}
@@ -270,7 +270,7 @@ export default function ItemDetail() {
             
             {/* Price History Chart */}
             <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-900/5">
-              <h2 className="mb-6 text-lg font-bold text-gray-900">Price History</h2>
+              <h2 className="mb-6 text-lg font-bold text-gray-900 dark:text-zinc-100">Price History</h2>
               
               <div className="h-80 w-full">
                 {history.length > 0 ? (
@@ -335,7 +335,7 @@ export default function ItemDetail() {
             {/* Weekly Price Log */}
             {history.length > 0 && (
               <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-900/5">
-                <h3 className="font-bold text-gray-900 mb-4">Weekly Price Log</h3>
+                <h3 className="font-bold text-gray-900 dark:text-zinc-100 mb-4">Weekly Price Log</h3>
                 <div className="divide-y divide-gray-100">
                   {(() => {
                     const weeks: { weekLabel: string; price: number; date: Date }[] = []

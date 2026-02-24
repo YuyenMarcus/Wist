@@ -96,7 +96,7 @@ export default function CollectionSettings({ collectionId, collectionName }: Pro
     <div className="relative z-20" ref={menuRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors text-zinc-500 dark:text-zinc-400"
+        className="p-2 bg-white dark:bg-dpurple-900 border border-zinc-200 dark:border-dpurple-700 rounded-lg hover:bg-zinc-50 dark:hover:bg-dpurple-800 transition-colors text-zinc-500 dark:text-zinc-400"
         aria-label="Collection settings"
       >
         <Settings size={18} />
@@ -109,7 +109,7 @@ export default function CollectionSettings({ collectionId, collectionName }: Pro
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 p-2 overflow-hidden z-30"
+            className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-dpurple-900 rounded-xl shadow-xl border border-zinc-200 dark:border-dpurple-700 p-2 overflow-hidden z-30"
           >
             {/* RENAME MODE */}
             {isEditing ? (
@@ -128,7 +128,7 @@ export default function CollectionSettings({ collectionId, collectionName }: Pro
                         setNewName(collectionName);
                       }
                     }}
-                    className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 dark:text-white"
+                    className="flex-1 bg-zinc-50 dark:bg-dpurple-800 border border-zinc-200 dark:border-dpurple-600 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 dark:text-white"
                     disabled={loading}
                   />
                   <button 
@@ -145,7 +145,7 @@ export default function CollectionSettings({ collectionId, collectionName }: Pro
                       setNewName(collectionName);
                     }}
                     disabled={loading}
-                    className="p-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                    className="p-1 bg-zinc-100 dark:bg-dpurple-800 text-zinc-500 dark:text-zinc-400 rounded hover:bg-zinc-200 dark:hover:bg-dpurple-700 transition-colors"
                   >
                     <X size={16} />
                   </button>
@@ -172,7 +172,7 @@ export default function CollectionSettings({ collectionId, collectionName }: Pro
                   <button 
                     onClick={() => setIsDeleting(false)} 
                     disabled={loading}
-                    className="flex-1 py-1.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 text-xs font-bold rounded hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                    className="flex-1 py-1.5 bg-white dark:bg-dpurple-900 border border-zinc-200 dark:border-dpurple-600 text-zinc-600 dark:text-zinc-300 text-xs font-bold rounded hover:bg-zinc-50 dark:hover:bg-dpurple-800 transition-colors"
                   >
                     Cancel
                   </button>
@@ -183,7 +183,7 @@ export default function CollectionSettings({ collectionId, collectionName }: Pro
               <div className="space-y-1">
                 <button 
                   onClick={() => setIsEditing(true)}
-                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg transition-colors text-left"
+                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-dpurple-800 rounded-lg transition-colors text-left"
                 >
                   <Edit2 size={16} />
                   Rename

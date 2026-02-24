@@ -85,7 +85,7 @@ export default async function CollectionPage({ params }: { params: { slug: strin
       <main className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
         {/* EMPTY STATE HANDLING */}
         {(!items || items.length === 0) ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl">
+            <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed border-zinc-200 dark:border-dpurple-700 rounded-2xl">
                 <div className="text-4xl mb-4">📂</div>
                 <h3 className="text-lg font-medium text-zinc-900 dark:text-white">This collection is empty</h3>
                 <p className="text-zinc-500 dark:text-zinc-400 max-w-sm mt-2">

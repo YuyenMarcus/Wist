@@ -29,8 +29,8 @@ function NotificationToggle() {
       onClick={() => setEnabled(!enabled)}
       className={`rounded-full p-2.5 sm:p-3 shadow-sm border transition-all ${
         enabled
-          ? 'bg-white text-violet-600 border-violet-200 hover:bg-violet-50'
-          : 'bg-white text-zinc-400 border-zinc-200 hover:bg-zinc-50'
+          ? 'bg-white dark:bg-dpurple-900 text-violet-600 dark:text-violet-400 border-violet-200 dark:border-violet-800 hover:bg-violet-50 dark:hover:bg-violet-950'
+          : 'bg-white dark:bg-dpurple-900 text-zinc-400 border-zinc-200 dark:border-dpurple-600 hover:bg-zinc-50 dark:hover:bg-dpurple-800'
       }`}
       title={enabled ? 'Notifications on' : 'Notifications off'}
     >
@@ -55,7 +55,7 @@ export default function ProfileHeader({ user, profile, itemCount, onRefreshPrice
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:gap-0 mb-6 sm:mb-8">
         <div className="flex gap-4 sm:gap-5">
           {/* Avatar with Ring */}
-          <div className="relative h-16 w-16 sm:h-20 sm:w-20 rounded-full border-4 border-white shadow-lg overflow-hidden ring-2 ring-violet-100 flex-shrink-0">
+          <div className="relative h-16 w-16 sm:h-20 sm:w-20 rounded-full border-4 border-white dark:border-dpurple-900 shadow-lg overflow-hidden ring-2 ring-violet-100 dark:ring-violet-900 flex-shrink-0">
             <img
               src={avatarUrl}
               alt="Profile"
@@ -65,17 +65,17 @@ export default function ProfileHeader({ user, profile, itemCount, onRefreshPrice
           
           {/* Text Info */}
           <div className="pt-1 sm:pt-2 min-w-0 flex-1">
-            <h1 className="text-lg sm:text-xl font-bold text-zinc-900 tracking-tight truncate flex items-center gap-1.5">
+            <h1 className="text-lg sm:text-xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight truncate flex items-center gap-1.5">
               {displayName}
               <TierBadge tier={profile?.subscription_tier} />
             </h1>
-            <p className="text-sm text-zinc-500 font-medium">@{username}</p>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 font-medium">@{username}</p>
             {profile?.bio ? (
-              <p className="mt-1 sm:mt-2 text-sm text-zinc-600 max-w-xs leading-relaxed line-clamp-2 sm:line-clamp-none">
+              <p className="mt-1 sm:mt-2 text-sm text-zinc-600 dark:text-zinc-400 max-w-xs leading-relaxed line-clamp-2 sm:line-clamp-none">
                 {profile.bio}
               </p>
             ) : (
-              <p className="mt-1 sm:mt-2 text-xs sm:text-sm text-zinc-400 max-w-xs leading-relaxed italic hidden sm:block">
+              <p className="mt-1 sm:mt-2 text-xs sm:text-sm text-zinc-400 dark:text-zinc-500 max-w-xs leading-relaxed italic hidden sm:block">
                 No bio yet. Add one in your account settings.
               </p>
             )}
@@ -85,14 +85,14 @@ export default function ProfileHeader({ user, profile, itemCount, onRefreshPrice
         {/* Stats (Social Proof) - Inline on mobile */}
         <div className="flex gap-6 sm:pt-3 text-center flex-shrink-0 items-center sm:items-start justify-start sm:justify-end">
           <div>
-            <div className="text-base sm:text-lg font-bold text-zinc-900 h-6 sm:h-7 flex items-center justify-center">{itemCount}</div>
-            <div className="text-[10px] sm:text-xs text-zinc-400 uppercase tracking-wider font-semibold">Items</div>
+            <div className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100 h-6 sm:h-7 flex items-center justify-center">{itemCount}</div>
+            <div className="text-[10px] sm:text-xs text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-semibold">Items</div>
           </div>
           <Link href="/dashboard/purchased" className="group">
-            <div className="text-base sm:text-lg font-bold text-zinc-900 group-hover:text-green-600 transition-colors h-6 sm:h-7 flex items-center justify-center">
+            <div className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-green-600 transition-colors h-6 sm:h-7 flex items-center justify-center">
               <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div className="text-[10px] sm:text-xs text-zinc-400 uppercase tracking-wider font-semibold group-hover:text-green-600 transition-colors">Purchased</div>
+            <div className="text-[10px] sm:text-xs text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-semibold group-hover:text-green-600 transition-colors">Purchased</div>
           </Link>
         </div>
       </div>
@@ -102,7 +102,7 @@ export default function ProfileHeader({ user, profile, itemCount, onRefreshPrice
         {isTierAtLeast(profile?.subscription_tier, 'pro_plus') && (
           <button
             onClick={() => setShowImport(true)}
-            className="rounded-full p-2.5 sm:p-3 shadow-sm border bg-white text-zinc-500 border-zinc-200 hover:text-violet-600 hover:border-violet-200 transition-all"
+            className="rounded-full p-2.5 sm:p-3 shadow-sm border bg-white dark:bg-dpurple-900 text-zinc-500 dark:text-zinc-400 border-zinc-200 dark:border-dpurple-600 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-200 dark:hover:border-violet-800 transition-all"
             title="Import items"
           >
             <Upload className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -128,7 +128,7 @@ export default function ProfileHeader({ user, profile, itemCount, onRefreshPrice
       />
       
       {/* Horizontal Divider before content */}
-      <div className="h-px w-full bg-gradient-to-r from-transparent via-zinc-200 to-transparent mb-8" />
+      <div className="h-px w-full bg-gradient-to-r from-transparent via-zinc-200 dark:via-zinc-800 to-transparent mb-8" />
     </div>
   )
 }

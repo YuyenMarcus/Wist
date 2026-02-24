@@ -840,19 +840,60 @@ function scrapePageData() {
   // ===== AGENT SITES (Kakobuy, Superbuy, Wegobuy, Pandabuy, CSSBuy) =====
   else if (domain.includes('kakobuy.') || domain.includes('superbuy.') || domain.includes('wegobuy.') || domain.includes('pandabuy.') || domain.includes('cssbuy.')) {
     const titleSelectors = [
-      'h1', '.product-title', '.goods-title', '[class*="goodsTitle"]',
-      '[class*="product-name"]', '[class*="item-name"]', '.title'
+      '[class*="goodsName"]', '[class*="goods-name"]', '[class*="GoodsName"]',
+      '[class*="goodsTitle"]', '[class*="goods-title"]', '[class*="GoodsTitle"]',
+      '[class*="product-name"]', '[class*="productName"]', '[class*="ProductName"]',
+      '[class*="product-title"]', '[class*="productTitle"]', '[class*="ProductTitle"]',
+      '[class*="item-name"]', '[class*="itemName"]', '[class*="ItemName"]',
+      '[class*="item-title"]', '[class*="itemTitle"]', '[class*="ItemTitle"]',
+      '[class*="detail-title"]', '[class*="detailTitle"]',
+      '[class*="info-name"]', '[class*="infoName"]',
+      '.goods-title', '.product-title', '.item-title',
+      'h1', 'h2',
     ];
     for (const sel of titleSelectors) {
-      const el = document.querySelector(sel);
-      if (el) {
+      try {
+        const els = document.querySelectorAll(sel);
+        for (const el of els) {
+          const text = el.textContent?.trim();
+          if (text && text.length > 8 && text.length < 500 &&
+              !/^(Home|Shop|Cart|Login|Kakobuy|Detail|Loading)/i.test(text)) {
+            title = text;
+            break;
+          }
+        }
+        if (title) break;
+      } catch (e) {}
+    }
+    if (!title) {
+      let best = null; let bestLen = 0;
+      const cands = document.querySelectorAll('h1, h2, h3, [class*="title"], [class*="name"], [class*="Title"], [class*="Name"]');
+      for (const el of cands) {
         const text = el.textContent?.trim();
-        if (text && text.length > 5) { title = text; break; }
+        if (text && text.length > 10 && text.length < 300 && text.length > bestLen &&
+            !/kakobuy|superbuy|wegobuy|pandabuy|cssbuy|login|register|cart|home/i.test(text)) {
+          best = text; bestLen = text.length;
+        }
       }
+      if (best) title = best;
+    }
+    if (!title) {
+      const cleaned = (document.title || '').replace(/[-|–]\s*(Kakobuy|Superbuy|Wegobuy|Pandabuy|CSSBuy).*/i, '').trim();
+      if (cleaned.length > 5) title = cleaned;
     }
     if (!title) {
       const ogT = document.querySelector('meta[property="og:title"]');
       if (ogT) title = ogT.getAttribute('content');
+    }
+    if (!title) {
+      try {
+        const html = document.documentElement.innerHTML;
+        const patterns = [/"goodsName"\s*:\s*"([^"]+)"/, /"goods_name"\s*:\s*"([^"]+)"/, /"productName"\s*:\s*"([^"]+)"/, /"title"\s*:\s*"([^"]{10,200})"/];
+        for (const p of patterns) {
+          const m = html.match(p);
+          if (m && m[1] && m[1].length > 5) { title = m[1]; break; }
+        }
+      } catch (e) {}
     }
 
     const priceSelectors = [
@@ -869,14 +910,18 @@ function scrapePageData() {
     }
 
     const imageSelectors = [
-      '.product-image img', '.goods-image img', '[class*="mainImage"] img',
-      '[class*="gallery"] img', '.swiper-slide img'
+      '[class*="mainImage"] img', '[class*="MainImage"] img',
+      '[class*="goodsImage"] img', '[class*="goods-image"] img',
+      '[class*="product-image"] img', '[class*="productImage"] img',
+      '[class*="gallery"] img', '[class*="Gallery"] img',
+      '.swiper-slide img', 'img[src*="cbu01.alicdn"]', 'img[src*="img.alicdn"]',
+      '.product-image img', '.goods-image img',
     ];
     for (const sel of imageSelectors) {
       const el = document.querySelector(sel);
       if (el) {
         const src = el.getAttribute('data-src') || el.src;
-        if (src && !src.includes('placeholder') && !src.includes('svg')) {
+        if (src && !src.includes('placeholder') && !src.includes('svg') && !src.includes('logo')) {
           image = src.startsWith('//') ? 'https:' + src : src;
           break;
         }
@@ -885,6 +930,17 @@ function scrapePageData() {
     if (!image) {
       const ogI = document.querySelector('meta[property="og:image"]');
       if (ogI) image = ogI.getAttribute('content');
+    }
+    if (!image) {
+      const allImgs = document.querySelectorAll('img');
+      let bestImg = null; let bestSize = 0;
+      for (const img of allImgs) {
+        const sz = (img.naturalWidth || img.width || 0) * (img.naturalHeight || img.height || 0);
+        if (sz > bestSize && !img.src.includes('logo') && !img.src.includes('icon') && img.src.length > 10) {
+          bestImg = img.src; bestSize = sz;
+        }
+      }
+      if (bestImg) image = bestImg;
     }
 
     const ogD = document.querySelector('meta[property="og:description"], meta[name="description"]');

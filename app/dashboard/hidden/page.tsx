@@ -105,32 +105,32 @@ export default function HiddenPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-50">
+      <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-dpurple-900">
         <LavenderLoader size="lg" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50/50 pb-32">
+    <div className="min-h-screen bg-zinc-50/50 dark:bg-dpurple-900/50 pb-32">
       <div className="fixed inset-0 z-[-1] bg-grid-pattern opacity-30 pointer-events-none" />
 
-      <header className="bg-white border-b border-zinc-200 sticky top-0 z-10">
+      <header className="bg-white dark:bg-dpurple-950 border-b border-zinc-200 dark:border-dpurple-700 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link 
                 href="/dashboard" 
-                className="p-2 hover:bg-zinc-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-zinc-100 dark:hover:bg-dpurple-800 rounded-lg transition-colors"
               >
-                <ArrowLeft className="w-5 h-5 text-zinc-600" />
+                <ArrowLeft className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
               </Link>
               <div>
-                <h1 className="text-xl font-bold text-zinc-900 flex items-center gap-2">
-                  <EyeOff className="w-5 h-5 text-zinc-500" />
+                <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                  <EyeOff className="w-5 h-5 text-zinc-500 dark:text-zinc-400" />
                   Hidden Items
                 </h1>
-                <p className="text-sm text-zinc-500">
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">
                   {items.length} hidden item{items.length !== 1 ? 's' : ''} — these don't count toward your list total
                 </p>
               </div>
@@ -142,11 +142,11 @@ export default function HiddenPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {items.length === 0 ? (
           <div className="text-center py-20">
-            <div className="w-16 h-16 bg-zinc-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-zinc-100 dark:bg-dpurple-800 rounded-full flex items-center justify-center mx-auto mb-4">
               <EyeOff className="w-8 h-8 text-zinc-400" />
             </div>
-            <h2 className="text-lg font-medium text-zinc-900 mb-2">No hidden items</h2>
-            <p className="text-zinc-500 mb-6">
+            <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-100 mb-2">No hidden items</h2>
+            <p className="text-zinc-500 dark:text-zinc-400 mb-6">
               Items you hide will appear here. They won't show on your list or profile.
             </p>
             <Link
@@ -166,7 +166,7 @@ export default function HiddenPage() {
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
-                  className="group relative bg-white rounded-xl overflow-hidden border border-zinc-200 hover:border-zinc-400 hover:shadow-lg transition-all duration-300"
+                  className="group relative bg-white dark:bg-dpurple-950 rounded-xl overflow-hidden border border-zinc-200 dark:border-dpurple-700 hover:border-zinc-400 hover:shadow-lg transition-all duration-300"
                 >
                   {/* Hidden Badge */}
                   <div className="absolute top-3 left-3 z-10">
@@ -177,7 +177,7 @@ export default function HiddenPage() {
                   </div>
 
                   {/* Image */}
-                  <div className="relative aspect-[4/5] overflow-hidden bg-zinc-100">
+                  <div className="relative aspect-[4/5] overflow-hidden bg-zinc-100 dark:bg-dpurple-800">
                     {item.image_url ? (
                       <img
                         src={item.image_url}
@@ -186,7 +186,7 @@ export default function HiddenPage() {
                         loading="lazy"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-zinc-50 to-zinc-100">
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-800">
                         <span className="text-2xl font-medium text-zinc-400">
                           {item.title?.substring(0, 2).toUpperCase() || '??'}
                         </span>
@@ -197,14 +197,14 @@ export default function HiddenPage() {
                     <div className="absolute top-3 right-3 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex gap-2">
                       <button
                         onClick={() => handleUnhide(item.id)}
-                        className="p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white text-zinc-600 hover:text-violet-600 transition-colors"
+                        className="p-2 bg-white/90 dark:bg-dpurple-950/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white dark:hover:bg-dpurple-900 text-zinc-600 dark:text-zinc-400 hover:text-violet-600 transition-colors"
                         title="Unhide — move back to wishlist"
                       >
                         <Eye size={16} />
                       </button>
                       <button
                         onClick={() => handleDelete(item.id)}
-                        className="p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white text-zinc-600 hover:text-red-600 transition-colors"
+                        className="p-2 bg-white/90 dark:bg-dpurple-950/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white dark:hover:bg-dpurple-900 text-zinc-600 dark:text-zinc-400 hover:text-red-600 transition-colors"
                         title="Delete permanently"
                       >
                         <Trash2 size={16} />
@@ -214,13 +214,13 @@ export default function HiddenPage() {
 
                   {/* Content */}
                   <div className="p-4">
-                    <h3 className="font-medium text-zinc-900 text-sm mb-2 line-clamp-2">
+                    <h3 className="font-medium text-zinc-900 dark:text-zinc-100 text-sm mb-2 line-clamp-2">
                       {item.title || 'Untitled Item'}
                     </h3>
                     
                     <div className="flex items-center justify-between mb-3">
                       {item.current_price ? (
-                        <span className="text-sm font-bold text-zinc-900">
+                        <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
                           {formatPrice(item.current_price)}
                         </span>
                       ) : (

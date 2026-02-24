@@ -205,7 +205,7 @@ export default function QueuedItemCard({ item, onUpdate, onDelete }: Props) {
   }
 
   return (
-    <div className="bg-white border-2 border-dashed border-zinc-200 rounded-xl p-3 sm:p-4 hover:border-violet-300 transition-colors group">
+    <div className="bg-white dark:bg-dpurple-900 border-2 border-dashed border-zinc-200 dark:border-dpurple-600 rounded-xl p-3 sm:p-4 hover:border-violet-300 dark:hover:border-violet-700 transition-colors group">
       <div className="flex items-start gap-3">
         {/* Favicon */}
         <div className="flex-shrink-0 w-10 h-10 bg-zinc-100 rounded-lg flex items-center justify-center overflow-hidden">
@@ -231,7 +231,7 @@ export default function QueuedItemCard({ item, onUpdate, onDelete }: Props) {
             <span className="text-[10px] text-zinc-400">{timeAgo}</span>
           </div>
 
-          <p className="text-sm font-medium text-zinc-900 truncate">
+          <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">
             {item.title && item.title !== 'New Item' ? item.title : shortUrl}
           </p>
 

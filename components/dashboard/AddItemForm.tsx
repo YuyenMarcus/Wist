@@ -306,14 +306,14 @@ export default function AddItemForm() {
 
       {/* Desktop: Extension prompt (non-blocking) */}
       {showExtensionPrompt && (
-        <div className="mb-4 p-3 sm:p-4 bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-200 rounded-xl">
+        <div className="mb-4 p-3 sm:p-4 bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-950/30 dark:to-purple-950/30 border border-violet-200 dark:border-violet-800 rounded-xl">
           <div className="flex flex-col sm:flex-row items-start gap-3">
             <div className="p-2 bg-violet-100 rounded-lg flex-shrink-0">
               <Puzzle className="w-5 h-5 text-violet-600" />
             </div>
             <div className="flex-1 min-w-0">
-              <h4 className="text-sm font-medium text-zinc-900">Install the extension for the best experience</h4>
-              <p className="mt-1 text-xs text-zinc-500 leading-relaxed">
+              <h4 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Install the extension for the best experience</h4>
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
                 The Wist extension enables one-click saving from any shopping site. You can also paste links below.
               </p>
               <a
@@ -332,8 +332,8 @@ export default function AddItemForm() {
       {/* URL Input - always enabled */}
       <div className="relative">
         <div
-          className={`relative bg-white rounded-2xl border border-zinc-200 shadow-sm transition-all duration-300 overflow-hidden ${
-            isExpanded ? 'shadow-xl border-violet-200 ring-2 ring-violet-200' : ''
+          className={`relative bg-white dark:bg-dpurple-900 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm transition-all duration-300 overflow-hidden ${
+            isExpanded ? 'shadow-xl border-violet-200 dark:border-violet-800 ring-2 ring-violet-200 dark:ring-violet-900' : ''
           }`}
         >
           <div className="flex items-center h-14 px-4">
@@ -346,7 +346,7 @@ export default function AddItemForm() {
                 if (url.trim()) setIsExpanded(true)
               }}
               placeholder="Paste a product link..."
-              className="flex-1 bg-transparent border-none outline-none text-zinc-900 placeholder-zinc-400 text-sm focus:ring-0"
+              className="flex-1 bg-transparent border-none outline-none text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 text-sm focus:ring-0"
               disabled={loading || saving}
             />
             {loading && (
@@ -384,7 +384,7 @@ export default function AddItemForm() {
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               className="mt-3 overflow-hidden"
             >
-              <div className="bg-white rounded-xl border border-zinc-200 shadow-sm p-4">
+              <div className="bg-white dark:bg-dpurple-900 rounded-xl border border-zinc-200 dark:border-dpurple-700 shadow-sm p-4">
                 {loading && (
                   <div className="mb-3 flex items-center gap-2 text-xs text-zinc-400">
                     <div className="w-3.5 h-3.5 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />
@@ -437,11 +437,11 @@ export default function AddItemForm() {
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-zinc-900 truncate">
+                        <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">
                           {preview.title || 'Untitled Item'}
                         </p>
                         {preview.price && (
-                          <p className="text-xs text-zinc-500 mt-0.5">
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
                             ${typeof preview.price === 'number' ? preview.price.toFixed(2) : preview.price.toString().replace(/^\$/, '')}
                           </p>
                         )}
@@ -457,7 +457,7 @@ export default function AddItemForm() {
                 )}
 
                 <div className="flex items-center gap-2">
-                  <label className="text-xs text-zinc-500">Priority:</label>
+                  <label className="text-xs text-zinc-500 dark:text-zinc-400">Priority:</label>
                   <div className="flex gap-1">
                     {(['high', 'medium', 'low'] as Priority[]).map((p) => (
                       <button
@@ -466,8 +466,8 @@ export default function AddItemForm() {
                         onClick={() => setPriority(p)}
                         className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
                           priority === p
-                            ? 'bg-zinc-900 text-white'
-                            : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                            ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900'
+                            : 'bg-zinc-100 dark:bg-dpurple-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-dpurple-700'
                         }`}
                       >
                         {p.charAt(0).toUpperCase() + p.slice(1)}

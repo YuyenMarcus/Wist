@@ -432,20 +432,90 @@ function scrapeAgentSite() {
   let image = null;
   let description = null;
   
-  // These sites typically show product info in a structured way
+  // Title: agent sites render product names in various elements
   const titleSelectors = [
-    'h1', '.product-title', '.goods-title', '[class*="goodsTitle"]',
-    '[class*="product-name"]', '[class*="item-name"]', '.title',
-    'meta[property="og:title"]'
+    '[class*="goodsName"]', '[class*="goods-name"]', '[class*="GoodsName"]',
+    '[class*="goodsTitle"]', '[class*="goods-title"]', '[class*="GoodsTitle"]',
+    '[class*="product-name"]', '[class*="productName"]', '[class*="ProductName"]',
+    '[class*="product-title"]', '[class*="productTitle"]', '[class*="ProductTitle"]',
+    '[class*="item-name"]', '[class*="itemName"]', '[class*="ItemName"]',
+    '[class*="item-title"]', '[class*="itemTitle"]', '[class*="ItemTitle"]',
+    '[class*="detail-title"]', '[class*="detailTitle"]',
+    '[class*="info-name"]', '[class*="infoName"]',
+    '[class*="shopname"]', '[class*="ShopName"]',
+    '.goods-title', '.product-title', '.item-title',
+    'h1', 'h2',
   ];
   for (const sel of titleSelectors) {
-    const el = document.querySelector(sel);
-    if (el) {
-      const text = el.getAttribute('content') || el.textContent?.trim();
-      if (text && text.length > 5) { title = text; break; }
+    try {
+      const els = document.querySelectorAll(sel);
+      for (const el of els) {
+        const text = el.textContent?.trim();
+        if (text && text.length > 8 && text.length < 500 && !/^(Home|Shop|Cart|Login|Kakobuy|Detail|Loading)/i.test(text)) {
+          title = text;
+          break;
+        }
+      }
+      if (title) break;
+    } catch (e) {}
+  }
+
+  // Scan visible elements for longest product-like text
+  if (!title) {
+    let bestCandidate = null;
+    let bestLen = 0;
+    const candidates = document.querySelectorAll('h1, h2, h3, [class*="title"], [class*="name"], [class*="Title"], [class*="Name"]');
+    for (const el of candidates) {
+      const text = el.textContent?.trim();
+      if (text && text.length > 10 && text.length < 300 && text.length > bestLen) {
+        if (!/kakobuy|superbuy|wegobuy|pandabuy|cssbuy|login|register|cart|home/i.test(text)) {
+          bestCandidate = text;
+          bestLen = text.length;
+        }
+      }
+    }
+    if (bestCandidate) title = bestCandidate;
+  }
+
+  // Page title fallback
+  if (!title) {
+    const pageTitle = document.title || '';
+    const cleaned = pageTitle.replace(/[-|–]\s*(Kakobuy|Superbuy|Wegobuy|Pandabuy|CSSBuy).*/i, '').trim();
+    if (cleaned.length > 5) title = cleaned;
+  }
+
+  // og:title meta tag
+  if (!title) {
+    const ogT = document.querySelector('meta[property="og:title"]');
+    if (ogT) {
+      const text = ogT.getAttribute('content')?.trim();
+      if (text && text.length > 5) title = text;
     }
   }
-  
+
+  // Extract from embedded JSON data in scripts
+  if (!title) {
+    try {
+      const html = document.documentElement.innerHTML;
+      const namePatterns = [
+        /"goodsName"\s*:\s*"([^"]+)"/,
+        /"goods_name"\s*:\s*"([^"]+)"/,
+        /"productName"\s*:\s*"([^"]+)"/,
+        /"product_name"\s*:\s*"([^"]+)"/,
+        /"title"\s*:\s*"([^"]{10,200})"/,
+        /"name"\s*:\s*"([^"]{10,200})"/,
+        /"itemName"\s*:\s*"([^"]+)"/,
+      ];
+      for (const p of namePatterns) {
+        const m = html.match(p);
+        if (m && m[1] && m[1].length > 5) {
+          title = m[1];
+          break;
+        }
+      }
+    } catch (e) {}
+  }
+
   // Price: these sites often show CNY
   const priceSelectors = [
     '[class*="price"]', '[class*="Price"]', '.goods-price',
@@ -466,19 +536,41 @@ function scrapeAgentSite() {
   
   // Image
   const imageSelectors = [
-    '.product-image img', '.goods-image img', '[class*="mainImage"] img',
-    '[class*="gallery"] img', '.swiper-slide img', 'img[class*="product"]',
+    '[class*="mainImage"] img', '[class*="MainImage"] img',
+    '[class*="goodsImage"] img', '[class*="goods-image"] img',
+    '[class*="product-image"] img', '[class*="productImage"] img',
+    '[class*="gallery"] img', '[class*="Gallery"] img',
+    '.swiper-slide img', 'img[class*="product"]', 'img[class*="goods"]',
+    'img[src*="cbu01.alicdn"]', 'img[src*="img.alicdn"]',
+    '.product-image img', '.goods-image img',
     'meta[property="og:image"]'
   ];
   for (const sel of imageSelectors) {
     const el = document.querySelector(sel);
     if (el) {
       const src = el.getAttribute('content') || el.getAttribute('data-src') || el.src;
-      if (src && !src.includes('placeholder') && !src.includes('svg')) {
+      if (src && !src.includes('placeholder') && !src.includes('svg') && !src.includes('logo')) {
         image = src.startsWith('//') ? 'https:' + src : src;
         break;
       }
     }
+  }
+
+  // Largest image fallback
+  if (!image) {
+    const allImgs = document.querySelectorAll('img');
+    let best = null;
+    let bestSize = 0;
+    for (const img of allImgs) {
+      const w = img.naturalWidth || img.width || 0;
+      const h = img.naturalHeight || img.height || 0;
+      const size = w * h;
+      if (size > bestSize && !img.src.includes('logo') && !img.src.includes('icon') && !img.src.includes('avatar') && img.src.length > 10) {
+        best = img.src;
+        bestSize = size;
+      }
+    }
+    if (best) image = best;
   }
   
   const ogDesc = document.querySelector('meta[property="og:description"], meta[name="description"]');

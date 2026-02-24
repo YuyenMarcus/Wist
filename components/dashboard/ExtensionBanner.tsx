@@ -58,12 +58,12 @@ export default function ExtensionBanner() {
   if (!isVisible) return null
 
   return (
-    <div className="ExtensionBanner relative bg-gradient-to-r from-violet-50 to-pink-50 border-b border-violet-100 px-4 py-3 sm:flex sm:items-center sm:justify-between sm:px-6 lg:px-8">
+    <div className="ExtensionBanner relative bg-gradient-to-r from-violet-50 to-pink-50 dark:from-violet-950/40 dark:to-pink-950/40 border-b border-violet-100 dark:border-violet-900 px-4 py-3 sm:flex sm:items-center sm:justify-between sm:px-6 lg:px-8">
       <div className="flex items-center gap-3">
         <div className="flex p-2 bg-violet-600 rounded-lg">
           <Chrome className="h-5 w-5 text-white" />
         </div>
-        <p className="font-medium text-sm sm:text-base text-zinc-900">
+        <p className="font-medium text-sm sm:text-base text-zinc-900 dark:text-zinc-100">
           <span className="md:hidden">Save items in 1 click. </span>
           <span className="hidden md:inline">Stop copying and pasting links. Save items from Amazon & Target instantly.</span>
         </p>

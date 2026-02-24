@@ -515,7 +515,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <PageTransition className="min-h-screen bg-white pb-32">
+    <PageTransition className="min-h-screen bg-white dark:bg-dpurple-950 pb-32 transition-colors">
 
       {/* Onboarding Tutorial */}
       {showOnboarding && user && (
@@ -543,10 +543,10 @@ export default function DashboardPage() {
           <div className="mb-8">
             <div className="flex items-center gap-2 mb-4">
               <Clock className="w-4 h-4 text-amber-600" />
-              <h3 className="text-sm font-semibold text-zinc-900">
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                 Queue ({queuedItems.length})
               </h3>
-              <span className="text-xs text-zinc-500">
+              <span className="text-xs text-zinc-500 dark:text-zinc-400">
                 {autoActivateEnabled
                   ? 'Items auto-activate on desktop with the extension'
                   : 'Press Activate on each item to scrape and add it'}
@@ -584,16 +584,16 @@ export default function DashboardPage() {
           <div className="space-y-12">
             {/* Auto-organize Banner - Stacks on mobile */}
             {autoOrganizeStats && autoOrganizeStats.canAutoCategorize > 0 && (
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-200 rounded-xl px-4 sm:px-5 py-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-950/50 dark:to-purple-950/50 border border-violet-200 dark:border-violet-800 rounded-xl px-4 sm:px-5 py-4">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-violet-100 rounded-lg flex-shrink-0">
-                    <Sparkles className="w-5 h-5 text-violet-600" />
+                  <div className="p-2 bg-violet-100 dark:bg-violet-900/30 rounded-lg flex-shrink-0">
+                    <Sparkles className="w-5 h-5 text-violet-600 dark:text-violet-400" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-zinc-900">
+                    <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
                       {autoOrganizeStats.canAutoCategorize} item{autoOrganizeStats.canAutoCategorize !== 1 ? 's' : ''} can be auto-organized
                     </p>
-                    <p className="text-xs text-zinc-500">
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
                       Based on item names and your collections
                     </p>
                   </div>
@@ -621,9 +621,9 @@ export default function DashboardPage() {
             {/* Show all items if no collections exist */}
             {collections.length === 0 && products.length > 0 && (
               <section>
-                <h2 className="text-xl font-bold text-zinc-900 mb-4 flex items-center gap-2">
+                <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2">
                   All Items
-                  <span className="text-xs font-normal text-zinc-500 bg-zinc-100 px-2 py-1 rounded-full">
+                  <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-dpurple-800 px-2 py-1 rounded-full">
                     {products.length}
                   </span>
                 </h2>
@@ -646,8 +646,8 @@ export default function DashboardPage() {
             {/* Uncategorized Section */}
             {collections.length > 0 && uncategorizedItems.length > 0 && (
               <section>
-                <h2 className="text-lg font-bold text-zinc-900 mb-4 flex items-center gap-2 opacity-50">
-                  <span className="w-2 h-2 rounded-full bg-zinc-300"></span>
+                <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2 opacity-50">
+                  <span className="w-2 h-2 rounded-full bg-zinc-300 dark:bg-dpurple-500"></span>
                   Uncategorized
                 </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
@@ -669,11 +669,11 @@ export default function DashboardPage() {
             {/* Collection Sections */}
             {collections.length > 0 && groupedItems.map(group => (
               group.items.length > 0 && (
-                <section key={group.id} className="pt-8 border-t border-zinc-200">
+                <section key={group.id} className="pt-8 border-t border-zinc-200 dark:border-dpurple-700">
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-bold text-zinc-900 flex items-center gap-2">
+                    <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
                       {group.name}
-                      <span className="text-xs font-normal text-zinc-500 bg-zinc-100 px-2 py-1 rounded-full">
+                      <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-dpurple-800 px-2 py-1 rounded-full">
                         {group.items.length}
                       </span>
                     </h2>
@@ -704,7 +704,7 @@ export default function DashboardPage() {
 
             {/* Empty State for Grouped View */}
             {products.length === 0 && (
-              <div className="text-center py-20 text-zinc-500">
+              <div className="text-center py-20 text-zinc-500 dark:text-zinc-400">
                 No items found. Add some items to see them here!
               </div>
             )}
