@@ -227,7 +227,14 @@ export function MobileHeader({ onMenuClick }: { onMenuClick: () => void }) {
           alt="Wist Logo" 
           width={32} 
           height={32}
-          className="w-8 h-8"
+          className="w-8 h-8 dark:hidden"
+        />
+        <Image 
+          src="/logo-dark.svg" 
+          alt="Wist Logo" 
+          width={32} 
+          height={32}
+          className="w-8 h-8 hidden dark:block"
         />
         <span className="px-1.5 py-0.5 text-[9px] font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950 rounded-full border border-violet-200 dark:border-violet-800">
           BETA
@@ -544,7 +551,14 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
                   alt="Wist Logo" 
                   width={36} 
                   height={36}
-                  className="w-9 h-9"
+                  className="w-9 h-9 dark:hidden"
+                />
+                <Image 
+                  src="/logo-dark.svg" 
+                  alt="Wist Logo" 
+                  width={36} 
+                  height={36}
+                  className="w-9 h-9 hidden dark:block"
                 />
                 <span className="px-1.5 py-0.5 text-[9px] font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950 rounded-full border border-violet-200 dark:border-violet-800">
                   BETA
@@ -753,7 +767,14 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
               alt="Wist Logo" 
               width={40} 
               height={40}
-              className="w-10 h-10"
+              className="w-10 h-10 dark:hidden"
+            />
+            <Image 
+              src="/logo-dark.svg" 
+              alt="Wist Logo" 
+              width={40} 
+              height={40}
+              className="w-10 h-10 hidden dark:block"
             />
             <span className="ml-2 px-1.5 py-0.5 text-[10px] font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950 rounded-full border border-violet-200 dark:border-violet-800">
               BETA

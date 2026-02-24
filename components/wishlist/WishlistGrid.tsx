@@ -33,13 +33,13 @@ export default function WishlistGrid({ items, isOwner = true, onDelete, onReserv
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="col-span-full py-20 text-center bg-white border-2 border-dashed border-zinc-200 rounded-3xl mx-4 md:mx-0"
+        className="col-span-full py-20 text-center bg-white dark:bg-dpurple-900 border-2 border-dashed border-zinc-200 dark:border-dpurple-700 rounded-3xl mx-4 md:mx-0"
       >
-        <div className="mx-auto h-16 w-16 bg-violet-50 text-violet-600 rounded-full flex items-center justify-center mb-6">
+        <div className="mx-auto h-16 w-16 bg-violet-50 dark:bg-violet-950/50 text-violet-600 dark:text-violet-400 rounded-full flex items-center justify-center mb-6">
           <Chrome size={32} />
         </div>
-        <h3 className="text-lg font-bold text-zinc-900 mb-2">Your wishlist is looking empty</h3>
-        <p className="text-zinc-500 max-w-md mx-auto mb-8 text-sm leading-relaxed">
+        <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-2">Your wishlist is looking empty</h3>
+        <p className="text-zinc-500 dark:text-zinc-400 max-w-md mx-auto mb-8 text-sm leading-relaxed">
           The easiest way to add items is with our browser button. 
           Go to Amazon or Target and save items in one click.
         </p>

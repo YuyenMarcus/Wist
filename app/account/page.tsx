@@ -203,7 +203,7 @@ export default function AccountPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50">
+      <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-dpurple-950">
         <LavenderLoader size="lg" />
       </div>
     )
@@ -211,10 +211,10 @@ export default function AccountPage() {
 
   if (error && !user) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50">
+      <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-dpurple-950">
         <div className="text-center">
           <p className="text-red-600">{error}</p>
-          <a href="/login" className="mt-4 text-violet-600 hover:underline">
+          <a href="/login" className="mt-4 text-violet-600 dark:text-violet-400 hover:underline">
             Go to Login
           </a>
         </div>
@@ -223,26 +223,26 @@ export default function AccountPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 py-20 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-zinc-50 dark:bg-dpurple-950 py-20 px-4 sm:px-6 lg:px-8 transition-colors">
       <div className="mx-auto max-w-2xl">
         {/* Header */}
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-4xl font-semibold text-zinc-900 mb-12 text-center"
+          className="text-4xl font-semibold text-zinc-900 dark:text-zinc-100 mb-12 text-center"
         >
           Account Settings
         </motion.h1>
 
-        <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm p-8">
+        <div className="bg-white dark:bg-dpurple-900 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm p-8">
           {/* Success Message */}
           {success && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-6 rounded-lg bg-green-50 p-4 border border-green-200"
+              className="mb-6 rounded-lg bg-green-50 dark:bg-green-950/30 p-4 border border-green-200 dark:border-green-800"
             >
-              <p className="text-sm font-medium text-green-800">
+              <p className="text-sm font-medium text-green-800 dark:text-green-300">
                 Profile updated successfully!
               </p>
             </motion.div>
@@ -253,20 +253,20 @@ export default function AccountPage() {
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-6 rounded-lg bg-red-50 p-4 border border-red-200"
+              className="mb-6 rounded-lg bg-red-50 dark:bg-red-950/30 p-4 border border-red-200 dark:border-red-800"
             >
-              <p className="text-sm font-medium text-red-800">{error}</p>
+              <p className="text-sm font-medium text-red-800 dark:text-red-300">{error}</p>
             </motion.div>
           )}
 
           {/* Avatar Upload Section */}
           <div className="mb-8">
-            <label className="block text-xs font-medium text-zinc-500 mb-4 text-center">
+            <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-4 text-center">
               Profile Picture
             </label>
             <div className="flex justify-center">
               <div className="relative group">
-                <div className="relative w-32 h-32 rounded-full overflow-hidden bg-zinc-100 border-4 border-white shadow-lg">
+                <div className="relative w-32 h-32 rounded-full overflow-hidden bg-zinc-100 dark:bg-dpurple-800 border-4 border-white dark:border-dpurple-700 shadow-lg">
                   {avatarUrl ? (
                     <img
                       src={avatarUrl}
@@ -276,7 +276,7 @@ export default function AccountPage() {
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <svg
-                        className="w-16 h-16 text-zinc-400"
+                        className="w-16 h-16 text-zinc-400 dark:text-zinc-500"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -336,7 +336,7 @@ export default function AccountPage() {
 
           {/* Profile Info */}
           <div className="mb-8 text-center">
-            <p className="text-sm text-zinc-500 mb-1">
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-1">
               <span className="font-medium">Email:</span> {profile?.email || user?.email || 'N/A'}
             </p>
           </div>
@@ -344,7 +344,7 @@ export default function AccountPage() {
           {/* Edit Form */}
           <form onSubmit={handleSave}>
             <div className="mb-6">
-              <label htmlFor="full_name" className="block text-xs font-medium text-zinc-500 mb-2">
+              <label htmlFor="full_name" className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2">
                 Full Name
               </label>
               <input
@@ -352,14 +352,14 @@ export default function AccountPage() {
                 id="full_name"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-900 placeholder-zinc-400 shadow-sm focus:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-200 transition-colors"
+                className="w-full rounded-xl border border-zinc-200 dark:border-dpurple-700 bg-white dark:bg-dpurple-800 px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 shadow-sm focus:border-violet-300 dark:focus:border-violet-600 focus:outline-none focus:ring-2 focus:ring-violet-200 dark:focus:ring-violet-800 transition-colors"
                 placeholder="Enter your full name"
               />
             </div>
 
             {/* Username Input */}
             <div className="mb-6">
-              <label htmlFor="username" className="block text-xs font-medium text-zinc-500 mb-2">
+              <label htmlFor="username" className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2">
                 Username
               </label>
               {(() => {
@@ -377,21 +377,21 @@ export default function AccountPage() {
                 return (
                   <>
                     <div className="relative">
-                      <span className="absolute left-4 top-3.5 text-zinc-400 font-medium text-sm">@</span>
+                      <span className="absolute left-4 top-3.5 text-zinc-400 dark:text-zinc-500 font-medium text-sm">@</span>
                       <input
                         type="text"
                         id="username"
                         value={username}
                         onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s/g, ''))}
                         disabled={!canChange && username === currentUsername}
-                        className={`w-full pl-9 pr-10 py-3 bg-zinc-50 border rounded-xl focus:outline-none focus:ring-2 transition-all text-sm text-zinc-900 placeholder-zinc-400 ${
+                        className={`w-full pl-9 pr-10 py-3 bg-zinc-50 dark:bg-dpurple-800 border rounded-xl focus:outline-none focus:ring-2 transition-all text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 ${
                           !canChange && username === currentUsername
                             ? 'opacity-60 cursor-not-allowed'
                             : username !== currentUsername && username.length > 0
                             ? isValid
                               ? 'border-violet-300 focus:ring-violet-200 focus:border-violet-400'
                               : 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30'
-                            : 'border-zinc-200 focus:ring-violet-200 focus:border-violet-300'
+                            : 'border-zinc-200 dark:border-dpurple-700 focus:ring-violet-200 dark:focus:ring-violet-800 focus:border-violet-300 dark:focus:border-violet-600'
                         }`}
                         placeholder="username"
                       />
@@ -412,8 +412,8 @@ export default function AccountPage() {
               
               {/* Lock Message */}
               {!canChange && username === currentUsername && (
-                <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
-                  <p className="text-xs text-amber-700">
+                <div className="mt-2 p-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+                  <p className="text-xs text-amber-700 dark:text-amber-300">
                     Username can only be changed once every 30 days. You can change it again in {daysRemaining} day{daysRemaining !== 1 ? 's' : ''}.
                   </p>
                 </div>
@@ -442,7 +442,7 @@ export default function AccountPage() {
 
             {/* Bio Input */}
             <div className="mb-6">
-              <label htmlFor="bio" className="block text-xs font-medium text-zinc-500 mb-2">
+              <label htmlFor="bio" className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2">
                 Bio
               </label>
               <textarea
@@ -454,7 +454,7 @@ export default function AccountPage() {
                   }
                 }}
                 rows={3}
-                className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-900 placeholder-zinc-400 shadow-sm focus:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-200 transition-colors resize-none"
+                className="w-full rounded-xl border border-zinc-200 dark:border-dpurple-700 bg-white dark:bg-dpurple-800 px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 shadow-sm focus:border-violet-300 dark:focus:border-violet-600 focus:outline-none focus:ring-2 focus:ring-violet-200 dark:focus:ring-violet-800 transition-colors resize-none"
                 placeholder="Tell us about yourself..."
               />
               <div className="flex justify-end mt-1">
@@ -472,7 +472,7 @@ export default function AccountPage() {
               <button
                 type="button"
                 onClick={() => router.back()}
-                className="px-6 py-2.5 text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors"
+                className="px-6 py-2.5 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors"
                 disabled={saving}
               >
                 Cancel
@@ -510,72 +510,72 @@ export default function AccountPage() {
           </form>
 
           {/* Settings Navigation */}
-          <div className="mt-8 pt-8 border-t border-zinc-200">
+          <div className="mt-8 pt-8 border-t border-zinc-200 dark:border-dpurple-700">
             <h3 className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-3">Settings</h3>
             <div className="space-y-1">
               <button
                 onClick={() => router.push('/settings')}
-                className="w-full flex items-center gap-3 rounded-xl px-4 py-3 text-left text-zinc-700 hover:bg-violet-50 hover:text-violet-700 transition-colors group"
+                className="w-full flex items-center gap-3 rounded-xl px-4 py-3 text-left text-zinc-700 dark:text-zinc-300 hover:bg-violet-50 dark:hover:bg-dpurple-800 hover:text-violet-700 dark:hover:text-violet-400 transition-colors group"
               >
-                <div className="w-9 h-9 rounded-lg bg-zinc-100 group-hover:bg-violet-100 flex items-center justify-center transition-colors">
-                  <User size={16} className="text-zinc-500 group-hover:text-violet-600 transition-colors" />
+                <div className="w-9 h-9 rounded-lg bg-zinc-100 dark:bg-dpurple-800 group-hover:bg-violet-100 dark:group-hover:bg-violet-950/50 flex items-center justify-center transition-colors">
+                  <User size={16} className="text-zinc-500 dark:text-zinc-400 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors" />
                 </div>
                 <div className="flex-1">
                   <span className="text-sm font-medium">Profile Settings</span>
                   <p className="text-xs text-zinc-400">Name, username, bio, social links</p>
                 </div>
-                <ChevronRight size={16} className="text-zinc-300 group-hover:text-violet-400 transition-colors" />
+                <ChevronRight size={16} className="text-zinc-300 dark:text-zinc-600 group-hover:text-violet-400 transition-colors" />
               </button>
 
               <button
                 onClick={() => router.push('/settings#content')}
-                className="w-full flex items-center gap-3 rounded-xl px-4 py-3 text-left text-zinc-700 hover:bg-violet-50 hover:text-violet-700 transition-colors group"
+                className="w-full flex items-center gap-3 rounded-xl px-4 py-3 text-left text-zinc-700 dark:text-zinc-300 hover:bg-violet-50 dark:hover:bg-dpurple-800 hover:text-violet-700 dark:hover:text-violet-400 transition-colors group"
               >
-                <div className="w-9 h-9 rounded-lg bg-zinc-100 group-hover:bg-violet-100 flex items-center justify-center transition-colors">
-                  <Shield size={16} className="text-zinc-500 group-hover:text-violet-600 transition-colors" />
+                <div className="w-9 h-9 rounded-lg bg-zinc-100 dark:bg-dpurple-800 group-hover:bg-violet-100 dark:group-hover:bg-violet-950/50 flex items-center justify-center transition-colors">
+                  <Shield size={16} className="text-zinc-500 dark:text-zinc-400 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors" />
                 </div>
                 <div className="flex-1">
                   <span className="text-sm font-medium">Content & Privacy</span>
                   <p className="text-xs text-zinc-400">Adult content filter, preferences</p>
                 </div>
-                <ChevronRight size={16} className="text-zinc-300 group-hover:text-violet-400 transition-colors" />
+                <ChevronRight size={16} className="text-zinc-300 dark:text-zinc-600 group-hover:text-violet-400 transition-colors" />
               </button>
 
               <button
                 onClick={() => router.push('/settings#creator')}
-                className="w-full flex items-center gap-3 rounded-xl px-4 py-3 text-left text-zinc-700 hover:bg-violet-50 hover:text-violet-700 transition-colors group"
+                className="w-full flex items-center gap-3 rounded-xl px-4 py-3 text-left text-zinc-700 dark:text-zinc-300 hover:bg-violet-50 dark:hover:bg-dpurple-800 hover:text-violet-700 dark:hover:text-violet-400 transition-colors group"
               >
-                <div className="w-9 h-9 rounded-lg bg-zinc-100 group-hover:bg-violet-100 flex items-center justify-center transition-colors">
-                  <LinkIcon size={16} className="text-zinc-500 group-hover:text-violet-600 transition-colors" />
+                <div className="w-9 h-9 rounded-lg bg-zinc-100 dark:bg-dpurple-800 group-hover:bg-violet-100 dark:group-hover:bg-violet-950/50 flex items-center justify-center transition-colors">
+                  <LinkIcon size={16} className="text-zinc-500 dark:text-zinc-400 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors" />
                 </div>
                 <div className="flex-1">
                   <span className="text-sm font-medium">Creator & Monetization</span>
                   <p className="text-xs text-zinc-400">Amazon affiliate, social links</p>
                 </div>
-                <ChevronRight size={16} className="text-zinc-300 group-hover:text-violet-400 transition-colors" />
+                <ChevronRight size={16} className="text-zinc-300 dark:text-zinc-600 group-hover:text-violet-400 transition-colors" />
               </button>
 
               <button
                 onClick={() => router.push('/support')}
-                className="w-full flex items-center gap-3 rounded-xl px-4 py-3 text-left text-zinc-700 hover:bg-violet-50 hover:text-violet-700 transition-colors group"
+                className="w-full flex items-center gap-3 rounded-xl px-4 py-3 text-left text-zinc-700 dark:text-zinc-300 hover:bg-violet-50 dark:hover:bg-dpurple-800 hover:text-violet-700 dark:hover:text-violet-400 transition-colors group"
               >
-                <div className="w-9 h-9 rounded-lg bg-zinc-100 group-hover:bg-violet-100 flex items-center justify-center transition-colors">
-                  <Bell size={16} className="text-zinc-500 group-hover:text-violet-600 transition-colors" />
+                <div className="w-9 h-9 rounded-lg bg-zinc-100 dark:bg-dpurple-800 group-hover:bg-violet-100 dark:group-hover:bg-violet-950/50 flex items-center justify-center transition-colors">
+                  <Bell size={16} className="text-zinc-500 dark:text-zinc-400 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors" />
                 </div>
                 <div className="flex-1">
                   <span className="text-sm font-medium">Help & Support</span>
                   <p className="text-xs text-zinc-400">FAQs, troubleshooting, contact</p>
                 </div>
-                <ChevronRight size={16} className="text-zinc-300 group-hover:text-violet-400 transition-colors" />
+                <ChevronRight size={16} className="text-zinc-300 dark:text-zinc-600 group-hover:text-violet-400 transition-colors" />
               </button>
             </div>
           </div>
 
           {/* Back to Dashboard */}
-          <div className="mt-6 pt-6 border-t border-zinc-200">
+          <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-dpurple-700">
             <button 
               onClick={() => router.push('/dashboard')}
-              className="w-full flex items-center justify-center gap-2 rounded-lg bg-zinc-50 px-4 py-3 text-zinc-600 font-semibold hover:bg-zinc-100 transition-colors"
+              className="w-full flex items-center justify-center gap-2 rounded-lg bg-zinc-50 dark:bg-dpurple-800 px-4 py-3 text-zinc-600 dark:text-zinc-300 font-semibold hover:bg-zinc-100 dark:hover:bg-dpurple-700 transition-colors"
             >
               <ArrowLeft size={18} /> Back to Dashboard
             </button>
