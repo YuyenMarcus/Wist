@@ -3,7 +3,8 @@ export type CurrencyCode =
   | 'KRW' | 'INR' | 'BRL' | 'MXN' | 'SGD' | 'HKD' | 'TWD'
   | 'THB' | 'PHP' | 'IDR' | 'MYR' | 'VND' | 'NZD' | 'CHF'
   | 'SEK' | 'NOK' | 'DKK' | 'PLN' | 'CZK' | 'HUF' | 'RUB'
-  | 'TRY' | 'ZAR' | 'AED' | 'SAR';
+  | 'TRY' | 'ZAR' | 'AED' | 'SAR'
+  | 'GTQ' | 'CRC' | 'COP' | 'PEN' | 'CLP' | 'ARS' | 'HNL' | 'NIO' | 'DOP';
 
 export const CURRENCY_INFO: Record<string, { symbol: string; name: string; decimals: number }> = {
   USD: { symbol: '$', name: 'US Dollar', decimals: 2 },
@@ -38,6 +39,15 @@ export const CURRENCY_INFO: Record<string, { symbol: string; name: string; decim
   ZAR: { symbol: 'R', name: 'South African Rand', decimals: 2 },
   AED: { symbol: 'د.إ', name: 'UAE Dirham', decimals: 2 },
   SAR: { symbol: '﷼', name: 'Saudi Riyal', decimals: 2 },
+  GTQ: { symbol: 'Q', name: 'Guatemalan Quetzal', decimals: 2 },
+  CRC: { symbol: '₡', name: 'Costa Rican Colón', decimals: 0 },
+  COP: { symbol: 'COL$', name: 'Colombian Peso', decimals: 0 },
+  PEN: { symbol: 'S/', name: 'Peruvian Sol', decimals: 2 },
+  CLP: { symbol: 'CL$', name: 'Chilean Peso', decimals: 0 },
+  ARS: { symbol: 'AR$', name: 'Argentine Peso', decimals: 2 },
+  HNL: { symbol: 'L', name: 'Honduran Lempira', decimals: 2 },
+  NIO: { symbol: 'C$', name: 'Nicaraguan Córdoba', decimals: 2 },
+  DOP: { symbol: 'RD$', name: 'Dominican Peso', decimals: 2 },
 };
 
 // Hardcoded fallback rates (USD-based) — updated periodically.
@@ -75,6 +85,15 @@ const FALLBACK_RATES: Record<string, number> = {
   ZAR: 18.6,
   AED: 3.67,
   SAR: 3.75,
+  GTQ: 7.75,
+  CRC: 510,
+  COP: 3950,
+  PEN: 3.72,
+  CLP: 935,
+  ARS: 870,
+  HNL: 24.7,
+  NIO: 36.7,
+  DOP: 58.5,
 };
 
 let cachedRates: Record<string, number> | null = null;

@@ -988,16 +988,44 @@ function scrapePageData() {
   else if (/£/.test(priceStr)) currencyCode = 'GBP';
   else if (/₩/.test(priceStr)) currencyCode = 'KRW';
   else if (/₹/.test(priceStr)) currencyCode = 'INR';
+  else if (/₡/.test(priceStr)) currencyCode = 'CRC';
+  else if (/₺/.test(priceStr)) currencyCode = 'TRY';
   else if (/R\$/.test(priceStr)) currencyCode = 'BRL';
+  else if (/MX\$/.test(priceStr)) currencyCode = 'MXN';
+  else if (/RD\$/.test(priceStr)) currencyCode = 'DOP';
   else if (/CA\$|CAD/.test(priceStr)) currencyCode = 'CAD';
   else if (/A\$|AU\$|AUD/.test(priceStr)) currencyCode = 'AUD';
+  else if (/S\//.test(priceStr)) currencyCode = 'PEN';
+  else if (/Q\s?\d/.test(priceStr)) currencyCode = 'GTQ';
+  else if (/\$/.test(priceStr)) {
+    if (domain.includes('.mx') || domain.includes('mercadolibre.com.mx')) currencyCode = 'MXN';
+    else if (domain.includes('.ca')) currencyCode = 'CAD';
+    else if (domain.includes('.au')) currencyCode = 'AUD';
+    else if (domain.includes('.ar')) currencyCode = 'ARS';
+    else if (domain.includes('.cl')) currencyCode = 'CLP';
+    else if (domain.includes('.do')) currencyCode = 'DOP';
+    else if (domain.includes('.ni')) currencyCode = 'NIO';
+    else currencyCode = 'USD';
+  }
   else if (domain.includes('taobao.') || domain.includes('tmall.') || domain.includes('1688.') ||
            domain.includes('kakobuy.') || domain.includes('superbuy.') || domain.includes('wegobuy.') ||
            domain.includes('pandabuy.') || domain.includes('cssbuy.'))
     currencyCode = 'CNY';
   else if (domain.includes('.jp')) currencyCode = 'JPY';
   else if (domain.includes('.co.uk')) currencyCode = 'GBP';
-  else if (domain.includes('.de') || domain.includes('.fr') || domain.includes('.it') || domain.includes('.es')) currencyCode = 'EUR';
+  else if (domain.includes('.de') || domain.includes('.fr') || domain.includes('.it') || domain.includes('.es') ||
+           domain.includes('.nl') || domain.includes('.be') || domain.includes('.at') || domain.includes('.pt'))
+    currencyCode = 'EUR';
+  else if (domain.includes('.mx')) currencyCode = 'MXN';
+  else if (domain.includes('.gt')) currencyCode = 'GTQ';
+  else if (domain.includes('.sv')) currencyCode = 'USD';
+  else if (domain.includes('.hn')) currencyCode = 'HNL';
+  else if (domain.includes('.ni')) currencyCode = 'NIO';
+  else if (domain.includes('.cr')) currencyCode = 'CRC';
+  else if (domain.includes('.pe')) currencyCode = 'PEN';
+  else if (domain.includes('.ar')) currencyCode = 'ARS';
+  else if (domain.includes('.cl')) currencyCode = 'CLP';
+  else if (domain.includes('.br')) currencyCode = 'BRL';
 
   // Clean up price
   let priceValue = 0;

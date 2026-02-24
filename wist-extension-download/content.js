@@ -493,9 +493,8 @@ function detectCurrency(rawPrice, domain) {
   
   const priceStr = (rawPrice || '').toString();
   
-  // Symbol-based detection
+  // Symbol-based detection (check unique symbols first)
   if (/¥|￥/.test(priceStr)) {
-    // Distinguish JPY vs CNY based on domain
     if (domain && (domain.includes('.jp') || domain.includes('amazon.co.jp') || domain.includes('rakuten'))) {
       return { code: 'JPY', symbol: '¥' };
     }
@@ -505,19 +504,32 @@ function detectCurrency(rawPrice, domain) {
   if (/£/.test(priceStr)) return { code: 'GBP', symbol: '£' };
   if (/₩/.test(priceStr)) return { code: 'KRW', symbol: '₩' };
   if (/₹/.test(priceStr)) return { code: 'INR', symbol: '₹' };
+  if (/₡/.test(priceStr)) return { code: 'CRC', symbol: '₡' };
+  if (/₺/.test(priceStr)) return { code: 'TRY', symbol: '₺' };
+  if (/₽/.test(priceStr)) return { code: 'RUB', symbol: '₽' };
   if (/R\$/.test(priceStr)) return { code: 'BRL', symbol: 'R$' };
+  if (/RD\$/.test(priceStr)) return { code: 'DOP', symbol: 'RD$' };
+  if (/MX\$/.test(priceStr)) return { code: 'MXN', symbol: 'MX$' };
   if (/CA\$|CAD/.test(priceStr)) return { code: 'CAD', symbol: 'CA$' };
   if (/A\$|AU\$|AUD/.test(priceStr)) return { code: 'AUD', symbol: 'A$' };
+  if (/S\//.test(priceStr)) return { code: 'PEN', symbol: 'S/' };
+  if (/Q\s?\d/.test(priceStr)) return { code: 'GTQ', symbol: 'Q' };
   if (/\$/.test(priceStr)) {
-    // Dollar sign — figure out which dollar based on domain
+    // Generic dollar sign — determine which dollar based on domain
     if (domain) {
+      if (domain.includes('.mx') || domain.includes('amazon.com.mx') || domain.includes('mercadolibre.com.mx')) return { code: 'MXN', symbol: 'MX$' };
       if (domain.includes('.ca') || domain.includes('amazon.ca')) return { code: 'CAD', symbol: 'CA$' };
       if (domain.includes('.au') || domain.includes('amazon.com.au')) return { code: 'AUD', symbol: 'A$' };
+      if (domain.includes('.ar') || domain.includes('mercadolibre.com.ar')) return { code: 'ARS', symbol: 'AR$' };
+      if (domain.includes('.cl') || domain.includes('mercadolibre.cl')) return { code: 'CLP', symbol: 'CL$' };
+      if (domain.includes('.co') && !domain.includes('.com') || domain.includes('mercadolibre.com.co')) return { code: 'COP', symbol: 'COL$' };
+      if (domain.includes('.do')) return { code: 'DOP', symbol: 'RD$' };
+      if (domain.includes('.ni')) return { code: 'NIO', symbol: 'C$' };
     }
     return { code: 'USD', symbol: '$' };
   }
   
-  // Domain-based fallback
+  // Domain-based fallback (no recognizable symbol found)
   if (domain) {
     if (domain.includes('taobao.') || domain.includes('tmall.') || domain.includes('1688.') || 
         domain.includes('kakobuy.') || domain.includes('superbuy.') || domain.includes('wegobuy.') ||
@@ -526,9 +538,24 @@ function detectCurrency(rawPrice, domain) {
     }
     if (domain.includes('.jp') || domain.includes('rakuten')) return { code: 'JPY', symbol: '¥' };
     if (domain.includes('.co.uk') || domain.includes('amazon.co.uk')) return { code: 'GBP', symbol: '£' };
-    if (domain.includes('.de') || domain.includes('.fr') || domain.includes('.it') || domain.includes('.es')) return { code: 'EUR', symbol: '€' };
+    if (domain.includes('.de') || domain.includes('.fr') || domain.includes('.it') || domain.includes('.es') ||
+        domain.includes('.nl') || domain.includes('.be') || domain.includes('.at') || domain.includes('.pt')) {
+      return { code: 'EUR', symbol: '€' };
+    }
     if (domain.includes('.kr')) return { code: 'KRW', symbol: '₩' };
     if (domain.includes('.in') || domain.includes('amazon.in')) return { code: 'INR', symbol: '₹' };
+    if (domain.includes('.mx') || domain.includes('mercadolibre.com.mx')) return { code: 'MXN', symbol: 'MX$' };
+    if (domain.includes('.gt')) return { code: 'GTQ', symbol: 'Q' };
+    if (domain.includes('.sv')) return { code: 'USD', symbol: '$' }; // El Salvador uses USD
+    if (domain.includes('.hn')) return { code: 'HNL', symbol: 'L' };
+    if (domain.includes('.ni')) return { code: 'NIO', symbol: 'C$' };
+    if (domain.includes('.cr')) return { code: 'CRC', symbol: '₡' };
+    if (domain.includes('.pe')) return { code: 'PEN', symbol: 'S/' };
+    if (domain.includes('.ar')) return { code: 'ARS', symbol: 'AR$' };
+    if (domain.includes('.cl')) return { code: 'CLP', symbol: 'CL$' };
+    if (domain.includes('.br')) return { code: 'BRL', symbol: 'R$' };
+    if (domain.includes('.tr')) return { code: 'TRY', symbol: '₺' };
+    if (domain.includes('.ru')) return { code: 'RUB', symbol: '₽' };
   }
   
   return { code: 'USD', symbol: '$' };

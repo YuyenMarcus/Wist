@@ -125,11 +125,25 @@ function detectCurrencyFromUrl(url: string): string {
         hostname.includes('pandabuy.') || hostname.includes('cssbuy.')) return 'CNY';
     if (hostname.includes('.jp') || hostname.includes('rakuten')) return 'JPY';
     if (hostname.includes('.co.uk')) return 'GBP';
-    if (hostname.includes('.de') || hostname.includes('.fr') || hostname.includes('.it') || hostname.includes('.es')) return 'EUR';
+    if (hostname.includes('.de') || hostname.includes('.fr') || hostname.includes('.it') || hostname.includes('.es') ||
+        hostname.includes('.nl') || hostname.includes('.be') || hostname.includes('.at') || hostname.includes('.pt')) return 'EUR';
     if (hostname.includes('.ca')) return 'CAD';
     if (hostname.includes('.com.au')) return 'AUD';
     if (hostname.includes('.kr')) return 'KRW';
     if (hostname.includes('.in') && !hostname.includes('.info')) return 'INR';
+    if (hostname.includes('.mx') || hostname.includes('mercadolibre.com.mx')) return 'MXN';
+    if (hostname.includes('.gt')) return 'GTQ';
+    if (hostname.includes('.sv')) return 'USD'; // El Salvador uses USD
+    if (hostname.includes('.hn')) return 'HNL';
+    if (hostname.includes('.ni')) return 'NIO';
+    if (hostname.includes('.cr')) return 'CRC';
+    if (hostname.includes('.pe')) return 'PEN';
+    if (hostname.includes('.ar')) return 'ARS';
+    if (hostname.includes('.cl')) return 'CLP';
+    if (hostname.includes('.br')) return 'BRL';
+    if (hostname.includes('.do')) return 'DOP';
+    if (hostname.includes('.tr')) return 'TRY';
+    if (hostname.includes('.ru')) return 'RUB';
   } catch {}
   return 'USD';
 }
@@ -141,9 +155,15 @@ function detectCurrencyFromPrice(rawPrice: string | null, urlCurrency: string): 
   if (/£/.test(rawPrice)) return 'GBP';
   if (/₩/.test(rawPrice)) return 'KRW';
   if (/₹/.test(rawPrice)) return 'INR';
+  if (/₡/.test(rawPrice)) return 'CRC';
+  if (/₺/.test(rawPrice)) return 'TRY';
+  if (/MX\$/.test(rawPrice)) return 'MXN';
+  if (/RD\$/.test(rawPrice)) return 'DOP';
   if (/R\$/.test(rawPrice)) return 'BRL';
   if (/CA\$/.test(rawPrice)) return 'CAD';
   if (/A\$/.test(rawPrice)) return 'AUD';
+  if (/S\//.test(rawPrice)) return 'PEN';
+  if (/Q\s?\d/.test(rawPrice)) return 'GTQ';
   return urlCurrency;
 }
 

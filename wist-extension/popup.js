@@ -872,15 +872,42 @@ function scrapeProductData() {
   else if (/£/.test(pStr)) currency = 'GBP';
   else if (/₩/.test(pStr)) currency = 'KRW';
   else if (/₹/.test(pStr)) currency = 'INR';
+  else if (/₡/.test(pStr)) currency = 'CRC';
+  else if (/₺/.test(pStr)) currency = 'TRY';
   else if (/R\$/.test(pStr)) currency = 'BRL';
+  else if (/MX\$/.test(pStr)) currency = 'MXN';
+  else if (/RD\$/.test(pStr)) currency = 'DOP';
   else if (/CA\$|CAD/.test(pStr)) currency = 'CAD';
   else if (/A\$|AU\$|AUD/.test(pStr)) currency = 'AUD';
+  else if (/S\//.test(pStr)) currency = 'PEN';
+  else if (/Q\s?\d/.test(pStr)) currency = 'GTQ';
+  else if (/\$/.test(pStr)) {
+    if (hostname.includes('.mx') || hostname.includes('mercadolibre.com.mx')) currency = 'MXN';
+    else if (hostname.includes('.ca')) currency = 'CAD';
+    else if (hostname.includes('.au')) currency = 'AUD';
+    else if (hostname.includes('.ar')) currency = 'ARS';
+    else if (hostname.includes('.cl')) currency = 'CLP';
+    else if (hostname.includes('.do')) currency = 'DOP';
+    else if (hostname.includes('.ni')) currency = 'NIO';
+    else currency = 'USD';
+  }
   else if (hostname.includes('taobao.') || hostname.includes('tmall.') || hostname.includes('1688.') ||
            hostname.includes('kakobuy.') || hostname.includes('superbuy.') || hostname.includes('wegobuy.') ||
            hostname.includes('pandabuy.') || hostname.includes('cssbuy.')) currency = 'CNY';
   else if (hostname.includes('.jp')) currency = 'JPY';
   else if (hostname.includes('.co.uk')) currency = 'GBP';
-  else if (hostname.includes('.de') || hostname.includes('.fr') || hostname.includes('.it') || hostname.includes('.es')) currency = 'EUR';
+  else if (hostname.includes('.de') || hostname.includes('.fr') || hostname.includes('.it') || hostname.includes('.es') ||
+           hostname.includes('.nl') || hostname.includes('.be') || hostname.includes('.at') || hostname.includes('.pt')) currency = 'EUR';
+  else if (hostname.includes('.mx')) currency = 'MXN';
+  else if (hostname.includes('.gt')) currency = 'GTQ';
+  else if (hostname.includes('.sv')) currency = 'USD';
+  else if (hostname.includes('.hn')) currency = 'HNL';
+  else if (hostname.includes('.ni')) currency = 'NIO';
+  else if (hostname.includes('.cr')) currency = 'CRC';
+  else if (hostname.includes('.pe')) currency = 'PEN';
+  else if (hostname.includes('.ar')) currency = 'ARS';
+  else if (hostname.includes('.cl')) currency = 'CLP';
+  else if (hostname.includes('.br')) currency = 'BRL';
 
   return { 
     title: title || 'Untitled Item',
