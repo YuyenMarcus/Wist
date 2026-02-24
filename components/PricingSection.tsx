@@ -67,7 +67,7 @@ const PLANS: {
     featureOverrides: [
       'Everything in Wist Pro',
       'Instant price notifications',
-      'Boosted audience reach',
+      'Priority support',
       'Community analytics',
       'Profile customization',
       'Creator badge on profile',
@@ -199,8 +199,6 @@ export default function PricingSection() {
         {/* Reassurance */}
         <div className="mt-10 flex flex-wrap justify-center gap-x-8 gap-y-2 text-xs text-zinc-400">
           <span>No credit card required</span>
-          <span className="hidden sm:inline">·</span>
-          <span>14-day money-back guarantee</span>
           <span className="hidden sm:inline">·</span>
           <span>Cancel anytime</span>
         </div>
