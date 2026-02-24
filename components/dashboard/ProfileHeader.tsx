@@ -5,6 +5,7 @@ import { ShoppingBag, Bell, BellOff } from 'lucide-react'
 import Link from 'next/link'
 import AddItemForm from '@/components/dashboard/AddItemForm'
 import ShareButton from '@/components/dashboard/ShareButton'
+import TierBadge from '@/components/ui/TierBadge'
 import { Profile } from '@/lib/supabase/profile'
 
 interface ProfileHeaderProps {
@@ -61,8 +62,9 @@ export default function ProfileHeader({ user, profile, itemCount, onRefreshPrice
           
           {/* Text Info */}
           <div className="pt-1 sm:pt-2 min-w-0 flex-1">
-            <h1 className="text-lg sm:text-xl font-bold text-zinc-900 tracking-tight truncate">
+            <h1 className="text-lg sm:text-xl font-bold text-zinc-900 tracking-tight truncate flex items-center gap-1.5">
               {displayName}
+              <TierBadge tier={profile?.subscription_tier} />
             </h1>
             <p className="text-sm text-zinc-500 font-medium">@{username}</p>
             {profile?.bio ? (

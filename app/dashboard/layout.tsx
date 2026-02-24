@@ -27,18 +27,24 @@ export default async function DashboardLayout({
   // Don't redirect here - let the client-side dashboard page handle auth
   // This prevents redirect loops when cookies aren't set yet after sign-in
   
-  // Fetch collections to pass to the sidebar (only if user exists)
   let collections: Collection[] = [];
+  let userTier: string | null = null;
   if (user) {
-      const { data } = await supabase
-        .from('collections')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: true });
+      const [collectionsResult, profileResult] = await Promise.all([
+        supabase
+          .from('collections')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: true }),
+        supabase
+          .from('profiles')
+          .select('subscription_tier')
+          .eq('id', user.id)
+          .single(),
+      ]);
       
-      // Sort by position if it exists, otherwise keep created_at order
-      if (data) {
-        const sorted = data.sort((a: any, b: any) => {
+      if (collectionsResult.data) {
+        const sorted = collectionsResult.data.sort((a: any, b: any) => {
           if (a.position !== null && b.position !== null) {
             return a.position - b.position;
           }
@@ -47,15 +53,15 @@ export default async function DashboardLayout({
           return 0;
         });
         collections = (sorted as Collection[]) || [];
-      } else {
-        collections = [];
       }
+
+      userTier = profileResult.data?.subscription_tier || null;
   }
 
   return (
     <div className="flex min-h-screen bg-white">
       {/* Sidebar - Includes mobile header and slide-out menu */}
-      <Sidebar initialCollections={collections} />
+      <Sidebar initialCollections={collections} tier={userTier} />
       
       {/* Main Content Area - Add top padding on mobile for fixed header */}
       <main className="flex-1 w-full pt-14 md:pt-0">

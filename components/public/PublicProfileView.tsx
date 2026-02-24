@@ -2,6 +2,7 @@
 
 import { PublicProfileData, PublicItem } from '@/lib/supabase/public-profile';
 import WishlistGrid from '@/components/wishlist/WishlistGrid';
+import TierBadge from '@/components/ui/TierBadge';
 import { Globe } from 'lucide-react';
 
 interface PublicProfileViewProps {
@@ -66,8 +67,9 @@ export default function PublicProfileView({ profile, items }: PublicProfileViewP
 
             {/* Name & Username */}
             <div>
-              <h1 className="text-3xl font-semibold text-zinc-900 mb-1">
+              <h1 className="text-3xl font-semibold text-zinc-900 mb-1 flex items-center justify-center gap-2">
                 {profile.full_name || `${profile.username}'s Wishlist`}
+                <TierBadge tier={profile.subscription_tier} size="md" />
               </h1>
               <p className="text-sm text-zinc-500">@{profile.username}</p>
             </div>

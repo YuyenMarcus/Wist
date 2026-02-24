@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { PackageOpen, Chrome } from 'lucide-react'
 import Link from 'next/link'
 import ItemCard from './ItemCard'
+import AdSlot from '@/components/ui/AdSlot'
 import { SupabaseProduct } from '@/lib/supabase/products'
 
 interface Collection {
@@ -21,9 +22,10 @@ interface WishlistGridProps {
   onHide?: (id: string) => void
   userCollections?: Collection[]
   adultFilterEnabled?: boolean
+  tier?: string | null
 }
 
-export default function WishlistGrid({ items, isOwner = true, onDelete, onReserve, onUpdate, onHide, userCollections = [], adultFilterEnabled = false }: WishlistGridProps) {
+export default function WishlistGrid({ items, isOwner = true, onDelete, onReserve, onUpdate, onHide, userCollections = [], adultFilterEnabled = false, tier }: WishlistGridProps) {
   
   // Empty State
   if (!items || items.length === 0) {
@@ -62,18 +64,20 @@ export default function WishlistGrid({ items, isOwner = true, onDelete, onReserv
     >
       <AnimatePresence mode="popLayout">
         {items.map((item, i) => (
-          <ItemCard 
-            key={item.id}
-            item={item}
-            index={i}
-            isOwner={isOwner}
-            onDelete={onDelete}
-            onReserve={onReserve}
-            onUpdate={onUpdate}
-            onHide={onHide}
-            userCollections={userCollections}
-            adultFilterEnabled={adultFilterEnabled}
-          />
+          <span key={item.id}>
+            <ItemCard 
+              item={item}
+              index={i}
+              isOwner={isOwner}
+              onDelete={onDelete}
+              onReserve={onReserve}
+              onUpdate={onUpdate}
+              onHide={onHide}
+              userCollections={userCollections}
+              adultFilterEnabled={adultFilterEnabled}
+            />
+            {(i + 1) % 6 === 0 && <AdSlot variant="inline" tier={tier} />}
+          </span>
         ))}
       </AnimatePresence>
     </div>

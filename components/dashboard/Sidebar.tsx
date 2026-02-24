@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
+import AdSlot from '@/components/ui/AdSlot';
 
 interface Collection {
   id: string;
@@ -241,7 +242,7 @@ export function MobileHeader({ onMenuClick }: { onMenuClick: () => void }) {
   );
 }
 
-export default function Sidebar({ initialCollections = [] }: { initialCollections?: Collection[] }) {
+export default function Sidebar({ initialCollections = [], tier }: { initialCollections?: Collection[]; tier?: string | null }) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -477,6 +478,8 @@ export default function Sidebar({ initialCollections = [] }: { initialCollection
           Hidden
         </Link>
       </div>
+
+      <AdSlot variant="sidebar" tier={tier} />
 
       {/* Collections Header with Manage Button */}
       <div className="flex items-center justify-between mb-2 px-4 group">

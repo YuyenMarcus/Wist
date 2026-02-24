@@ -1,5 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { TIERS, type SubscriptionTier } from '@/lib/constants/subscription-tiers';
+
+function getTierCheckInterval(tier: string): number {
+  const config = TIERS[tier as SubscriptionTier];
+  if (!config) return TIERS.free.intervalMs;
+  return config.intervalMs;
+}
 
 // Notification queue helper - queues price drop notifications for users
 async function queuePriceDropNotification(
@@ -119,18 +126,12 @@ export async function GET(req: Request) {
     let offset = 0;
     let hasMore = true;
 
-    // Only select columns we actually need (reduces data transfer)
-    // Include user_id for notifications
     const selectColumns = 'id, user_id, title, url, current_price, status, updated_at';
 
-    console.log(`📊 Starting batch processing (batch size: ${BATCH_SIZE}, max items: ${MAX_ITEMS_TO_CHECK})`);
+    console.log(`📊 Starting tier-aware batch processing (batch size: ${BATCH_SIZE}, max items: ${MAX_ITEMS_TO_CHECK})`);
 
     // Process items in batches
     while (hasMore && totalChecked < MAX_ITEMS_TO_CHECK) {
-      // 1. Get batch of items that need checking
-      // Priority: Items that haven't been checked in 24+ hours, or never checked
-      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      
       type ItemType = {
         id: string;
         user_id: string;
@@ -141,43 +142,75 @@ export async function GET(req: Request) {
         updated_at?: string;
         last_price_check?: string;
         price_check_failures?: number;
+        subscription_tier?: string;
       };
       
       let items: ItemType[] | null = null;
       let error: any = null;
       
+      // Fetch items that are active and have a URL, along with the owner's tier
+      // We fetch more than BATCH_SIZE and filter client-side by tier interval
       const initialQuery = await supabase
         .from('items')
-        .select(selectColumns + ', last_price_check, price_check_failures')
+        .select(selectColumns + ', last_price_check, price_check_failures, profiles!items_user_id_fkey(subscription_tier)')
         .not('url', 'is', null)
-        .eq('status', 'active') // Only check active items (not purchased)
-        .or(`last_price_check.is.null,last_price_check.lt.${twentyFourHoursAgo}`) // Not checked in 24h
-        .order('last_price_check', { ascending: true, nullsFirst: true }) // Check oldest first
-        .limit(BATCH_SIZE);
+        .eq('status', 'active')
+        .order('last_price_check', { ascending: true, nullsFirst: true })
+        .limit(BATCH_SIZE * 3);
 
       if (initialQuery.error) {
         error = initialQuery.error;
         items = null;
       } else {
-        // Type assertion through unknown to handle Supabase's union types
-        items = (initialQuery.data as unknown) as ItemType[] | null;
+        const raw = (initialQuery.data as unknown) as any[] | null;
+        // Flatten the joined profile tier into the item object
+        items = (raw || []).map(row => ({
+          ...row,
+          subscription_tier: row.profiles?.subscription_tier || 'free',
+          profiles: undefined,
+        }));
+        
+        // Filter: only include items whose tier interval has elapsed since last check
+        const now = Date.now();
+        items = items.filter(item => {
+          if (!item.last_price_check) return true; // never checked
+          const intervalMs = getTierCheckInterval(item.subscription_tier || 'free');
+          if (intervalMs === 0) return true; // instant = always check
+          const elapsed = now - new Date(item.last_price_check).getTime();
+          return elapsed >= intervalMs;
+        });
+
+        // Priority: creator/enterprise first, then pro_plus, then free/pro
+        const tierPriority: Record<string, number> = {
+          enterprise: 0, creator: 1, pro_plus: 2, pro: 3, free: 4,
+        };
+        items.sort((a, b) => {
+          const pa = tierPriority[a.subscription_tier || 'free'] ?? 4;
+          const pb = tierPriority[b.subscription_tier || 'free'] ?? 4;
+          return pa - pb;
+        });
+
+        // Cap to BATCH_SIZE after filtering and sorting
+        items = items.slice(0, BATCH_SIZE);
       }
 
-      // If error, try without status filter and last_price_check filter (in case columns don't exist)
+      // Fallback simplified query if join fails
       if (error) {
-        console.log("⚠️  Query error (might be missing columns), trying simplified query...");
+        console.log("⚠️  Query error (might be missing columns/join), trying simplified query...");
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
         const retry = await supabase
           .from('items')
-          .select('id, user_id, title, url, current_price, status, updated_at')
+          .select('id, user_id, title, url, current_price, status, updated_at, last_price_check, price_check_failures')
           .not('url', 'is', null)
-          .order('created_at', { ascending: true })
+          .eq('status', 'active')
+          .or(`last_price_check.is.null,last_price_check.lt.${twentyFourHoursAgo}`)
+          .order('last_price_check', { ascending: true, nullsFirst: true })
           .limit(BATCH_SIZE);
       
         if (retry.error) {
           error = retry.error;
           items = null;
         } else {
-          // Type assertion through unknown to handle Supabase's union types
           items = (retry.data as unknown) as ItemType[] | null;
           error = null;
         }
@@ -203,6 +236,7 @@ export async function GET(req: Request) {
         console.log(`\n🔍 Checking: ${item.title?.substring(0, 30)}...`);
         console.log(`   URL: ${item.url}`);
         console.log(`   DB Price: $${item.current_price}`);
+        console.log(`   Tier: ${(item as any).subscription_tier || 'free'}`);
         console.log(`   Last Check: ${item.last_price_check || 'Never'}`);
         console.log(`   Failures: ${item.price_check_failures || 0}`);
 

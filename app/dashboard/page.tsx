@@ -12,6 +12,7 @@ import { getProfile, Profile } from '@/lib/supabase/profile'
 import LavenderLoader from '@/components/ui/LavenderLoader'
 import SkeletonDashboard from '@/components/ui/SkeletonDashboard'
 import OnboardingFlow from '@/components/onboarding/OnboardingFlow'
+import AdSlot from '@/components/ui/AdSlot'
 import { Layers, LayoutGrid, Sparkles, Loader2, Clock } from 'lucide-react'
 import Link from 'next/link'
 import QueuedItemCard from '@/components/dashboard/QueuedItemCard'
@@ -533,6 +534,8 @@ export default function DashboardPage() {
         refreshing={refreshing}
       />
 
+      <AdSlot variant="banner" tier={profile?.subscription_tier} />
+
       {/* The Content Grid */}
       <main className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
         {/* Queued Items Banner */}
@@ -572,6 +575,7 @@ export default function DashboardPage() {
             onHide={handleHide}
             userCollections={collections}
             adultFilterEnabled={adultFilterEnabled}
+            tier={profile?.subscription_tier}
           />
         )}
 
