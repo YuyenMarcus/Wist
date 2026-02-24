@@ -23,8 +23,8 @@ export async function GET(request: Request) {
 
   let dbQuery = supabase
     .from('profiles')
-    .select('id, email, full_name, username, avatar_url, subscription_tier, is_admin, is_banned, ban_reason, age, created_at:updated_at', { count: 'exact' })
-    .order('updated_at', { ascending: false })
+    .select('id, email, full_name, username, avatar_url, subscription_tier, is_admin, is_banned, ban_reason, age, created_at', { count: 'exact' })
+    .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
   if (query) {

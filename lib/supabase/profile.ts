@@ -9,6 +9,7 @@ export interface Profile {
   full_name: string | null;
   avatar_url: string | null;
   bio: string | null; // User bio with 150 character limit
+  created_at: string | null;
   updated_at: string; // timestamp
   username: string | null; // NEW: for public sharing
   username_set_at: string | null; // NEW: when username was set
@@ -22,7 +23,7 @@ export interface Profile {
   adult_content_filter: boolean;
   onboarding_completed: boolean;
   auto_activate_queued: boolean;
-  subscription_tier: 'free' | 'pro' | 'creator';
+  subscription_tier: 'free' | 'pro' | 'pro_plus' | 'creator' | 'enterprise';
   is_admin: boolean;
   is_banned: boolean;
   ban_reason: string | null;
