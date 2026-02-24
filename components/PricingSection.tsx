@@ -1,202 +1,209 @@
 'use client'
 
 import Link from 'next/link'
-import { TIERS, TIER_ORDER, type SubscriptionTier } from '@/lib/constants/subscription-tiers'
-import { Check, Star, Crown, Gem, Building2, ArrowRight, Sparkles } from 'lucide-react'
+import { TIERS, type SubscriptionTier } from '@/lib/constants/subscription-tiers'
+import { Check, ArrowRight, Sparkles } from 'lucide-react'
 
-const TIER_ICONS: Record<SubscriptionTier, typeof Star> = {
-  free: Star,
-  pro: Sparkles,
-  pro_plus: Gem,
-  creator: Crown,
-  enterprise: Building2,
-}
-
-const CARD_STYLES: Record<SubscriptionTier, { border: string; badge: string; bg: string; cta: string; icon: string }> = {
-  free: {
-    border: 'border-zinc-200',
-    badge: '',
-    bg: 'bg-white',
-    cta: 'bg-zinc-900 hover:bg-zinc-800 text-white',
-    icon: 'text-zinc-500',
+const PLANS: {
+  key: SubscriptionTier
+  tagline: string
+  highlight?: boolean
+  ctaLabel: string
+  accent: string
+  checkColor: string
+  featureOverrides: string[]
+}[] = [
+  {
+    key: 'free',
+    tagline: 'Everything you need to start tracking prices.',
+    ctaLabel: 'Get Started Free',
+    accent: 'text-zinc-900',
+    checkColor: 'text-zinc-400',
+    featureOverrides: [
+      'Up to 20 tracked items',
+      'Weekly price checks',
+      'Browser extension',
+      'Price history graph',
+      'Share your wishlist',
+    ],
   },
-  pro: {
-    border: 'border-blue-200',
-    badge: '',
-    bg: 'bg-white',
-    cta: 'bg-blue-600 hover:bg-blue-700 text-white',
-    icon: 'text-blue-500',
+  {
+    key: 'pro',
+    tagline: 'For serious deal hunters who hate missing drops.',
+    ctaLabel: 'Start Free Trial',
+    accent: 'text-blue-600',
+    checkColor: 'text-blue-500',
+    featureOverrides: [
+      'Up to 45 tracked items',
+      'Weekly price checks',
+      'Back-in-stock alerts',
+      'Ad-free experience',
+      'Similar product comparison',
+    ],
   },
-  pro_plus: {
-    border: 'border-violet-300 ring-2 ring-violet-200',
-    badge: 'Most Popular',
-    bg: 'bg-white',
-    cta: 'bg-violet-600 hover:bg-violet-700 text-white',
-    icon: 'text-violet-500',
+  {
+    key: 'pro_plus',
+    tagline: 'The full toolkit. Unlimited tracking, daily checks, and gifting.',
+    highlight: true,
+    ctaLabel: 'Start Free Trial',
+    accent: 'text-violet-600',
+    checkColor: 'text-violet-500',
+    featureOverrides: [
+      'Unlimited items',
+      'Daily price checks',
+      'Receipt & warranty tracking',
+      '2-year pricing history',
+      'Gifting service',
+      'Amazon & spreadsheet sync',
+      'Pro badge on profile',
+    ],
   },
-  creator: {
-    border: 'border-amber-200',
-    badge: '',
-    bg: 'bg-white',
-    cta: 'bg-amber-600 hover:bg-amber-700 text-white',
-    icon: 'text-amber-500',
+  {
+    key: 'creator',
+    tagline: 'Built for influencers and content creators.',
+    ctaLabel: 'Start Free Trial',
+    accent: 'text-amber-600',
+    checkColor: 'text-amber-500',
+    featureOverrides: [
+      'Everything in Wist Pro',
+      'Instant price notifications',
+      'Boosted audience reach',
+      'Community analytics',
+      'Profile customization',
+      'Creator badge on profile',
+    ],
   },
-  enterprise: {
-    border: 'border-emerald-200',
-    badge: '',
-    bg: 'bg-white',
-    cta: 'bg-emerald-600 hover:bg-emerald-700 text-white',
-    icon: 'text-emerald-500',
-  },
-}
-
-const VISIBLE_TIERS: SubscriptionTier[] = ['free', 'pro', 'pro_plus', 'creator']
+]
 
 export default function PricingSection() {
   return (
-    <section className="relative py-24 px-4 sm:px-6 bg-zinc-50 overflow-hidden">
-      {/* Subtle background gradient */}
-      <div className="absolute inset-0 bg-gradient-to-b from-white via-zinc-50 to-zinc-100 pointer-events-none" />
+    <section className="relative py-28 sm:py-32 px-4 sm:px-6 overflow-hidden" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+      {/* Background */}
+      <div className="absolute inset-0 bg-gradient-to-b from-white via-violet-50/30 to-white pointer-events-none" />
+      <div className="absolute inset-0 opacity-[0.015] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, #8b5cf6 1px, transparent 0)', backgroundSize: '40px 40px' }} />
 
       <div className="relative max-w-6xl mx-auto">
-        {/* Section header */}
-        <div className="text-center mb-16">
-          <p className="text-sm font-semibold text-violet-600 tracking-wide uppercase mb-3">Pricing</p>
-          <h2 className="text-3xl sm:text-4xl font-bold text-zinc-900 tracking-tight">
-            Simple plans for every shopper
+        {/* Header */}
+        <div className="text-center mb-16 sm:mb-20">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-100/80 border border-violet-200/60 mb-5">
+            <Sparkles className="w-3.5 h-3.5 text-violet-600" />
+            <span className="text-xs font-semibold text-violet-700 tracking-wide">PRICING</span>
+          </div>
+          <h2 className="text-4xl sm:text-5xl font-bold text-zinc-900 tracking-tight leading-tight" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+            Pick the plan that<br className="hidden sm:block" /> fits your lifestyle
           </h2>
-          <p className="mt-4 text-lg text-zinc-500 max-w-2xl mx-auto">
-            Start free. Upgrade when you need more power. No credit card required.
+          <p className="mt-5 text-base sm:text-lg text-zinc-500 max-w-xl mx-auto leading-relaxed">
+            Start free, upgrade anytime. Every plan includes a 14-day trial on paid features.
           </p>
         </div>
 
-        {/* Pricing cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {VISIBLE_TIERS.map((tierKey) => {
-            const tier = TIERS[tierKey]
-            const style = CARD_STYLES[tierKey]
-            const Icon = TIER_ICONS[tierKey]
-            const isPopular = tierKey === 'pro_plus'
+        {/* Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-4">
+          {PLANS.map((plan) => {
+            const tier = TIERS[plan.key]
+            const isPopular = plan.highlight
 
             return (
               <div
-                key={tierKey}
-                className={`relative flex flex-col rounded-2xl border ${style.border} ${style.bg} p-6 transition-all hover:shadow-lg hover:-translate-y-1 duration-200`}
+                key={plan.key}
+                className={`relative flex flex-col rounded-2xl p-6 transition-all duration-300 ${
+                  isPopular
+                    ? 'bg-zinc-900 text-white shadow-2xl shadow-violet-500/10 ring-1 ring-violet-500/20 lg:scale-[1.03] lg:-my-2'
+                    : 'bg-white border border-zinc-200/80 hover:border-zinc-300 hover:shadow-lg'
+                }`}
               >
-                {/* Popular badge */}
                 {isPopular && (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
-                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-violet-600 text-white text-xs font-bold rounded-full shadow-md">
-                      <Sparkles className="w-3 h-3" /> {style.badge}
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                    <span className="inline-flex items-center gap-1.5 px-3.5 py-1 bg-gradient-to-r from-violet-500 to-purple-600 text-white text-[11px] font-bold tracking-wide rounded-full shadow-lg shadow-violet-500/30">
+                      <Sparkles className="w-3 h-3" /> MOST POPULAR
                     </span>
                   </div>
                 )}
 
-                {/* Icon & name */}
-                <div className="flex items-center gap-2.5 mb-4">
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                    tierKey === 'free' ? 'bg-zinc-100' :
-                    tierKey === 'pro' ? 'bg-blue-50' :
-                    tierKey === 'pro_plus' ? 'bg-violet-50' :
-                    tierKey === 'creator' ? 'bg-amber-50' : 'bg-emerald-50'
-                  }`}>
-                    <Icon className={`w-4.5 h-4.5 ${style.icon}`} />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-zinc-900">{tier.displayName}</h3>
-                  </div>
+                {/* Plan name */}
+                <div className="mb-5 pt-1">
+                  <h3 className={`text-sm font-bold tracking-wide uppercase ${isPopular ? 'text-violet-400' : plan.accent}`}>
+                    {tier.displayName}
+                  </h3>
+                  <p className={`mt-1 text-[13px] leading-snug ${isPopular ? 'text-zinc-400' : 'text-zinc-400'}`}>
+                    {plan.tagline}
+                  </p>
                 </div>
 
                 {/* Price */}
-                <div className="mb-5">
+                <div className="mb-6">
                   {tier.price === 0 ? (
                     <div className="flex items-baseline gap-1">
-                      <span className="text-4xl font-extrabold text-zinc-900">$0</span>
-                      <span className="text-sm text-zinc-400">/mo</span>
-                    </div>
-                  ) : tier.price === null ? (
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-3xl font-extrabold text-zinc-900">Custom</span>
+                      <span className={`text-5xl font-extrabold tracking-tight ${isPopular ? 'text-white' : 'text-zinc-900'}`}>$0</span>
+                      <span className={`text-sm font-medium ${isPopular ? 'text-zinc-500' : 'text-zinc-400'}`}>/mo</span>
                     </div>
                   ) : (
                     <div className="flex items-baseline gap-1">
-                      <span className="text-4xl font-extrabold text-zinc-900">${tier.price}</span>
-                      <span className="text-sm text-zinc-400">/mo</span>
+                      <span className={`text-5xl font-extrabold tracking-tight ${isPopular ? 'text-white' : 'text-zinc-900'}`}>${tier.price}</span>
+                      <span className={`text-sm font-medium ${isPopular ? 'text-zinc-500' : 'text-zinc-400'}`}>/mo</span>
                     </div>
                   )}
-                  <p className="mt-1.5 text-xs text-zinc-400">
-                    {tierKey === 'free' && 'Free forever'}
-                    {tierKey === 'pro' && 'For deal hunters'}
-                    {tierKey === 'pro_plus' && 'Best value for power users'}
-                    {tierKey === 'creator' && 'For influencers & creators'}
-                    {tierKey === 'enterprise' && 'For teams & organizations'}
-                  </p>
                 </div>
 
                 {/* CTA */}
                 <Link
                   href="/signup"
-                  className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors ${style.cta}`}
+                  className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold transition-all duration-200 ${
+                    isPopular
+                      ? 'bg-white text-zinc-900 hover:bg-zinc-100 shadow-sm'
+                      : plan.key === 'free'
+                        ? 'bg-zinc-900 text-white hover:bg-zinc-800'
+                        : 'bg-zinc-900 text-white hover:bg-zinc-800'
+                  }`}
                 >
-                  {tierKey === 'free' ? 'Get Started' : 'Start Free Trial'}
+                  {plan.ctaLabel}
                   <ArrowRight className="w-4 h-4" />
                 </Link>
 
-                {/* Divider */}
-                <div className="mt-6 mb-5 border-t border-zinc-100" />
-
                 {/* Features */}
-                <ul className="space-y-3 flex-1">
-                  {tierKey === 'pro' && (
-                    <li className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1">Everything in Free, plus:</li>
-                  )}
-                  {tierKey === 'pro_plus' && (
-                    <li className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1">Everything in Wist+, plus:</li>
-                  )}
-                  {tierKey === 'creator' && (
-                    <li className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1">Everything in Wist Pro, plus:</li>
-                  )}
-                  {tier.features.filter(f => !f.startsWith('Everything in')).map((feature, i) => (
-                    <li key={i} className="flex items-start gap-2.5">
-                      <Check className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
-                        tierKey === 'free' ? 'text-zinc-400' :
-                        tierKey === 'pro' ? 'text-blue-500' :
-                        tierKey === 'pro_plus' ? 'text-violet-500' :
-                        tierKey === 'creator' ? 'text-amber-500' : 'text-emerald-500'
-                      }`} />
-                      <span className="text-sm text-zinc-600">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
+                <div className={`mt-6 pt-6 border-t ${isPopular ? 'border-zinc-800' : 'border-zinc-100'} flex-1`}>
+                  <ul className="space-y-3">
+                    {plan.featureOverrides.map((feature, i) => (
+                      <li key={i} className="flex items-start gap-2.5">
+                        <div className={`w-4.5 h-4.5 mt-0.5 rounded-full flex items-center justify-center flex-shrink-0 ${
+                          isPopular ? 'bg-violet-500/20' : 'bg-zinc-100'
+                        }`}>
+                          <Check className={`w-3 h-3 ${isPopular ? 'text-violet-400' : plan.checkColor}`} />
+                        </div>
+                        <span className={`text-[13px] leading-snug ${isPopular ? 'text-zinc-300' : 'text-zinc-600'}`}>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
             )
           })}
         </div>
 
-        {/* Enterprise callout */}
-        <div className="mt-12 relative rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-emerald-50 p-8 sm:p-10 flex flex-col sm:flex-row items-center gap-6">
+        {/* Enterprise bar */}
+        <div className="mt-14 rounded-2xl bg-zinc-900 p-8 sm:p-10 flex flex-col sm:flex-row items-center gap-6 sm:gap-8">
           <div className="flex-1 text-center sm:text-left">
-            <div className="flex items-center gap-2 justify-center sm:justify-start mb-2">
-              <Building2 className="w-5 h-5 text-emerald-600" />
-              <h3 className="text-lg font-bold text-zinc-900">{TIERS.enterprise.displayName}</h3>
-            </div>
-            <p className="text-sm text-zinc-500 max-w-lg">
-              API access, team wishlists, bulk gifting, custom branding, and dedicated support. 
-              Built for organizations that need scale.
+            <h3 className="text-lg font-bold text-white mb-1">Need something bigger?</h3>
+            <p className="text-sm text-zinc-400 max-w-lg">
+              Wist Enterprise includes API access, team wishlists, bulk gifting, custom branding, and a dedicated account manager.
             </p>
           </div>
           <Link
             href="mailto:julien@nitron.digital?subject=Wist Enterprise"
-            className="flex-shrink-0 inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 transition-colors"
+            className="flex-shrink-0 inline-flex items-center gap-2 px-6 py-3 bg-white text-zinc-900 text-sm font-bold rounded-xl hover:bg-zinc-100 transition-colors"
           >
-            Contact Sales <ArrowRight className="w-4 h-4" />
+            Talk to Sales <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
 
-        {/* Bottom reassurance */}
-        <p className="mt-8 text-center text-xs text-zinc-400">
-          All plans include a 14-day money-back guarantee. Cancel anytime. No questions asked.
-        </p>
+        {/* Reassurance */}
+        <div className="mt-10 flex flex-wrap justify-center gap-x-8 gap-y-2 text-xs text-zinc-400">
+          <span>No credit card required</span>
+          <span className="hidden sm:inline">·</span>
+          <span>14-day money-back guarantee</span>
+          <span className="hidden sm:inline">·</span>
+          <span>Cancel anytime</span>
+        </div>
       </div>
     </section>
   )
