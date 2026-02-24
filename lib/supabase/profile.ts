@@ -52,6 +52,33 @@ export async function getProfile(userId: string): Promise<{
 }
 
 /**
+ * Creates a profile row for an auth user if one doesn't exist.
+ * Handles the case where a profile was deleted but the auth user remains.
+ */
+export async function ensureProfile(user: { id: string; email?: string; user_metadata?: any }): Promise<{
+  data: Profile | null;
+  error: any;
+}> {
+  const { data: existing, error: fetchError } = await getProfile(user.id);
+  if (existing) return { data: existing, error: null };
+
+  const email = user.email || '';
+  const { data, error } = await supabase
+    .from('profiles')
+    .insert({
+      id: user.id,
+      email,
+      full_name: user.user_metadata?.full_name || user.user_metadata?.name || null,
+      avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture || null,
+      username: email.split('@')[0]?.replace(/[^a-zA-Z0-9_-]/g, '') || null,
+    })
+    .select()
+    .single();
+
+  return { data, error };
+}
+
+/**
  * Public profile interface (limited fields for sharing)
  */
 export interface PublicProfile {

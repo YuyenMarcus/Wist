@@ -8,7 +8,7 @@ import ExtensionBanner from '@/components/dashboard/ExtensionBanner'
 import WishlistGrid from '@/components/wishlist/WishlistGrid'
 import ProductCard from '@/components/dashboard/ProductCard'
 import { getUserProducts, SupabaseProduct, deleteUserProduct } from '@/lib/supabase/products'
-import { getProfile, Profile } from '@/lib/supabase/profile'
+import { getProfile, ensureProfile, Profile } from '@/lib/supabase/profile'
 import LavenderLoader from '@/components/ui/LavenderLoader'
 import SkeletonDashboard from '@/components/ui/SkeletonDashboard'
 import OnboardingFlow from '@/components/onboarding/OnboardingFlow'
@@ -89,8 +89,12 @@ export default function DashboardPage() {
       if (currentUser) {
         setUser({ id: currentUser.id, email: currentUser.email })
         
-        // Load profile
-        const { data: profileData } = await getProfile(currentUser.id)
+        // Load profile (auto-create if missing, e.g. profile row was deleted)
+        let { data: profileData } = await getProfile(currentUser.id)
+        if (!profileData) {
+          const { data: created } = await ensureProfile(currentUser)
+          profileData = created
+        }
         if (profileData) {
           setProfile(profileData)
           if (profileData.onboarding_completed === false) {
