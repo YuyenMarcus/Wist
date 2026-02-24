@@ -22,6 +22,10 @@ export interface Profile {
   adult_content_filter: boolean;
   onboarding_completed: boolean;
   auto_activate_queued: boolean;
+  subscription_tier: 'free' | 'pro' | 'creator';
+  is_admin: boolean;
+  is_banned: boolean;
+  ban_reason: string | null;
 }
 
 /**
