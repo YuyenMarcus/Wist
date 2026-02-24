@@ -140,10 +140,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 function renderPreview(data) {
   document.getElementById('product-title').textContent = data.title || 'Untitled Item';
   
-  // Format price
-  const priceText = data.price_string && data.price_string !== '0.00' 
-    ? data.price_string 
-    : (data.price > 0 ? `$${data.price.toFixed(2)}` : 'Price not found');
+  // Format price with correct currency symbol
+  let priceText;
+  if (data.price_string && data.price_string !== '0.00' && data.price_string !== 'Price not found') {
+    priceText = data.price_string;
+  } else if (data.price > 0) {
+    const SYMS = { USD:'$', EUR:'€', GBP:'£', JPY:'¥', CNY:'¥', MXN:'MX$', GTQ:'Q', CAD:'CA$', AUD:'A$', KRW:'₩', INR:'₹', BRL:'R$', CRC:'₡', PEN:'S/', HNL:'L', NIO:'C$', ARS:'AR$', CLP:'CL$', COP:'COL$', DOP:'RD$', TRY:'₺', RUB:'₽' };
+    const sym = SYMS[data.currency] || '$';
+    const dec = (data.currency === 'JPY' || data.currency === 'KRW') ? 0 : 2;
+    priceText = `${sym}${data.price.toFixed(dec)}`;
+  } else {
+    priceText = 'Price not found';
+  }
   document.getElementById('product-price').textContent = priceText;
   
   // Store badge
@@ -909,10 +917,31 @@ function scrapeProductData() {
   else if (hostname.includes('.cl')) currency = 'CLP';
   else if (hostname.includes('.br')) currency = 'BRL';
 
+  // Map currency code to display symbol
+  const CURRENCY_SYMBOLS = {
+    USD: '$', EUR: '€', GBP: '£', JPY: '¥', CNY: '¥', CAD: 'CA$', AUD: 'A$',
+    KRW: '₩', INR: '₹', BRL: 'R$', MXN: 'MX$', GTQ: 'Q', CRC: '₡', HNL: 'L',
+    NIO: 'C$', PEN: 'S/', ARS: 'AR$', CLP: 'CL$', COP: 'COL$', DOP: 'RD$',
+    TRY: '₺', RUB: '₽', CHF: 'CHF', SEK: 'kr', NOK: 'kr', PLN: 'zł',
+    SGD: 'S$', HKD: 'HK$', TWD: 'NT$', THB: '฿', PHP: '₱',
+  };
+  const currSym = CURRENCY_SYMBOLS[currency] || '$';
+  const decimals = (currency === 'JPY' || currency === 'KRW' || currency === 'CLP' || currency === 'CRC' || currency === 'COP' || currency === 'IDR' || currency === 'VND' || currency === 'HUF') ? 0 : 2;
+
+  // Format price_string with the correct currency symbol
+  let displayPriceString;
+  if (price > 0) {
+    displayPriceString = `${currSym}${price.toFixed(decimals)}`;
+  } else if (priceString && priceString !== 'Price not found') {
+    displayPriceString = priceString;
+  } else {
+    displayPriceString = 'Price not found';
+  }
+
   return { 
     title: title || 'Untitled Item',
     price: price || 0,
-    price_string: priceString || (price > 0 ? `$${price.toFixed(2)}` : "Price not found"),
+    price_string: displayPriceString,
     image_url: image || '',
     url: window.location.href,
     retailer: retailer.charAt(0).toUpperCase() + retailer.slice(1),
