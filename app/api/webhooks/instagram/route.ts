@@ -8,6 +8,7 @@ import {
   extractUrlsFromMessage,
   getRetailerFromUrl,
 } from '@/lib/instagram/api';
+import { checkItemLimit } from '@/lib/tier-guards';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -234,6 +235,12 @@ async function queueItem(userId: string, url: string): Promise<boolean> {
       const hostname = new URL(url).hostname.replace('www.', '');
       title = `Item from ${hostname}`;
     } catch { /* keep default */ }
+
+    const limitCheck = await checkItemLimit(supabase, userId);
+    if (!limitCheck.allowed) {
+      console.warn(`[Instagram Webhook] Item limit reached for user ${userId}`);
+      return false;
+    }
 
     const { error } = await supabase.from('items').insert({
       title,

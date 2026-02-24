@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { TIERS, type SubscriptionTier } from '@/lib/constants/subscription-tiers';
+import { isTierAtLeast } from '@/lib/tier-guards';
 
 function getTierCheckInterval(tier: string): number {
   const config = TIERS[tier as SubscriptionTier];
@@ -37,6 +38,31 @@ async function queuePriceDropNotification(
     console.log(`   ⚠️  Failed to queue notification: ${error.message}`);
   } else {
     console.log(`   🔔 Notification queued for user (${Math.abs(priceChangePercent).toFixed(1)}% drop)`);
+  }
+}
+
+async function queueBackInStockNotification(
+  supabase: any,
+  userId: string,
+  itemId: string,
+  price: number
+) {
+  const { error } = await supabase
+    .from('notification_queue')
+    .insert({
+      user_id: userId,
+      item_id: itemId,
+      notification_type: 'back_in_stock',
+      old_price: 0,
+      new_price: price,
+      price_change_percent: 0,
+      sent: false,
+    });
+
+  if (error) {
+    console.log(`   ⚠️  Failed to queue back-in-stock notification: ${error.message}`);
+  } else {
+    console.log(`   🔔 Back-in-stock notification queued at $${price}`);
   }
 }
 
@@ -126,7 +152,7 @@ export async function GET(req: Request) {
     let offset = 0;
     let hasMore = true;
 
-    const selectColumns = 'id, user_id, title, url, current_price, status, updated_at';
+    const selectColumns = 'id, user_id, title, url, current_price, status, updated_at, out_of_stock';
 
     console.log(`📊 Starting tier-aware batch processing (batch size: ${BATCH_SIZE}, max items: ${MAX_ITEMS_TO_CHECK})`);
 
@@ -143,6 +169,7 @@ export async function GET(req: Request) {
         last_price_check?: string;
         price_check_failures?: number;
         subscription_tier?: string;
+        out_of_stock?: boolean;
       };
       
       let items: ItemType[] | null = null;
@@ -296,12 +323,19 @@ export async function GET(req: Request) {
           if (!freshData || !freshData.current_price) {
             console.log("   ❌ Scrape Failed: Could not fetch price after retries");
             
-            // Update failure count
             const failureCount = (item.price_check_failures || 0) + 1;
-            await supabase.from('items').update({
+            const stockUpdate: any = {
               last_price_check: new Date().toISOString(),
-              price_check_failures: failureCount
-            }).eq('id', item.id);
+              price_check_failures: failureCount,
+            };
+
+            // If the item previously had a price, mark it as out of stock
+            if (item.current_price && item.current_price > 0 && !item.out_of_stock && failureCount >= 2) {
+              stockUpdate.out_of_stock = true;
+              console.log(`   📦 Marked as out of stock (no price after ${failureCount} failures)`);
+            }
+
+            await supabase.from('items').update(stockUpdate).eq('id', item.id);
             
             if (failureCount >= 5) {
               console.log(`   ⚠️  Item has failed ${failureCount} times - may need manual review`);
@@ -317,11 +351,22 @@ export async function GET(req: Request) {
 
           console.log(`   ✅ Scrape Success: Found $${newPrice}`);
 
+          // Back-in-stock detection: item was out_of_stock but now has a price
+          if (item.out_of_stock && newPrice > 0) {
+            console.log(`   🎉 Item is BACK IN STOCK at $${newPrice}!`);
+            const tier = (item as any).subscription_tier || 'free';
+            if (isTierAtLeast(tier, 'pro')) {
+              await queueBackInStockNotification(supabase, item.user_id, item.id, newPrice);
+              notificationCount++;
+            }
+          }
+
           // Update item (always update last_price_check and reset failures)
           const updateData: any = {
             last_price_check: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-            price_check_failures: 0 // Reset on success
+            price_check_failures: 0,
+            out_of_stock: false,
           };
 
           if (priceChanged) {

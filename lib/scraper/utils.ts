@@ -2,7 +2,7 @@
  * Utility functions for product scraping and normalization
  */
 
-export const DYNAMIC_DOMAINS = ['amazon.', 'bestbuy.', 'target.', 'etsy.com'];
+export const DYNAMIC_DOMAINS = ['amazon.', 'bestbuy.', 'target.', 'etsy.com', 'taobao.', 'tmall.', 'kakobuy.', 'superbuy.', 'wegobuy.', 'pandabuy.'];
 
 export function isDynamic(domain: string): boolean {
   return DYNAMIC_DOMAINS.some(d => domain.includes(d));

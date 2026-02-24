@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { checkItemLimit } from '@/lib/tier-guards';
 
 // HELPER: Dynamic CORS Headers
 function corsHeaders(origin: string | null) {
@@ -62,7 +63,7 @@ export async function POST(req: Request) {
 
     // 4. Parse Data
     const body = await req.json();
-    let { url, title, price, image_url, retailer, description } = body;
+    let { url, title, price, image_url, retailer, description, currency } = body;
 
     // 5. CHECK: Does this URL already exist in products table?
     let existingProduct = null;
@@ -131,9 +132,16 @@ export async function POST(req: Request) {
       wishlistId = wishlists[0].id;
     }
 
+    // 7b. Check item limit
+    const limitCheck = await checkItemLimit(supabase, user.id);
+    if (!limitCheck.allowed) {
+      return NextResponse.json(
+        { error: 'Item limit reached', limit: limitCheck.limit, current: limitCheck.current, upgrade: true },
+        { status: 403, headers: corsHeaders(origin) }
+      );
+    }
+
     // 8. Insert Item into items table (user's personal wishlist)
-    // This allows multiple users to have the same product in their wishlist
-    // Even if the product already exists in the products catalog
     const { data: newItem, error: itemError } = await supabase
       .from('items')
       .insert({
@@ -143,9 +151,10 @@ export async function POST(req: Request) {
         current_price: price ? parseFloat(price.toString().replace(/[^0-9.]/g, '')) : 0,
         image_url,
         retailer: retailer || 'Amazon',
-        status: 'active', // Default to active (wishlist)
+        status: 'active',
         note: description ? description.substring(0, 100) : null,
-        wishlist_id: wishlistId
+        wishlist_id: wishlistId,
+        original_currency: currency || 'USD',
       })
       .select()
       .single();

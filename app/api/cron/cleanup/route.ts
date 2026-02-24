@@ -41,36 +41,65 @@ export async function GET(request: Request) {
     const results: Record<string, any> = {};
 
     // ============================================
-    // 1. Clean Old Price History (Keep 90 days)
+    // 1. Tier-Aware Price History Cleanup
+    //    free/pro: keep 90 days
+    //    pro_plus/creator/enterprise: keep 730 days (2 years)
     // ============================================
-    console.log('\n📊 Cleaning old price history (keeping last 90 days)...');
-    
-    // Get count before deletion
+    console.log('\n📊 Cleaning old price history (tier-aware retention)...');
+
     const { count: beforeCount } = await supabase
       .from('price_history')
       .select('*', { count: 'exact', head: true });
-    
-    const { error: deleteError } = await supabase
-      .from('price_history')
-      .delete()
-      .lt('created_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString());
-    
-    if (deleteError) {
-      console.error('❌ Price history cleanup error:', deleteError);
-      results.price_history = { error: deleteError.message };
-    } else {
-      const { count: afterCount } = await supabase
+
+    // Find item IDs owned by premium users (pro_plus+) who get 2-year retention
+    const { data: premiumItems } = await supabase
+      .from('items')
+      .select('id, user_id, profiles!inner(subscription_tier)')
+      .in('profiles.subscription_tier', ['pro_plus', 'creator', 'enterprise']);
+
+    const premiumItemIds = (premiumItems || []).map((i: any) => i.id);
+
+    let deletedTotal = 0;
+    const cutoff90 = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+    const cutoff730 = new Date(Date.now() - 730 * 24 * 60 * 60 * 1000).toISOString();
+
+    // Delete >90-day history for non-premium items
+    if (premiumItemIds.length > 0) {
+      const { error: stdErr, count: stdCount } = await supabase
         .from('price_history')
-        .select('*', { count: 'exact', head: true });
-      const deleted = (beforeCount || 0) - (afterCount || 0);
-      
-      console.log(`✅ Deleted ${deleted} old price history entries`);
-      results.price_history = {
-        deleted,
-        remaining: afterCount || 0,
-        message: `Deleted ${deleted} rows older than 90 days`
-      };
+        .delete({ count: 'exact' })
+        .not('item_id', 'in', `(${premiumItemIds.join(',')})`)
+        .lt('created_at', cutoff90);
+
+      if (stdErr) console.error('❌ Standard cleanup error:', stdErr.message);
+      deletedTotal += stdCount || 0;
+
+      // Delete >730-day history for premium items
+      const { error: premErr, count: premCount } = await supabase
+        .from('price_history')
+        .delete({ count: 'exact' })
+        .in('item_id', premiumItemIds)
+        .lt('created_at', cutoff730);
+
+      if (premErr) console.error('❌ Premium cleanup error:', premErr.message);
+      deletedTotal += premCount || 0;
+    } else {
+      // No premium users — simple 90-day cleanup for all
+      const { error: deleteError, count: delCount } = await supabase
+        .from('price_history')
+        .delete({ count: 'exact' })
+        .lt('created_at', cutoff90);
+
+      if (deleteError) console.error('❌ Price history cleanup error:', deleteError.message);
+      deletedTotal += delCount || 0;
     }
+
+    console.log(`✅ Deleted ${deletedTotal} old price history entries`);
+    results.price_history = {
+      deleted: deletedTotal,
+      premium_items: premiumItemIds.length,
+      message: `Deleted ${deletedTotal} rows (90d standard, 730d premium)`
+    };
 
     // ============================================
     // 2. Clean Expired Product Cache

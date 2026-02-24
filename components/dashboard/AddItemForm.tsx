@@ -15,6 +15,7 @@ interface PreviewData {
   description?: string
   url: string
   extensionRequired?: boolean
+  currency?: string
 }
 
 declare const chrome: any;
@@ -105,6 +106,7 @@ export default function AddItemForm() {
               price: event.data.data.price || null,
               description: event.data.data.description || null,
               url: targetUrl,
+              currency: event.data.data.currency || 'USD',
             })
           } else {
             resolve(null)
@@ -138,6 +140,7 @@ export default function AddItemForm() {
       description: metadata.description || null,
       url: targetUrl,
       extensionRequired: metadata.extensionRequired,
+      currency: metadata.currency || 'USD',
     }
   }, [])
 
@@ -247,12 +250,18 @@ export default function AddItemForm() {
           title: metadata.title || url.trim(),
           price: priceValue,
           image_url: metadata.image || null,
+          currency: metadata.currency || 'USD',
         }),
       })
 
       const result = await response.json()
 
       if (!response.ok) {
+        if (result.upgrade) {
+          setError(`Item limit reached (${result.current}/${result.limit}). Upgrade your plan to add more items.`)
+          setSaving(false)
+          return
+        }
         throw new Error(result.error || 'Failed to save item')
       }
 

@@ -2,9 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, AlertCircle, Check, Instagram, Link as LinkIcon, ShoppingCart, Video, Shield, Lock, ArrowLeft, Zap } from 'lucide-react'
+import { Loader2, AlertCircle, Check, Instagram, Link as LinkIcon, ShoppingCart, Video, Shield, Lock, ArrowLeft, Zap, Palette, Gift, DollarSign } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { getProfile, updateProfile } from '@/lib/supabase/profile'
+import { PROFILE_THEMES, THEME_KEYS } from '@/lib/constants/profile-themes'
+import { isTierAtLeast } from '@/lib/tier-guards'
+import { CURRENCY_INFO, SUPPORTED_CURRENCIES } from '@/lib/currency'
 import LavenderLoader from '@/components/ui/LavenderLoader'
 import PageTransition from '@/components/ui/PageTransition'
 
@@ -26,6 +29,10 @@ export default function SettingsPage() {
     amazonId: '',
     adultFilter: true,
     autoActivate: true,
+    profileTheme: 'default',
+    giftingEnabled: false,
+    giftingMessage: '',
+    preferredCurrency: 'USD',
   })
 
   // 1. Load All Profile Data
@@ -54,6 +61,10 @@ export default function SettingsPage() {
             amazonId: data.amazon_affiliate_id || '',
             adultFilter: data.adult_content_filter ?? true,
             autoActivate: data.auto_activate_queued ?? true,
+            profileTheme: data.profile_theme || 'default',
+            giftingEnabled: data.gifting_enabled ?? false,
+            giftingMessage: data.gifting_message || '',
+            preferredCurrency: data.preferred_currency || 'USD',
           })
         }
       } catch (error: any) {
@@ -95,6 +106,10 @@ export default function SettingsPage() {
         amazon_affiliate_id: formData.amazonId.trim() || null,
         adult_content_filter: isMinor ? true : formData.adultFilter,
         auto_activate_queued: formData.autoActivate,
+        profile_theme: formData.profileTheme,
+        gifting_enabled: formData.giftingEnabled,
+        gifting_message: formData.giftingMessage.trim() || null,
+        preferred_currency: formData.preferredCurrency,
       })
 
       if (error) {
@@ -371,6 +386,130 @@ export default function SettingsPage() {
                 />
               </button>
             </div>
+          </div>
+
+          {/* --- SECTION: CURRENCY --- */}
+          <div className="bg-white p-8 rounded-2xl border border-zinc-200 shadow-sm space-y-6 scroll-mt-20">
+            <h2 className="text-lg font-semibold text-zinc-900 border-b border-zinc-100 pb-2 flex items-center gap-2">
+              <DollarSign size={16} /> Currency
+            </h2>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">
+                Display Currency
+              </label>
+              <p className="text-xs text-zinc-500 mb-3">
+                Prices from foreign stores will be converted to your preferred currency. Original prices are always preserved.
+              </p>
+              <select
+                value={formData.preferredCurrency}
+                onChange={(e) => setFormData(prev => ({ ...prev, preferredCurrency: e.target.value }))}
+                className="w-full sm:w-64 px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+              >
+                {SUPPORTED_CURRENCIES.map(code => {
+                  const info = CURRENCY_INFO[code]
+                  return (
+                    <option key={code} value={code}>
+                      {info?.symbol} {code} — {info?.name}
+                    </option>
+                  )
+                })}
+              </select>
+            </div>
+          </div>
+
+          {/* --- SECTION 4: PROFILE THEME (Creator+) --- */}
+          <div id="theme" className="bg-white p-8 rounded-2xl border border-zinc-200 shadow-sm space-y-6 scroll-mt-20">
+            <h2 className="text-lg font-semibold text-zinc-900 border-b border-zinc-100 pb-2 flex items-center gap-2">
+              <Palette size={16} /> Profile Theme
+            </h2>
+
+            {!isTierAtLeast(profile?.subscription_tier, 'creator') ? (
+              <div className="text-center py-4 space-y-2">
+                <Lock size={24} className="text-zinc-300 mx-auto" />
+                <p className="text-sm text-zinc-500">Upgrade to <span className="font-semibold text-violet-600">Wist Creator</span> to customize your profile theme</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                {THEME_KEYS.map(key => {
+                  const theme = PROFILE_THEMES[key]
+                  const selected = formData.profileTheme === key
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, profileTheme: key }))}
+                      className={`relative rounded-xl p-3 text-center transition-all border-2 ${
+                        selected ? 'border-violet-500 ring-2 ring-violet-200' : 'border-zinc-200 hover:border-zinc-300'
+                      }`}
+                    >
+                      <div className={`w-full h-8 rounded-lg ${theme.bg} mb-2 border border-zinc-100`} />
+                      <div className={`w-full h-1 rounded bg-gradient-to-r ${theme.avatarGradient} mb-2`} />
+                      <span className="text-xs font-medium text-zinc-700">{theme.name}</span>
+                      {selected && (
+                        <div className="absolute top-1 right-1 w-4 h-4 bg-violet-500 rounded-full flex items-center justify-center">
+                          <Check size={10} className="text-white" />
+                        </div>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* --- SECTION 5: GIFTING (Pro+) --- */}
+          <div id="gifting" className="bg-white p-8 rounded-2xl border border-zinc-200 shadow-sm space-y-6 scroll-mt-20">
+            <h2 className="text-lg font-semibold text-zinc-900 border-b border-zinc-100 pb-2 flex items-center gap-2">
+              <Gift size={16} /> Gifting
+            </h2>
+
+            {!isTierAtLeast(profile?.subscription_tier, 'pro_plus') ? (
+              <div className="text-center py-4 space-y-2">
+                <Lock size={24} className="text-zinc-300 mx-auto" />
+                <p className="text-sm text-zinc-500">Upgrade to <span className="font-semibold text-violet-600">Wist Pro</span> to enable gifting on your profile</p>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 pr-4">
+                    <label className="block text-sm font-medium text-zinc-700 flex items-center gap-2">
+                      <Gift size={14} /> Enable Gifting
+                    </label>
+                    <p className="text-xs text-zinc-500 mt-0.5">
+                      Allow visitors to see a &quot;Gift this item&quot; button on your public profile items.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, giftingEnabled: !prev.giftingEnabled }))}
+                    className={`relative w-11 h-6 rounded-full transition-colors ${
+                      formData.giftingEnabled ? 'bg-violet-600' : 'bg-zinc-300'
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                        formData.giftingEnabled ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {formData.giftingEnabled && (
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-700 mb-1">Thank-you Message</label>
+                    <textarea
+                      value={formData.giftingMessage}
+                      onChange={e => setFormData(prev => ({ ...prev, giftingMessage: e.target.value }))}
+                      placeholder="Thank you for the gift! 💜"
+                      className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500 resize-none"
+                      rows={2}
+                      maxLength={200}
+                    />
+                    <p className="text-xs text-zinc-400 mt-1">{formData.giftingMessage.length}/200</p>
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
           {/* --- FEEDBACK MESSAGE --- */}

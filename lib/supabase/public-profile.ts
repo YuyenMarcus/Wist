@@ -21,6 +21,9 @@ export interface PublicProfileData {
   tiktok_handle: string | null;
   website: string | null;
   subscription_tier: string | null;
+  profile_theme: string | null;
+  gifting_enabled: boolean;
+  gifting_message: string | null;
 }
 
 export interface PublicItem {
@@ -51,7 +54,7 @@ async function resolveUsernameToUserId(username: string): Promise<{
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, username, full_name, avatar_url, bio, instagram_handle, tiktok_handle, website, subscription_tier')
+    .select('id, username, full_name, avatar_url, bio, instagram_handle, tiktok_handle, website, subscription_tier, profile_theme, gifting_enabled, gifting_message')
     .eq('username', decodedUsername)
     .maybeSingle();
 
@@ -76,6 +79,9 @@ async function resolveUsernameToUserId(username: string): Promise<{
       tiktok_handle: data.tiktok_handle || null,
       website: data.website || null,
       subscription_tier: data.subscription_tier || null,
+      profile_theme: data.profile_theme || null,
+      gifting_enabled: data.gifting_enabled || false,
+      gifting_message: data.gifting_message || null,
     },
     error: null,
   };

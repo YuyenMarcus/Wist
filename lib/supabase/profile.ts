@@ -27,6 +27,10 @@ export interface Profile {
   is_admin: boolean;
   is_banned: boolean;
   ban_reason: string | null;
+  profile_theme: string | null;
+  gifting_enabled: boolean;
+  gifting_message: string | null;
+  preferred_currency: string;
 }
 
 /**
@@ -119,6 +123,10 @@ export async function updateProfile(
     adult_content_filter?: boolean;
     onboarding_completed?: boolean;
     auto_activate_queued?: boolean;
+    profile_theme?: string | null;
+    gifting_enabled?: boolean;
+    gifting_message?: string | null;
+    preferred_currency?: string;
   }
 ): Promise<{
   data: Profile | null;

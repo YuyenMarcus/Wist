@@ -86,7 +86,8 @@ export async function POST(request: Request) {
       image_url: scrapeResult.image || '',
       price: finalPrice,
       retailer: domain.split('.')[0] || new URL(url).hostname.replace('www.', ''),
-      description: scrapeResult.description || ''
+      description: scrapeResult.description || '',
+      currency: scrapeResult.currency || 'USD',
     };
 
     // Log result quality

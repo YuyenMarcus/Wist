@@ -1,12 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { ShoppingBag, Bell, BellOff } from 'lucide-react'
+import { ShoppingBag, Bell, BellOff, Upload } from 'lucide-react'
 import Link from 'next/link'
 import AddItemForm from '@/components/dashboard/AddItemForm'
 import ShareButton from '@/components/dashboard/ShareButton'
 import TierBadge from '@/components/ui/TierBadge'
+import ImportModal from '@/components/dashboard/ImportModal'
 import { Profile } from '@/lib/supabase/profile'
+import { isTierAtLeast } from '@/lib/tier-guards'
 
 interface ProfileHeaderProps {
   user: {
@@ -42,6 +44,7 @@ function NotificationToggle() {
 }
 
 export default function ProfileHeader({ user, profile, itemCount, onRefreshPrices, refreshing }: ProfileHeaderProps) {
+  const [showImport, setShowImport] = useState(false)
   const displayName = profile?.full_name || 'Curator'
   const username = profile?.username || 'username'
   const avatarUrl = profile?.avatar_url || `https://avatar.vercel.sh/${user.id}`
@@ -94,8 +97,17 @@ export default function ProfileHeader({ user, profile, itemCount, onRefreshPrice
         </div>
       </div>
 
-      {/* Share Button and Notifications */}
+      {/* Share Button, Import, and Notifications */}
       <div className="flex flex-wrap justify-end gap-2 sm:gap-3 mb-4 sm:mb-6">
+        {isTierAtLeast(profile?.subscription_tier, 'pro_plus') && (
+          <button
+            onClick={() => setShowImport(true)}
+            className="rounded-full p-2.5 sm:p-3 shadow-sm border bg-white text-zinc-500 border-zinc-200 hover:text-violet-600 hover:border-violet-200 transition-all"
+            title="Import items"
+          >
+            <Upload className="w-4 h-4 sm:w-5 sm:h-5" />
+          </button>
+        )}
         <ShareButton />
         <NotificationToggle />
       </div>
@@ -104,6 +116,16 @@ export default function ProfileHeader({ user, profile, itemCount, onRefreshPrice
       <div className="mb-10">
         <AddItemForm />
       </div>
+
+      {/* Import Modal */}
+      <ImportModal
+        isOpen={showImport}
+        onClose={() => setShowImport(false)}
+        onComplete={() => {
+          setShowImport(false)
+          window.location.reload()
+        }}
+      />
       
       {/* Horizontal Divider before content */}
       <div className="h-px w-full bg-gradient-to-r from-transparent via-zinc-200 to-transparent mb-8" />

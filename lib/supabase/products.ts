@@ -21,10 +21,12 @@ export interface SupabaseProduct {
   // Collection field
   collection_id?: string | null;
   // Price tracking fields
-  price_change?: number | null;      // Change from previous price
-  price_change_percent?: number | null; // Percentage change
-  previous_price?: number | null;    // Previous price for reference
-  last_price_check?: string | null;  // When price was last checked
+  price_change?: number | null;
+  price_change_percent?: number | null;
+  previous_price?: number | null;
+  last_price_check?: string | null;
+  // Currency fields
+  original_currency?: string | null;
 }
 
 /**
@@ -37,16 +39,14 @@ async function getUserItems(userId: string): Promise<{
   // Limit to 100 items and select only needed columns
   const { data, error } = await supabase
     .from('items')
-    .select('id, user_id, title, current_price, image_url, url, note, status, retailer, collection_id, created_at')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(100);
+      .select('id, user_id, title, current_price, image_url, url, note, status, retailer, collection_id, created_at, original_currency')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(100);
 
   if (error) return { data: null, error };
 
-  // Convert items table format to SupabaseProduct format
   const converted = (data || []).map((item: any) => {
-    // Handle price conversion - current_price can be number, string, or null
     let priceValue = null;
     if (item.current_price !== null && item.current_price !== undefined && item.current_price !== '') {
       const numPrice = typeof item.current_price === 'string' 
@@ -68,10 +68,10 @@ async function getUserItems(userId: string): Promise<{
       reserved_at: null,
       is_public: false,
       share_token: null,
-      // Map retailer to domain for compatibility
       domain: item.retailer?.toLowerCase() || null,
       description: item.note || null,
-      collection_id: item.collection_id || null, // Preserve collection_id
+      collection_id: item.collection_id || null,
+      original_currency: item.original_currency || 'USD',
     };
   });
 
@@ -108,7 +108,8 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
         retailer,
         collection_id,
         created_at,
-        last_price_check
+        last_price_check,
+        original_currency
       `)
       .eq('user_id', userId)
       .eq('status', 'active')
@@ -129,7 +130,8 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
         status,
         retailer,
         collection_id,
-        created_at
+        created_at,
+        original_currency
       `)
       .eq('user_id', userId)
       .eq('status', 'queued')
@@ -244,11 +246,11 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
         domain: item.retailer?.toLowerCase() || null,
         description: item.note || null,
         collection_id: item.collection_id || null,
-        // Price tracking data
         price_change: priceChange,
         price_change_percent: priceChangePercent,
         previous_price: previousPrice,
         last_price_check: item.last_price_check || null,
+        original_currency: item.original_currency || 'USD',
       });
     });
   }
@@ -328,6 +330,7 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
         created_at: item.created_at,
         status: 'queued',
         domain: item.retailer?.toLowerCase() || null,
+        original_currency: item.original_currency || 'USD',
       });
     });
   }

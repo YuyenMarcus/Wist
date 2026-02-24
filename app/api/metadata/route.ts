@@ -53,12 +53,15 @@ export async function GET(request: Request) {
     console.log(`🔍 [Metadata] Using static scraper for ${domain}`)
     const result = await staticScrape(url)
 
-    // Format price string
+    const currency = result.currency || 'USD'
+    
+    // Format price string with detected currency symbol
     let priceString = null
     if (result.price) {
-      priceString = `$${result.price.toFixed(2)}`
+      const sym = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : currency === 'JPY' || currency === 'CNY' ? '¥' : '$'
+      priceString = `${sym}${result.price.toFixed(currency === 'JPY' || currency === 'KRW' ? 0 : 2)}`
     } else if (result.priceRaw) {
-      priceString = result.priceRaw.startsWith('$') ? result.priceRaw : `$${result.priceRaw}`
+      priceString = result.priceRaw
     }
 
     const hasGoodTitle = result.title && result.title.length > 15 && 
@@ -77,6 +80,7 @@ export async function GET(request: Request) {
       description: result.description?.trim() || '',
       imageUrl: result.image || '',
       price: priceString,
+      currency,
       extensionRequired,
     })
 

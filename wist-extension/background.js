@@ -459,6 +459,8 @@ async function handleWebappScrape(productUrl, sendResponse) {
   else if (hostname.includes('walmart.')) jsRenderDelay = 4000;
   else if (hostname.includes('bestbuy.')) jsRenderDelay = 4000;
   else if (hostname.includes('etsy.')) jsRenderDelay = 4000;
+  else if (hostname.includes('taobao.') || hostname.includes('tmall.') || hostname.includes('1688.')) jsRenderDelay = 6000;
+  else if (hostname.includes('kakobuy.') || hostname.includes('superbuy.') || hostname.includes('wegobuy.') || hostname.includes('pandabuy.') || hostname.includes('cssbuy.')) jsRenderDelay = 5000;
   
   try {
     backgroundTab = await chrome.tabs.create({
@@ -767,6 +769,128 @@ function scrapePageData() {
     if (imageEl) image = imageEl.src;
   }
   
+  // ===== TAOBAO / TMALL / 1688 =====
+  else if (domain.includes('taobao.') || domain.includes('tmall.') || domain.includes('1688.')) {
+    const titleSelectors = [
+      'h3.tb-main-title', '.tb-detail-hd h1', '.ItemHeader--mainTitle',
+      'h1[data-title]', '.tb-main-title', '.d-title',
+      '[class*="ItemHeader"] h1', '[class*="title--"] h3'
+    ];
+    for (const sel of titleSelectors) {
+      const el = document.querySelector(sel);
+      if (el) {
+        title = el.getAttribute('data-title') || el.textContent?.trim();
+        if (title) break;
+      }
+    }
+    if (!title) {
+      const ogT = document.querySelector('meta[property="og:title"]');
+      if (ogT) title = ogT.getAttribute('content');
+    }
+
+    const priceSelectors = [
+      '.tb-rmb-num', '.tm-price', '.tm-promo-price .tm-price',
+      '[class*="Price--current"]', '[class*="price--current"]',
+      '.tb-rmb', '#J_PromoPriceNum', '#J_StrPriceModBox .tb-rmb-num'
+    ];
+    for (const sel of priceSelectors) {
+      const el = document.querySelector(sel);
+      if (el) {
+        const text = el.textContent?.trim();
+        if (text && /[\d.]+/.test(text)) {
+          price = '¥' + text.replace(/[^\d.]/g, '');
+          break;
+        }
+      }
+    }
+    if (!price) {
+      try {
+        const html = document.documentElement.innerHTML;
+        const patterns = [/"price"\s*:\s*"?([\d.]+)"?/, /"promotionPrice"\s*:\s*"?([\d.]+)"?/];
+        for (const p of patterns) {
+          const m = html.match(p);
+          if (m && m[1] && parseFloat(m[1]) > 0) { price = '¥' + m[1]; break; }
+        }
+      } catch (e) {}
+    }
+
+    const imageSelectors = [
+      '#J_ImgBooth', '.tb-booth img', '[class*="PicGallery"] img',
+      'img[data-src*="alicdn"]'
+    ];
+    for (const sel of imageSelectors) {
+      const el = document.querySelector(sel);
+      if (el) {
+        const src = el.getAttribute('data-src') || el.src;
+        if (src && !src.includes('placeholder')) {
+          image = src.startsWith('//') ? 'https:' + src : src;
+          break;
+        }
+      }
+    }
+    if (!image) {
+      const ogI = document.querySelector('meta[property="og:image"]');
+      if (ogI) image = ogI.getAttribute('content');
+    }
+
+    const ogD = document.querySelector('meta[property="og:description"], meta[name="description"]');
+    if (ogD) description = ogD.getAttribute('content')?.substring(0, 500);
+  }
+
+  // ===== AGENT SITES (Kakobuy, Superbuy, Wegobuy, Pandabuy, CSSBuy) =====
+  else if (domain.includes('kakobuy.') || domain.includes('superbuy.') || domain.includes('wegobuy.') || domain.includes('pandabuy.') || domain.includes('cssbuy.')) {
+    const titleSelectors = [
+      'h1', '.product-title', '.goods-title', '[class*="goodsTitle"]',
+      '[class*="product-name"]', '[class*="item-name"]', '.title'
+    ];
+    for (const sel of titleSelectors) {
+      const el = document.querySelector(sel);
+      if (el) {
+        const text = el.textContent?.trim();
+        if (text && text.length > 5) { title = text; break; }
+      }
+    }
+    if (!title) {
+      const ogT = document.querySelector('meta[property="og:title"]');
+      if (ogT) title = ogT.getAttribute('content');
+    }
+
+    const priceSelectors = [
+      '[class*="price"]', '[class*="Price"]', '.goods-price',
+      '.product-price', '.item-price', '.sale-price'
+    ];
+    for (const sel of priceSelectors) {
+      const els = document.querySelectorAll(sel);
+      for (const el of els) {
+        const text = el.textContent?.trim();
+        if (text && /[\d.]+/.test(text) && text.length < 30) { price = text; break; }
+      }
+      if (price) break;
+    }
+
+    const imageSelectors = [
+      '.product-image img', '.goods-image img', '[class*="mainImage"] img',
+      '[class*="gallery"] img', '.swiper-slide img'
+    ];
+    for (const sel of imageSelectors) {
+      const el = document.querySelector(sel);
+      if (el) {
+        const src = el.getAttribute('data-src') || el.src;
+        if (src && !src.includes('placeholder') && !src.includes('svg')) {
+          image = src.startsWith('//') ? 'https:' + src : src;
+          break;
+        }
+      }
+    }
+    if (!image) {
+      const ogI = document.querySelector('meta[property="og:image"]');
+      if (ogI) image = ogI.getAttribute('content');
+    }
+
+    const ogD = document.querySelector('meta[property="og:description"], meta[name="description"]');
+    if (ogD) description = ogD.getAttribute('content')?.substring(0, 500);
+  }
+
   // ===== GENERIC =====
   else {
     // Title from meta tags
@@ -855,6 +979,26 @@ function scrapePageData() {
     description = ogDesc?.getAttribute('content') || null;
   }
 
+  // Detect currency from raw price and domain
+  let currencyCode = 'USD';
+  const priceStr = (price || '').toString();
+  if (/¥|￥/.test(priceStr)) {
+    currencyCode = (domain.includes('.jp') || domain.includes('rakuten')) ? 'JPY' : 'CNY';
+  } else if (/€/.test(priceStr)) currencyCode = 'EUR';
+  else if (/£/.test(priceStr)) currencyCode = 'GBP';
+  else if (/₩/.test(priceStr)) currencyCode = 'KRW';
+  else if (/₹/.test(priceStr)) currencyCode = 'INR';
+  else if (/R\$/.test(priceStr)) currencyCode = 'BRL';
+  else if (/CA\$|CAD/.test(priceStr)) currencyCode = 'CAD';
+  else if (/A\$|AU\$|AUD/.test(priceStr)) currencyCode = 'AUD';
+  else if (domain.includes('taobao.') || domain.includes('tmall.') || domain.includes('1688.') ||
+           domain.includes('kakobuy.') || domain.includes('superbuy.') || domain.includes('wegobuy.') ||
+           domain.includes('pandabuy.') || domain.includes('cssbuy.'))
+    currencyCode = 'CNY';
+  else if (domain.includes('.jp')) currencyCode = 'JPY';
+  else if (domain.includes('.co.uk')) currencyCode = 'GBP';
+  else if (domain.includes('.de') || domain.includes('.fr') || domain.includes('.it') || domain.includes('.es')) currencyCode = 'EUR';
+
   // Clean up price
   let priceValue = 0;
   if (price) {
@@ -868,7 +1012,9 @@ function scrapePageData() {
     image: image || null,
     description: description || null,
     url: url,
-    retailer: domain.replace('www.', '').split('.')[0]
+    retailer: domain.replace('www.', '').replace('m.', '').split('.')[0],
+    currency: currencyCode,
+    original_price_raw: price || null,
   };
 }
 
@@ -924,8 +1070,9 @@ async function handleSaveItem(payload, sendResponse) {
       image_url: payload.image_url || "",
       retailer: payload.retailer || "Unknown",
       note: payload.note || "",
-      collection_id: payload.collection_id || null, // Pass through collection_id (null for auto-categorization)
-      is_public: payload.is_public !== undefined ? Boolean(payload.is_public) : false // Pass through privacy setting
+      collection_id: payload.collection_id || null,
+      is_public: payload.is_public !== undefined ? Boolean(payload.is_public) : false,
+      currency: payload.currency || "USD",
     };
 
     console.log("📦 [Extension] Payload:", JSON.stringify(apiPayload, null, 2));

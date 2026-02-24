@@ -125,6 +125,18 @@ function scrapeCurrentPage() {
     price = result.price;
     image = result.image;
     description = result.description;
+  } else if (domain.includes('taobao.') || domain.includes('tmall.') || domain.includes('1688.')) {
+    const result = scrapeTaobao();
+    title = result.title;
+    price = result.price;
+    image = result.image;
+    description = result.description;
+  } else if (domain.includes('kakobuy.') || domain.includes('superbuy.') || domain.includes('wegobuy.') || domain.includes('pandabuy.') || domain.includes('cssbuy.')) {
+    const result = scrapeAgentSite();
+    title = result.title;
+    price = result.price;
+    image = result.image;
+    description = result.description;
   } else {
     // Generic scraping for other sites
     const result = scrapeGeneric();
@@ -134,7 +146,10 @@ function scrapeCurrentPage() {
     description = result.description;
   }
   
-  // Clean up price
+  // Detect currency from the raw price string
+  const currencyInfo = detectCurrency(price, domain);
+  
+  // Clean up price (extract numeric value)
   let priceValue = 0;
   if (price) {
     const priceMatch = price.toString().replace(/[^0-9.]/g, '');
@@ -147,7 +162,9 @@ function scrapeCurrentPage() {
     image: image || null,
     description: description || null,
     url: url,
-    retailer: domain.replace('www.', '').split('.')[0]
+    retailer: domain.replace('www.', '').replace('m.', '').split('.')[0],
+    currency: currencyInfo.code,
+    original_price_raw: price || null,
   };
 }
 
@@ -317,6 +334,204 @@ function scrapeBestBuy() {
   if (descEl) description = descEl.textContent?.trim().substring(0, 500);
   
   return { title, price, image, description };
+}
+
+// Taobao / Tmall / 1688 scraper
+function scrapeTaobao() {
+  console.log('🇨🇳 [ContentScript] Scraping Taobao/Tmall...');
+  
+  let title = null;
+  const titleSelectors = [
+    'h3.tb-main-title', '.tb-detail-hd h1', '.ItemHeader--mainTitle',
+    'h1[data-title]', '.tb-main-title', '.d-title',
+    '[class*="ItemHeader"] h1', '[class*="title--"] h3',
+    'meta[property="og:title"]'
+  ];
+  for (const sel of titleSelectors) {
+    const el = document.querySelector(sel);
+    if (el) {
+      title = el.getAttribute('content') || el.getAttribute('data-title') || el.textContent?.trim();
+      if (title) break;
+    }
+  }
+  
+  let price = null;
+  const priceSelectors = [
+    '.tb-rmb-num', '.tm-price', '.tm-promo-price .tm-price',
+    '[class*="Price--current"]', '[class*="price--current"]',
+    '.tb-rmb', '#J_PromoPriceNum', '#J_StrPriceModBox .tb-rmb-num',
+    '.originPrice', '[class*="extraPrice"] span'
+  ];
+  for (const sel of priceSelectors) {
+    const el = document.querySelector(sel);
+    if (el) {
+      const text = el.textContent?.trim();
+      if (text && /[\d.]+/.test(text)) {
+        price = '¥' + text.replace(/[^\d.]/g, '');
+        break;
+      }
+    }
+  }
+  
+  // Fallback: search page source for price JSON
+  if (!price) {
+    try {
+      const html = document.documentElement.innerHTML;
+      const patterns = [
+        /"price"\s*:\s*"?([\d.]+)"?/,
+        /"priceText"\s*:\s*"[¥￥]?([\d.]+)"/,
+        /"promotionPrice"\s*:\s*"?([\d.]+)"?/,
+      ];
+      for (const p of patterns) {
+        const m = html.match(p);
+        if (m && m[1]) {
+          const v = parseFloat(m[1]);
+          if (v > 0 && v < 1000000) {
+            price = '¥' + m[1];
+            break;
+          }
+        }
+      }
+    } catch (e) {}
+  }
+  
+  let image = null;
+  const imageSelectors = [
+    '#J_ImgBooth', '.tb-booth img', '[class*="PicGallery"] img',
+    'img[data-src*="alicdn"]', '.thumbnails img', '#J_UlThumb img'
+  ];
+  for (const sel of imageSelectors) {
+    const el = document.querySelector(sel);
+    if (el) {
+      const src = el.getAttribute('data-src') || el.src;
+      if (src && !src.includes('placeholder')) {
+        image = src.startsWith('//') ? 'https:' + src : src;
+        break;
+      }
+    }
+  }
+  if (!image) {
+    const ogImg = document.querySelector('meta[property="og:image"]');
+    if (ogImg) image = ogImg.getAttribute('content');
+  }
+  
+  let description = null;
+  const ogDesc = document.querySelector('meta[property="og:description"], meta[name="description"]');
+  if (ogDesc) description = ogDesc.getAttribute('content')?.substring(0, 500);
+  
+  return { title, price, image, description };
+}
+
+// Agent/proxy sites (Kakobuy, Superbuy, Wegobuy, Pandabuy, CSSBuy)
+function scrapeAgentSite() {
+  const domain = window.location.hostname.toLowerCase();
+  console.log('🛍️ [ContentScript] Scraping agent site:', domain);
+  
+  let title = null;
+  let price = null;
+  let image = null;
+  let description = null;
+  
+  // These sites typically show product info in a structured way
+  const titleSelectors = [
+    'h1', '.product-title', '.goods-title', '[class*="goodsTitle"]',
+    '[class*="product-name"]', '[class*="item-name"]', '.title',
+    'meta[property="og:title"]'
+  ];
+  for (const sel of titleSelectors) {
+    const el = document.querySelector(sel);
+    if (el) {
+      const text = el.getAttribute('content') || el.textContent?.trim();
+      if (text && text.length > 5) { title = text; break; }
+    }
+  }
+  
+  // Price: these sites often show CNY
+  const priceSelectors = [
+    '[class*="price"]', '[class*="Price"]', '.goods-price',
+    '.product-price', '.item-price', '.sale-price',
+    'span[class*="price"]', 'div[class*="price"]'
+  ];
+  for (const sel of priceSelectors) {
+    const els = document.querySelectorAll(sel);
+    for (const el of els) {
+      const text = el.textContent?.trim();
+      if (text && /[\d.]+/.test(text) && text.length < 30) {
+        price = text;
+        break;
+      }
+    }
+    if (price) break;
+  }
+  
+  // Image
+  const imageSelectors = [
+    '.product-image img', '.goods-image img', '[class*="mainImage"] img',
+    '[class*="gallery"] img', '.swiper-slide img', 'img[class*="product"]',
+    'meta[property="og:image"]'
+  ];
+  for (const sel of imageSelectors) {
+    const el = document.querySelector(sel);
+    if (el) {
+      const src = el.getAttribute('content') || el.getAttribute('data-src') || el.src;
+      if (src && !src.includes('placeholder') && !src.includes('svg')) {
+        image = src.startsWith('//') ? 'https:' + src : src;
+        break;
+      }
+    }
+  }
+  
+  const ogDesc = document.querySelector('meta[property="og:description"], meta[name="description"]');
+  if (ogDesc) description = ogDesc.getAttribute('content')?.substring(0, 500);
+  
+  return { title, price, image, description };
+}
+
+// Currency detection from raw price strings and domain
+function detectCurrency(rawPrice, domain) {
+  if (!rawPrice && !domain) return { code: 'USD', symbol: '$' };
+  
+  const priceStr = (rawPrice || '').toString();
+  
+  // Symbol-based detection
+  if (/¥|￥/.test(priceStr)) {
+    // Distinguish JPY vs CNY based on domain
+    if (domain && (domain.includes('.jp') || domain.includes('amazon.co.jp') || domain.includes('rakuten'))) {
+      return { code: 'JPY', symbol: '¥' };
+    }
+    return { code: 'CNY', symbol: '¥' };
+  }
+  if (/€/.test(priceStr)) return { code: 'EUR', symbol: '€' };
+  if (/£/.test(priceStr)) return { code: 'GBP', symbol: '£' };
+  if (/₩/.test(priceStr)) return { code: 'KRW', symbol: '₩' };
+  if (/₹/.test(priceStr)) return { code: 'INR', symbol: '₹' };
+  if (/R\$/.test(priceStr)) return { code: 'BRL', symbol: 'R$' };
+  if (/CA\$|CAD/.test(priceStr)) return { code: 'CAD', symbol: 'CA$' };
+  if (/A\$|AU\$|AUD/.test(priceStr)) return { code: 'AUD', symbol: 'A$' };
+  if (/\$/.test(priceStr)) {
+    // Dollar sign — figure out which dollar based on domain
+    if (domain) {
+      if (domain.includes('.ca') || domain.includes('amazon.ca')) return { code: 'CAD', symbol: 'CA$' };
+      if (domain.includes('.au') || domain.includes('amazon.com.au')) return { code: 'AUD', symbol: 'A$' };
+    }
+    return { code: 'USD', symbol: '$' };
+  }
+  
+  // Domain-based fallback
+  if (domain) {
+    if (domain.includes('taobao.') || domain.includes('tmall.') || domain.includes('1688.') || 
+        domain.includes('kakobuy.') || domain.includes('superbuy.') || domain.includes('wegobuy.') ||
+        domain.includes('pandabuy.') || domain.includes('cssbuy.')) {
+      return { code: 'CNY', symbol: '¥' };
+    }
+    if (domain.includes('.jp') || domain.includes('rakuten')) return { code: 'JPY', symbol: '¥' };
+    if (domain.includes('.co.uk') || domain.includes('amazon.co.uk')) return { code: 'GBP', symbol: '£' };
+    if (domain.includes('.de') || domain.includes('.fr') || domain.includes('.it') || domain.includes('.es')) return { code: 'EUR', symbol: '€' };
+    if (domain.includes('.kr')) return { code: 'KRW', symbol: '₩' };
+    if (domain.includes('.in') || domain.includes('amazon.in')) return { code: 'INR', symbol: '₹' };
+  }
+  
+  return { code: 'USD', symbol: '$' };
 }
 
 // Generic scraper for other sites

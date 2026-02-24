@@ -860,7 +860,27 @@ function scrapeProductData() {
 
   // Extract retailer from URL
   const urlObj = new URL(window.location.href);
-  const retailer = urlObj.hostname.replace('www.', '').split('.')[0];
+  const hostname = urlObj.hostname.toLowerCase();
+  const retailer = hostname.replace('www.', '').replace('m.', '').split('.')[0];
+
+  // Detect currency from price string and domain
+  let currency = 'USD';
+  const pStr = (priceString || '').toString();
+  if (/¥|￥/.test(pStr)) {
+    currency = (hostname.includes('.jp') || hostname.includes('rakuten')) ? 'JPY' : 'CNY';
+  } else if (/€/.test(pStr)) currency = 'EUR';
+  else if (/£/.test(pStr)) currency = 'GBP';
+  else if (/₩/.test(pStr)) currency = 'KRW';
+  else if (/₹/.test(pStr)) currency = 'INR';
+  else if (/R\$/.test(pStr)) currency = 'BRL';
+  else if (/CA\$|CAD/.test(pStr)) currency = 'CAD';
+  else if (/A\$|AU\$|AUD/.test(pStr)) currency = 'AUD';
+  else if (hostname.includes('taobao.') || hostname.includes('tmall.') || hostname.includes('1688.') ||
+           hostname.includes('kakobuy.') || hostname.includes('superbuy.') || hostname.includes('wegobuy.') ||
+           hostname.includes('pandabuy.') || hostname.includes('cssbuy.')) currency = 'CNY';
+  else if (hostname.includes('.jp')) currency = 'JPY';
+  else if (hostname.includes('.co.uk')) currency = 'GBP';
+  else if (hostname.includes('.de') || hostname.includes('.fr') || hostname.includes('.it') || hostname.includes('.es')) currency = 'EUR';
 
   return { 
     title: title || 'Untitled Item',
@@ -868,6 +888,7 @@ function scrapeProductData() {
     price_string: priceString || (price > 0 ? `$${price.toFixed(2)}` : "Price not found"),
     image_url: image || '',
     url: window.location.href,
-    retailer: retailer.charAt(0).toUpperCase() + retailer.slice(1)
+    retailer: retailer.charAt(0).toUpperCase() + retailer.slice(1),
+    currency: currency,
   };
 }

@@ -13,6 +13,7 @@ export interface ScrapeResult {
   price?: number | null;
   url: string;
   html?: string;
+  currency?: string;
 }
 
 // Site-specific selectors for better extraction
@@ -99,7 +100,52 @@ const SITE_SELECTORS: Record<string, {
       '[data-carousel-paging] img',
     ],
   },
+  'taobao.': {
+    title: ['meta[property="og:title"]', 'h3.tb-main-title', '.tb-detail-hd h1', 'h1'],
+    price: ['.tb-rmb-num', '.tm-price', '#J_PromoPriceNum'],
+    image: ['meta[property="og:image"]', '#J_ImgBooth', '.tb-booth img'],
+  },
+  'tmall.': {
+    title: ['meta[property="og:title"]', 'h1', '.ItemHeader--mainTitle'],
+    price: ['.tm-price', '.tm-promo-price'],
+    image: ['meta[property="og:image"]'],
+  },
+  'kakobuy.': {
+    title: ['meta[property="og:title"]', 'h1', '.product-title', '.goods-title'],
+    price: ['.product-price', '.goods-price', '[class*="price"]'],
+    image: ['meta[property="og:image"]', '.product-image img', '.goods-image img'],
+  },
 };
+
+function detectCurrencyFromUrl(url: string): string {
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    if (hostname.includes('taobao.') || hostname.includes('tmall.') || hostname.includes('1688.') ||
+        hostname.includes('kakobuy.') || hostname.includes('superbuy.') || hostname.includes('wegobuy.') ||
+        hostname.includes('pandabuy.') || hostname.includes('cssbuy.')) return 'CNY';
+    if (hostname.includes('.jp') || hostname.includes('rakuten')) return 'JPY';
+    if (hostname.includes('.co.uk')) return 'GBP';
+    if (hostname.includes('.de') || hostname.includes('.fr') || hostname.includes('.it') || hostname.includes('.es')) return 'EUR';
+    if (hostname.includes('.ca')) return 'CAD';
+    if (hostname.includes('.com.au')) return 'AUD';
+    if (hostname.includes('.kr')) return 'KRW';
+    if (hostname.includes('.in') && !hostname.includes('.info')) return 'INR';
+  } catch {}
+  return 'USD';
+}
+
+function detectCurrencyFromPrice(rawPrice: string | null, urlCurrency: string): string {
+  if (!rawPrice) return urlCurrency;
+  if (/¥|￥/.test(rawPrice)) return urlCurrency === 'JPY' ? 'JPY' : 'CNY';
+  if (/€/.test(rawPrice)) return 'EUR';
+  if (/£/.test(rawPrice)) return 'GBP';
+  if (/₩/.test(rawPrice)) return 'KRW';
+  if (/₹/.test(rawPrice)) return 'INR';
+  if (/R\$/.test(rawPrice)) return 'BRL';
+  if (/CA\$/.test(rawPrice)) return 'CAD';
+  if (/A\$/.test(rawPrice)) return 'AUD';
+  return urlCurrency;
+}
 
 function getDomainKey(url: string): string | null {
   try {
@@ -392,7 +438,10 @@ export async function staticScrape(url: string): Promise<ScrapeResult> {
     price = parseFloat(cleaned.replace(',', '')) || null;
   }
 
-  console.log(`[StaticScraper] ${domainKey || 'generic'}: title="${title?.substring(0, 50)}", price=${priceRaw}, hasImage=${!!image}`);
+  const urlCurrency = detectCurrencyFromUrl(url);
+  const currency = detectCurrencyFromPrice(priceRaw, urlCurrency);
+
+  console.log(`[StaticScraper] ${domainKey || 'generic'}: title="${title?.substring(0, 50)}", price=${priceRaw}, currency=${currency}, hasImage=${!!image}`);
 
   return {
     title,
@@ -402,5 +451,6 @@ export async function staticScrape(url: string): Promise<ScrapeResult> {
     price,
     url,
     html,
+    currency,
   };
 }

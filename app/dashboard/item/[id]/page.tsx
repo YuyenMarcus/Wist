@@ -6,6 +6,8 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import PageTransition from '@/components/ui/PageTransition';
+import { Receipt, FileText, Plus, Trash2, Shield, BarChart3, Lock } from 'lucide-react';
+import { CURRENCY_INFO } from '@/lib/currency';
 
 export default function ItemDetail() {
   const params = useParams(); 
@@ -13,6 +15,11 @@ export default function ItemDetail() {
   const [item, setItem] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [receipts, setReceipts] = useState<any[]>([]);
+  const [userTier, setUserTier] = useState('free');
+  const [showReceiptForm, setShowReceiptForm] = useState(false);
+  const [receiptForm, setReceiptForm] = useState({ title: '', purchase_date: '', warranty_expiry: '', receipt_url: '', notes: '' });
+  const [savingReceipt, setSavingReceipt] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -127,6 +134,57 @@ export default function ItemDetail() {
     fetchData();
   }, [params, router]);
 
+  useEffect(() => {
+    async function loadReceipts() {
+      if (!params?.id) return;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('subscription_tier')
+        .eq('id', user.id)
+        .single();
+      setUserTier(profile?.subscription_tier || 'free');
+
+      const res = await fetch(`/api/receipts?item_id=${params.id}`);
+      if (res.ok) {
+        const json = await res.json();
+        setReceipts(json.receipts || []);
+      }
+    }
+    loadReceipts();
+  }, [params?.id]);
+
+  async function handleSaveReceipt() {
+    if (!params?.id || !receiptForm.title.trim()) return;
+    setSavingReceipt(true);
+    try {
+      const res = await fetch('/api/receipts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...receiptForm, item_id: params.id }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setReceipts(prev => [...prev, json.receipt]);
+        setReceiptForm({ title: '', purchase_date: '', warranty_expiry: '', receipt_url: '', notes: '' });
+        setShowReceiptForm(false);
+      }
+    } catch (e) {
+      console.error('Failed to save receipt:', e);
+    } finally {
+      setSavingReceipt(false);
+    }
+  }
+
+  async function handleDeleteReceipt(id: string) {
+    const res = await fetch(`/api/receipts?id=${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      setReceipts(prev => prev.filter(r => r.id !== id));
+    }
+  }
+
   if (loading) return (
     <div className="flex h-screen items-center justify-center bg-gray-50">
       <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent"></div>
@@ -140,6 +198,10 @@ export default function ItemDetail() {
   const currentPrice = item.current_price ? parseFloat(item.current_price) : 0;
   const diff = currentPrice - startPrice;
   const isCheaper = diff < 0;
+  const itemCurrency = item.original_currency || 'USD';
+  const cInfo = CURRENCY_INFO[itemCurrency] || CURRENCY_INFO['USD'];
+  const cSym = cInfo.symbol;
+  const cDec = cInfo.decimals;
 
   return (
     <PageTransition className="min-h-screen bg-gray-50 p-8">
@@ -164,10 +226,10 @@ export default function ItemDetail() {
                 <div className="mt-6 space-y-3">
                   {/* Current Price */}
                   <div className="flex items-baseline gap-3">
-                    <span className="text-4xl font-extrabold text-gray-900">${currentPrice.toFixed(2)}</span>
+                    <span className="text-4xl font-extrabold text-gray-900">{cSym}{currentPrice.toFixed(cDec)}</span>
                     {history.length > 1 && (
                       <span className={`text-sm font-semibold ${isCheaper ? 'text-green-600' : 'text-red-600'}`}>
-                        {isCheaper ? '▼' : '▲'} ${Math.abs(diff).toFixed(2)}
+                        {isCheaper ? '▼' : '▲'} {cSym}{Math.abs(diff).toFixed(cDec)}
                       </span>
                     )}
                   </div>
@@ -242,7 +304,7 @@ export default function ItemDetail() {
                         <Tooltip 
                           contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                           labelStyle={{ color: '#6b7280', marginBottom: '4px' }}
-                          formatter={(value: number | undefined) => value !== undefined ? [`$${value.toFixed(2)}`, 'Price'] : ['', '']}
+                          formatter={(value: number | undefined) => value !== undefined ? [`${cSym}${value.toFixed(cDec)}`, 'Price'] : ['', '']}
                         />
                         <Area 
                           type="monotone" 
@@ -304,10 +366,10 @@ export default function ItemDetail() {
                             <span className="text-sm text-gray-600">{w.weekLabel}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-gray-900">${w.price.toFixed(2)}</span>
+                            <span className="text-sm font-semibold text-gray-900">{cSym}{w.price.toFixed(cDec)}</span>
                             {diff !== null && diff !== 0 && (
                               <span className={`text-xs font-medium ${diff < 0 ? 'text-green-600' : 'text-red-500'}`}>
-                                {diff < 0 ? '↓' : '↑'} ${Math.abs(diff).toFixed(2)}
+                                {diff < 0 ? '↓' : '↑'} {cSym}{Math.abs(diff).toFixed(cDec)}
                               </span>
                             )}
                           </div>
@@ -318,6 +380,168 @@ export default function ItemDetail() {
                 </div>
               </div>
             )}
+
+            {/* Receipts & Warranties */}
+            <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-900/5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                  <Receipt className="w-4 h-4 text-violet-500" />
+                  Receipts & Warranties
+                </h3>
+                {['pro_plus', 'creator', 'enterprise'].includes(userTier) && (
+                  <button
+                    onClick={() => setShowReceiptForm(!showReceiptForm)}
+                    className="flex items-center gap-1 text-xs font-medium text-violet-600 hover:text-violet-700 transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Add Receipt
+                  </button>
+                )}
+              </div>
+
+              {!['pro_plus', 'creator', 'enterprise'].includes(userTier) ? (
+                <div className="text-center py-6 space-y-2">
+                  <Shield className="w-8 h-8 text-gray-300 mx-auto" />
+                  <p className="text-sm text-gray-500">Upgrade to <span className="font-semibold text-violet-600">Wist Pro</span> to track receipts and warranties</p>
+                </div>
+              ) : (
+                <>
+                  {showReceiptForm && (
+                    <div className="mb-4 space-y-3 p-4 rounded-lg bg-gray-50 border border-gray-200">
+                      <input
+                        type="text"
+                        placeholder="Receipt title (e.g. Amazon Purchase)"
+                        value={receiptForm.title}
+                        onChange={e => setReceiptForm(prev => ({ ...prev, title: e.target.value }))}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+                      />
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Purchase Date</label>
+                          <input
+                            type="date"
+                            value={receiptForm.purchase_date}
+                            onChange={e => setReceiptForm(prev => ({ ...prev, purchase_date: e.target.value }))}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Warranty Expiry</label>
+                          <input
+                            type="date"
+                            value={receiptForm.warranty_expiry}
+                            onChange={e => setReceiptForm(prev => ({ ...prev, warranty_expiry: e.target.value }))}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+                          />
+                        </div>
+                      </div>
+                      <input
+                        type="url"
+                        placeholder="Receipt URL (optional)"
+                        value={receiptForm.receipt_url}
+                        onChange={e => setReceiptForm(prev => ({ ...prev, receipt_url: e.target.value }))}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+                      />
+                      <textarea
+                        placeholder="Notes (optional)"
+                        value={receiptForm.notes}
+                        onChange={e => setReceiptForm(prev => ({ ...prev, notes: e.target.value }))}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500 resize-none"
+                        rows={2}
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleSaveReceipt}
+                          disabled={savingReceipt || !receiptForm.title.trim()}
+                          className="px-4 py-2 bg-violet-600 text-white text-xs font-medium rounded-lg hover:bg-violet-700 disabled:opacity-50 transition-colors"
+                        >
+                          {savingReceipt ? 'Saving...' : 'Save Receipt'}
+                        </button>
+                        <button
+                          onClick={() => setShowReceiptForm(false)}
+                          className="px-4 py-2 text-xs font-medium text-gray-600 hover:text-gray-800 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {receipts.length === 0 ? (
+                    <p className="text-sm text-gray-400 text-center py-4">No receipts added yet</p>
+                  ) : (
+                    <div className="divide-y divide-gray-100">
+                      {receipts.map(r => (
+                        <div key={r.id} className="flex items-start justify-between py-3 gap-3">
+                          <div className="flex items-start gap-3 min-w-0">
+                            <FileText className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">{r.title}</p>
+                              <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                                {r.purchase_date && (
+                                  <span className="text-xs text-gray-500">Purchased: {new Date(r.purchase_date).toLocaleDateString()}</span>
+                                )}
+                                {r.warranty_expiry && (
+                                  <span className={`text-xs font-medium ${new Date(r.warranty_expiry) < new Date() ? 'text-red-500' : 'text-green-600'}`}>
+                                    Warranty: {new Date(r.warranty_expiry).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </div>
+                              {r.notes && <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{r.notes}</p>}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            {r.receipt_url && (
+                              <a
+                                href={r.receipt_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-1.5 text-gray-400 hover:text-violet-600 transition-colors"
+                                title="View receipt"
+                              >
+                                <FileText className="w-3.5 h-3.5" />
+                              </a>
+                            )}
+                            <button
+                              onClick={() => handleDeleteReceipt(r.id)}
+                              className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+                              title="Delete receipt"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Compare Prices */}
+            <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-900/5">
+              <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-4">
+                <BarChart3 className="w-4 h-4 text-violet-500" />
+                Compare Prices
+              </h3>
+
+              {!['pro', 'pro_plus', 'creator', 'enterprise'].includes(userTier) ? (
+                <div className="text-center py-6 space-y-2">
+                  <Lock className="w-8 h-8 text-gray-300 mx-auto" />
+                  <p className="text-sm text-gray-500">
+                    Upgrade to <span className="font-semibold text-violet-600">Wist+</span> to compare prices across retailers
+                  </p>
+                </div>
+              ) : (
+                <div className="text-center py-6 space-y-2">
+                  <BarChart3 className="w-8 h-8 text-gray-300 mx-auto" />
+                  <p className="text-sm text-gray-500">No comparisons found yet</p>
+                  <p className="text-xs text-gray-400">
+                    Price comparison is being rolled out. We&apos;ll automatically find the best prices for this item across retailers.
+                  </p>
+                </div>
+              )}
+            </div>
 
           </div>
         </div>

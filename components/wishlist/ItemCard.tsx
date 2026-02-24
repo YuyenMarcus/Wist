@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { SupabaseProduct } from '@/lib/supabase/products'
 import { isAdultContent } from '@/lib/content-filter'
+import { CURRENCY_INFO } from '@/lib/currency'
 
 export interface WishlistItem {
   id: string
@@ -48,8 +49,10 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
 
   const title = item.title || 'Untitled Item'
   const imageUrl = item.image || null
+  const originalCurrency = (item as any).original_currency || 'USD'
+  const currInfo = CURRENCY_INFO[originalCurrency] || CURRENCY_INFO['USD']
   const price = item.price 
-    ? `$${typeof item.price === 'number' ? item.price.toFixed(2) : item.price}` 
+    ? `${currInfo.symbol}${typeof item.price === 'number' ? item.price.toFixed(currInfo.decimals) : item.price}` 
     : null
   const isReserved = !!item.reserved_by
   const priceChange = (item as any).price_change ?? null
@@ -611,6 +614,19 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                   >
                     History
                   </Link>
+
+                  {!isOwner && (item as any).gifting_enabled && (
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-md sm:rounded-lg bg-pink-500 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold text-white transition hover:bg-pink-600 flex items-center gap-1"
+                      onClick={(e) => e.stopPropagation()}
+                      title={(item as any).gifting_message || `Gift this to ${(item as any).profile_name || 'them'}`}
+                    >
+                      Gift
+                    </a>
+                  )}
 
                   <a
                     href={item.url}

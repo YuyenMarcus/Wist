@@ -3,7 +3,8 @@
 import { PublicProfileData, PublicItem } from '@/lib/supabase/public-profile';
 import WishlistGrid from '@/components/wishlist/WishlistGrid';
 import TierBadge from '@/components/ui/TierBadge';
-import { Globe } from 'lucide-react';
+import { Globe, Gift } from 'lucide-react';
+import { getProfileTheme } from '@/lib/constants/profile-themes';
 
 interface PublicProfileViewProps {
   profile: PublicProfileData;
@@ -27,6 +28,8 @@ function TikTokIcon({ className }: { className?: string }) {
 }
 
 export default function PublicProfileView({ profile, items }: PublicProfileViewProps) {
+  const theme = getProfileTheme(profile.profile_theme);
+
   const products = items.map(item => ({
     id: item.id,
     title: item.title,
@@ -40,12 +43,15 @@ export default function PublicProfileView({ profile, items }: PublicProfileViewP
     reserved_at: null,
     is_public: true,
     share_token: null,
+    gifting_enabled: profile.gifting_enabled,
+    gifting_message: profile.gifting_message,
+    profile_name: profile.full_name || profile.username,
   }));
 
   const hasSocials = profile.instagram_handle || profile.tiktok_handle || profile.website;
 
   return (
-    <div className="min-h-screen bg-zinc-50">
+    <div className={`min-h-screen ${theme.bg}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         {/* Header */}
         <div className="text-center mb-16">
@@ -58,7 +64,7 @@ export default function PublicProfileView({ profile, items }: PublicProfileViewP
                 className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
               />
             ) : (
-              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center border-4 border-white shadow-lg">
+              <div className={`w-24 h-24 rounded-full bg-gradient-to-br ${theme.avatarGradient} flex items-center justify-center border-4 border-white shadow-lg`}>
                 <span className="text-3xl font-medium text-white">
                   {profile.full_name?.[0]?.toUpperCase() || profile.username[0]?.toUpperCase() || '?'}
                 </span>
@@ -67,11 +73,11 @@ export default function PublicProfileView({ profile, items }: PublicProfileViewP
 
             {/* Name & Username */}
             <div>
-              <h1 className="text-3xl font-semibold text-zinc-900 mb-1 flex items-center justify-center gap-2">
+              <h1 className={`text-3xl font-semibold ${theme.text} mb-1 flex items-center justify-center gap-2`}>
                 {profile.full_name || `${profile.username}'s Wishlist`}
                 <TierBadge tier={profile.subscription_tier} size="md" />
               </h1>
-              <p className="text-sm text-zinc-500">@{profile.username}</p>
+              <p className={`text-sm ${theme.textSecondary}`}>@{profile.username}</p>
             </div>
 
             {/* Bio */}
@@ -119,7 +125,7 @@ export default function PublicProfileView({ profile, items }: PublicProfileViewP
             )}
 
             {/* Item Count */}
-            <p className="text-sm text-zinc-500 mt-2">
+            <p className={`text-sm ${theme.textSecondary} mt-2`}>
               {items.length} {items.length === 1 ? 'item' : 'items'}
             </p>
           </div>
@@ -133,7 +139,7 @@ export default function PublicProfileView({ profile, items }: PublicProfileViewP
           />
         ) : (
           <div className="text-center py-20">
-            <p className="text-zinc-500">This wishlist is empty.</p>
+            <p className={theme.textSecondary}>This wishlist is empty.</p>
           </div>
         )}
       </div>

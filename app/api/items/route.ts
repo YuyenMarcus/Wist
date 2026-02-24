@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { checkItemLimit } from '@/lib/tier-guards';
 // Dynamic import to avoid webpack analyzing scraper dependencies during build
 
 // HELPER: Dynamic CORS Headers
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
   try {
     // 1. Get the data sent from the extension or dashboard
     const body = await request.json();
-    let { title, price, url, image_url, status, retailer, note, collection_id, is_public } = body;
+    let { title, price, url, image_url, status, retailer, note, collection_id, is_public, currency } = body;
 
     console.log("📥 [API] Incoming Item Request:", { url, hasTitle: !!title, hasPrice: !!price });
 
@@ -324,6 +325,18 @@ export async function POST(request: Request) {
       wishlistId = wishlists[0].id;
     }
 
+    // 6b. Check item limit for active items
+    const effectiveStatus = status || 'active';
+    if (effectiveStatus === 'active') {
+      const limitCheck = await checkItemLimit(supabaseClient, user.id);
+      if (!limitCheck.allowed) {
+        return NextResponse.json(
+          { error: 'Item limit reached', limit: limitCheck.limit, current: limitCheck.current, upgrade: true },
+          { status: 403, headers: corsHeaders(origin) }
+        );
+      }
+    }
+
     // 7. Insert Item into items table (user's personal wishlist)
     // This allows multiple users to have the same product in their wishlist
     const insertData: any = {
@@ -332,9 +345,10 @@ export async function POST(request: Request) {
         url,
         image_url,
         retailer: retailer || 'Amazon',
-        status: status || 'active', // 'active' (Wishlist) or 'purchased' (Just Got It)
+        status: status || 'active',
         user_id: user.id,
-        wishlist_id: wishlistId
+        wishlist_id: wishlistId,
+        original_currency: currency || 'USD',
     };
 
     // Add collection_id if provided
@@ -548,6 +562,16 @@ export async function PATCH(request: Request) {
         { error: 'Unauthorized' },
         { status: 401, headers: corsHeaders(origin) }
       );
+    }
+
+    if (newStatus === 'active') {
+      const limitCheck = await checkItemLimit(supabaseClient, user.id);
+      if (!limitCheck.allowed) {
+        return NextResponse.json(
+          { error: 'Item limit reached', limit: limitCheck.limit, current: limitCheck.current, upgrade: true },
+          { status: 403, headers: corsHeaders(origin) }
+        );
+      }
     }
 
     const updateData: any = {};
