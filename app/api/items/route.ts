@@ -5,6 +5,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { checkItemLimit } from '@/lib/tier-guards';
+import { convertPrice } from '@/lib/currency';
 // Dynamic import to avoid webpack analyzing scraper dependencies during build
 
 // HELPER: Dynamic CORS Headers
@@ -337,18 +338,29 @@ export async function POST(request: Request) {
       }
     }
 
-    // 7. Insert Item into items table (user's personal wishlist)
-    // This allows multiple users to have the same product in their wishlist
+    // 7. Convert foreign currency to USD before storing
+    const sourceCurrency = currency || 'USD';
+    let storedPrice = currentPrice;
+    if (sourceCurrency !== 'USD' && currentPrice > 0) {
+      try {
+        const { converted } = await convertPrice(currentPrice, sourceCurrency, 'USD');
+        console.log(`💱 [API] Converted ${sourceCurrency} ${currentPrice} → USD ${converted}`);
+        storedPrice = converted;
+      } catch (e: any) {
+        console.warn('⚠️ [API] Currency conversion failed, storing original:', e.message);
+      }
+    }
+
     const insertData: any = {
         title,
-        current_price: currentPrice,
+        current_price: storedPrice,
         url,
         image_url,
         retailer: retailer || 'Amazon',
         status: status || 'active',
         user_id: user.id,
         wishlist_id: wishlistId,
-        original_currency: currency || 'USD',
+        original_currency: sourceCurrency,
     };
 
     // Add collection_id if provided
@@ -385,11 +397,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // 8. Insert Price History (if price exists)
-    if (currentPrice > 0) {
+    // 8. Insert Price History (if price exists) — use USD-converted price
+    if (storedPrice > 0) {
       await supabaseClient.from('price_history').insert({
         item_id: data.id,
-        price: currentPrice
+        price: storedPrice
       });
     }
 

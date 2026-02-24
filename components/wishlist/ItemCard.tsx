@@ -8,7 +8,6 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { SupabaseProduct } from '@/lib/supabase/products'
 import { isAdultContent } from '@/lib/content-filter'
-import { CURRENCY_INFO } from '@/lib/currency'
 
 export interface WishlistItem {
   id: string
@@ -49,10 +48,8 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
 
   const title = item.title || 'Untitled Item'
   const imageUrl = item.image || null
-  const originalCurrency = (item as any).original_currency || 'USD'
-  const currInfo = CURRENCY_INFO[originalCurrency] || CURRENCY_INFO['USD']
   const price = item.price 
-    ? `${currInfo.symbol}${typeof item.price === 'number' ? item.price.toFixed(currInfo.decimals) : item.price}` 
+    ? `$${typeof item.price === 'number' ? item.price.toFixed(2) : item.price}` 
     : null
   const isReserved = !!item.reserved_by
   const priceChange = (item as any).price_change ?? null

@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { checkItemLimit } from '@/lib/tier-guards';
+import { convertPrice } from '@/lib/currency';
 
 // HELPER: Dynamic CORS Headers
 function corsHeaders(origin: string | null) {
@@ -141,31 +142,45 @@ export async function POST(req: Request) {
       );
     }
 
-    // 8. Insert Item into items table (user's personal wishlist)
+    // 8. Convert foreign currency to USD before storing
+    const sourceCurrency = currency || 'USD';
+    let parsedPrice = price ? parseFloat(price.toString().replace(/[^0-9.]/g, '')) : 0;
+    let storedPrice = parsedPrice;
+
+    if (sourceCurrency !== 'USD' && parsedPrice > 0) {
+      try {
+        const { converted } = await convertPrice(parsedPrice, sourceCurrency, 'USD');
+        console.log(`💱 [Add API] Converted ${sourceCurrency} ${parsedPrice} → USD ${converted}`);
+        storedPrice = converted;
+      } catch (e: any) {
+        console.warn('⚠️ [Add API] Currency conversion failed, storing original:', e.message);
+      }
+    }
+
     const { data: newItem, error: itemError } = await supabase
       .from('items')
       .insert({
         user_id: user.id,
         url,
         title,
-        current_price: price ? parseFloat(price.toString().replace(/[^0-9.]/g, '')) : 0,
+        current_price: storedPrice,
         image_url,
         retailer: retailer || 'Amazon',
         status: 'active',
         note: description ? description.substring(0, 100) : null,
         wishlist_id: wishlistId,
-        original_currency: currency || 'USD',
+        original_currency: sourceCurrency,
       })
       .select()
       .single();
 
     if (itemError) throw itemError;
 
-    // 9. Insert Price History
-    if (price) {
+    // 9. Insert Price History (USD-converted price)
+    if (storedPrice > 0) {
       await supabase.from('price_history').insert({
         item_id: newItem.id,
-        price: price
+        price: storedPrice
       });
     }
 

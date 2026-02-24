@@ -7,7 +7,6 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import PageTransition from '@/components/ui/PageTransition';
 import { Receipt, FileText, Plus, Trash2, Shield, BarChart3, Lock } from 'lucide-react';
-import { CURRENCY_INFO } from '@/lib/currency';
 
 export default function ItemDetail() {
   const params = useParams(); 
@@ -198,10 +197,8 @@ export default function ItemDetail() {
   const currentPrice = item.current_price ? parseFloat(item.current_price) : 0;
   const diff = currentPrice - startPrice;
   const isCheaper = diff < 0;
-  const itemCurrency = item.original_currency || 'USD';
-  const cInfo = CURRENCY_INFO[itemCurrency] || CURRENCY_INFO['USD'];
-  const cSym = cInfo.symbol;
-  const cDec = cInfo.decimals;
+  const cSym = '$';
+  const cDec = 2;
 
   return (
     <PageTransition className="min-h-screen bg-gray-50 p-8">
