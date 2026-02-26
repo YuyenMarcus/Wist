@@ -112,8 +112,7 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
         collection_id,
         created_at,
         last_price_check,
-        original_currency,
-        out_of_stock
+        original_currency
       `)
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
@@ -236,7 +235,7 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
         previous_price: previousPrice,
         last_price_check: item.last_price_check || null,
         original_currency: item.original_currency || 'USD',
-        out_of_stock: item.out_of_stock || false,
+        out_of_stock: item.out_of_stock ?? false,
       });
   });
 
