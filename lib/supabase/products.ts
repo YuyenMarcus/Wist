@@ -94,8 +94,9 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
   // Limit to 100 items per table to prevent large data transfers
   const ITEMS_LIMIT = 100;
   
-  const [itemsResult, queuedResult, productsResult] = await Promise.all([
-    // Query items table - active items
+  // Fetch ALL items from items table (no status filter) then partition client-side.
+  // This avoids PostgREST .or() quirks with null and ensures we never miss items.
+  const [itemsResult, productsResult] = await Promise.all([
     supabase
       .from('items')
       .select(`
@@ -115,31 +116,8 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
         out_of_stock
       `)
       .eq('user_id', userId)
-      .or('status.eq.active,status.is.null')
       .order('created_at', { ascending: false })
-      .limit(ITEMS_LIMIT),
-    
-    // Query items table - queued items (waiting for extension scrape)
-    supabase
-      .from('items')
-      .select(`
-        id,
-        user_id,
-        title,
-        current_price,
-        image_url,
-        url,
-        note,
-        status,
-        retailer,
-        collection_id,
-        created_at,
-        original_currency
-      `)
-      .eq('user_id', userId)
-      .eq('status', 'queued')
-      .order('created_at', { ascending: false })
-      .limit(50),
+      .limit(150),
     
     // Query products table (limited to 100 most recent)
     supabase
@@ -162,15 +140,20 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
   if (itemsResult.error) {
     console.error('❌ Error fetching items:', itemsResult.error);
   }
-  if (queuedResult.error) {
-    console.error('❌ Error fetching queued items:', queuedResult.error);
-  }
   if (productsResult.error) {
     console.error('❌ Error fetching products:', productsResult.error);
   }
 
-  // Collect all item IDs from items table for price history lookup
-  const itemIds = itemsResult.data?.map((item: any) => item.id) || [];
+  // Partition items: main grid = active/null/unknown, queue = queued
+  // (hidden/purchased are on their own pages)
+  const allItemRows = itemsResult.data || [];
+  const mainItemRows = allItemRows.filter(
+    (item: any) => item.status !== 'queued' && item.status !== 'hidden' && item.status !== 'purchased'
+  );
+  const queuedItemRows = allItemRows.filter((item: any) => item.status === 'queued');
+
+  // Collect item IDs from main items for price history lookup
+  const itemIds = mainItemRows.map((item: any) => item.id);
   
   // Fetch price history for all items in one query (optimized)
   // Get last 2 prices per item to calculate change
@@ -210,9 +193,8 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
   // Combine both results
   const allItems: any[] = [];
   
-  // Convert items table format
-  if (itemsResult.data) {
-    itemsResult.data.forEach((item: any) => {
+  // Convert main items (active + null status) to display format
+  mainItemRows.forEach((item: any) => {
       let priceValue = null;
       if (item.current_price !== null && item.current_price !== undefined && item.current_price !== '') {
         const numPrice = typeof item.current_price === 'string' 
@@ -256,8 +238,7 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
         original_currency: item.original_currency || 'USD',
         out_of_stock: item.out_of_stock || false,
       });
-    });
-  }
+  });
 
   // Convert products table format
   if (productsResult.data) {
@@ -314,8 +295,7 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
 
   // Convert queued items
   const queuedItems: any[] = [];
-  if (queuedResult.data) {
-    queuedResult.data.forEach((item: any) => {
+  queuedItemRows.forEach((item: any) => {
       let priceValue = null;
       if (item.current_price !== null && item.current_price !== undefined && item.current_price !== '') {
         const numPrice = typeof item.current_price === 'string'
@@ -336,8 +316,7 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
         domain: item.retailer?.toLowerCase() || null,
         original_currency: item.original_currency || 'USD',
       });
-    });
-  }
+  });
 
   const error = itemsResult.error || productsResult.error;
 
