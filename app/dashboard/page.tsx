@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import ProfileHeader from '@/components/dashboard/ProfileHeader'
@@ -13,10 +13,13 @@ import LavenderLoader from '@/components/ui/LavenderLoader'
 import SkeletonDashboard from '@/components/ui/SkeletonDashboard'
 import OnboardingFlow from '@/components/onboarding/OnboardingFlow'
 import AdSlot from '@/components/ui/AdSlot'
+import AdItemCard from '@/components/wishlist/AdItemCard'
 import { Layers, LayoutGrid, Sparkles, Loader2, Clock } from 'lucide-react'
 import Link from 'next/link'
 import QueuedItemCard from '@/components/dashboard/QueuedItemCard'
+import ImportModal from '@/components/dashboard/ImportModal'
 import PageTransition from '@/components/ui/PageTransition'
+import { useTranslation } from '@/lib/i18n/context'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -30,10 +33,13 @@ export default function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [autoOrganizing, setAutoOrganizing] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [showImportFromGrid, setShowImportFromGrid] = useState(false)
   const [autoOrganizeStats, setAutoOrganizeStats] = useState<{
     canAutoCategorize: number;
     uncategorized: number;
   } | null>(null)
+
+  const { t } = useTranslation()
 
   // Determine view mode from URL parameter
   const viewMode = searchParams?.get('view') === 'grouped' ? 'grouped' : 'timeline'
@@ -498,6 +504,7 @@ export default function DashboardPage() {
   }
 
   const adultFilterEnabled = profile?.adult_content_filter ?? true
+  const showGroupedAds = !profile?.subscription_tier || profile.subscription_tier === 'free'
 
   const handleQueuedUpdate = (id: string, updatedItem: any) => {
     setQueuedItems(prev => prev.filter(q => q.id !== id))
@@ -519,7 +526,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <PageTransition className="min-h-screen bg-white dark:bg-dpurple-950 pb-32 transition-colors">
+    <PageTransition className="min-h-screen bg-beige-50 dark:bg-dpurple-950 pb-32 transition-colors">
 
       {/* Onboarding Tutorial */}
       {showOnboarding && user && (
@@ -580,6 +587,7 @@ export default function DashboardPage() {
             userCollections={collections}
             adultFilterEnabled={adultFilterEnabled}
             tier={profile?.subscription_tier}
+            onImport={() => setShowImportFromGrid(true)}
           />
         )}
 
@@ -610,12 +618,12 @@ export default function DashboardPage() {
                   {autoOrganizing ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Organizing...
+                      {t('Organizing...')}
                     </>
                   ) : (
                     <>
                       <Sparkles className="w-4 h-4" />
-                      Auto-organize
+                      {t('Auto-organize')}
                     </>
                   )}
                 </button>
@@ -626,22 +634,28 @@ export default function DashboardPage() {
             {collections.length === 0 && products.length > 0 && (
               <section>
                 <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2">
-                  All Items
+                  {t('All Items')}
                   <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-dpurple-800 px-2 py-1 rounded-full">
                     {products.length}
                   </span>
                 </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
+                  {showGroupedAds && <AdItemCard index={0} slotIndex={0} />}
                   {products.map((item: any, i: number) => (
-                    <ProductCard 
-                      key={item.id} 
-                      item={item}
-                      index={i}
-                      userCollections={collections} 
-                      onDelete={handleDelete}
-                      onHide={handleHide}
-                      adultFilterEnabled={adultFilterEnabled}
-                    />
+                    <React.Fragment key={item.id}>
+                      <ProductCard 
+                        item={item}
+                        index={i}
+                        userCollections={collections} 
+                        onDelete={handleDelete}
+                        onHide={handleHide}
+                        adultFilterEnabled={adultFilterEnabled}
+                        tier={profile?.subscription_tier}
+                      />
+                      {showGroupedAds && (i + 1) % 5 === 0 && (
+                        <AdItemCard index={i} slotIndex={Math.floor(i / 5) + 1} />
+                      )}
+                    </React.Fragment>
                   ))}
                 </div>
               </section>
@@ -652,19 +666,25 @@ export default function DashboardPage() {
               <section>
                 <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2 opacity-50">
                   <span className="w-2 h-2 rounded-full bg-zinc-300 dark:bg-dpurple-500"></span>
-                  Uncategorized
+                  {t('Uncategorized')}
                 </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
+                  {showGroupedAds && <AdItemCard index={0} slotIndex={10} />}
                   {uncategorizedItems.map((item: any, i: number) => (
-                    <ProductCard 
-                      key={item.id} 
-                      item={item}
-                      index={i}
-                      userCollections={collections} 
-                      onDelete={handleDelete}
-                      onHide={handleHide}
-                      adultFilterEnabled={adultFilterEnabled}
-                    />
+                    <React.Fragment key={item.id}>
+                      <ProductCard 
+                        item={item}
+                        index={i}
+                        userCollections={collections} 
+                        onDelete={handleDelete}
+                        onHide={handleHide}
+                        adultFilterEnabled={adultFilterEnabled}
+                        tier={profile?.subscription_tier}
+                      />
+                      {showGroupedAds && (i + 1) % 5 === 0 && (
+                        <AdItemCard index={i} slotIndex={Math.floor(i / 5) + 11} />
+                      )}
+                    </React.Fragment>
                   ))}
                 </div>
               </section>
@@ -685,21 +705,27 @@ export default function DashboardPage() {
                       href={`/dashboard/collection/${group.slug}`} 
                       className="text-sm text-violet-600 hover:text-violet-700 hover:underline transition-colors"
                     >
-                      View Page →
+                      {t('View Page →')}
                     </Link>
                   </div>
                   
                   <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
+                    {showGroupedAds && <AdItemCard index={0} slotIndex={20} />}
                     {group.items.map((item: any, i: number) => (
-                      <ProductCard 
-                        key={item.id} 
-                        item={item}
-                        index={i}
-                        userCollections={collections} 
-                        onDelete={handleDelete}
-                        onHide={handleHide}
-                        adultFilterEnabled={adultFilterEnabled}
-                      />
+                      <React.Fragment key={item.id}>
+                        <ProductCard 
+                          item={item}
+                          index={i}
+                          userCollections={collections} 
+                          onDelete={handleDelete}
+                          onHide={handleHide}
+                          adultFilterEnabled={adultFilterEnabled}
+                          tier={profile?.subscription_tier}
+                        />
+                        {showGroupedAds && (i + 1) % 5 === 0 && (
+                          <AdItemCard index={i} slotIndex={Math.floor(i / 5) + 21} />
+                        )}
+                      </React.Fragment>
                     ))}
                   </div>
                 </section>
@@ -708,9 +734,16 @@ export default function DashboardPage() {
 
             {/* Empty State for Grouped View */}
             {products.length === 0 && (
-              <div className="text-center py-20 text-zinc-500 dark:text-zinc-400">
-                No items found. Add some items to see them here!
-              </div>
+              <>
+                {showGroupedAds && (
+                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6 mb-6">
+                    <AdItemCard index={0} slotIndex={0} />
+                  </div>
+                )}
+                <div className="text-center py-20 text-zinc-500 dark:text-zinc-400">
+                  {t('No items found. Add some items to see them here!')}
+                </div>
+              </>
             )}
 
             {/* Debug info in development */}
@@ -729,6 +762,15 @@ export default function DashboardPage() {
           </div>
         )}
       </main>
+
+      <ImportModal
+        isOpen={showImportFromGrid}
+        onClose={() => setShowImportFromGrid(false)}
+        onComplete={() => {
+          setShowImportFromGrid(false)
+          window.location.reload()
+        }}
+      />
     </PageTransition>
   )
 }

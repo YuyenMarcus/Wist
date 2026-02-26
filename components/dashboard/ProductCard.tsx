@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ExternalLink, Trash2, MoreHorizontal, Check, FolderInput, TrendingDown, TrendingUp, Minus, ShoppingBag, EyeOff } from 'lucide-react';
+import { ExternalLink, Trash2, MoreHorizontal, Check, FolderInput, TrendingDown, TrendingUp, Minus, ShoppingBag, EyeOff, PackageX } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '@/lib/supabase/client';
@@ -19,11 +19,11 @@ interface ProductItem {
   collection_id?: string | null;
   current_price?: number | null;
   image_url?: string | null;
-  // Price tracking fields
   price_change?: number | null;
   price_change_percent?: number | null;
   previous_price?: number | null;
   last_price_check?: string | null;
+  out_of_stock?: boolean;
 }
 
 interface Collection {
@@ -39,9 +39,10 @@ interface Props {
   onHide?: (id: string) => void;
   adultFilterEnabled?: boolean;
   index?: number;
+  tier?: string | null;
 }
 
-export default function ProductCard({ item, userCollections = [], onDelete, onHide, adultFilterEnabled = false, index = 0 }: Props) {
+export default function ProductCard({ item, userCollections = [], onDelete, onHide, adultFilterEnabled = false, index = 0, tier }: Props) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
@@ -321,10 +322,10 @@ export default function ProductCard({ item, userCollections = [], onDelete, onHi
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }}
       transition={{ duration: 0.35, delay: Math.min(index * 0.04, 0.4), ease: [0.25, 0.1, 0.25, 1] }}
-      className="group relative bg-white dark:bg-dpurple-900 rounded-xl overflow-hidden border border-zinc-200 dark:border-dpurple-700 hover:border-violet-500 hover:shadow-lg transition-all duration-300"
+      className="group relative bg-beige-100 dark:bg-dpurple-900 rounded-xl overflow-hidden border border-beige-200 dark:border-dpurple-700 hover:border-violet-500 hover:shadow-lg transition-all duration-300"
     >
       {/* Image Container */}
-      <div className="relative aspect-[2/3] overflow-hidden bg-zinc-100">
+      <div className="relative aspect-[2/3] overflow-hidden bg-beige-50">
         {imageUrl ? (
           <img
             src={imageUrl}
@@ -349,12 +350,23 @@ export default function ProductCard({ item, userCollections = [], onDelete, onHi
         )}
         
         {/* Price Drop Badge - Shows when price dropped significantly (>5%) */}
-        {item.price_change != null && item.price_change < 0 && (item.price_change_percent || 0) <= -5 && (
+        {item.price_change != null && item.price_change < 0 && (item.price_change_percent || 0) <= -5 && !item.out_of_stock && (
           <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10">
             <span className="inline-flex items-center gap-0.5 sm:gap-1 bg-green-500 text-white text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full shadow-lg animate-pulse">
               <TrendingDown className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
               <span className="hidden sm:inline">Price Drop!</span>
               <span className="sm:hidden">Drop!</span>
+            </span>
+          </div>
+        )}
+
+        {/* Out of Stock Badge (Wist+ and above) */}
+        {tier && tier !== 'free' && item.out_of_stock && (
+          <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10">
+            <span className="inline-flex items-center gap-0.5 sm:gap-1 bg-red-500/90 text-white text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full shadow-lg">
+              <PackageX className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+              <span className="hidden sm:inline">Out of Stock</span>
+              <span className="sm:hidden">OOS</span>
             </span>
           </div>
         )}
@@ -402,7 +414,7 @@ export default function ProductCard({ item, userCollections = [], onDelete, onHi
           <>
             <div className="fixed inset-0 z-[9998]" onClick={() => setIsMenuOpen(false)} />
             <div
-              className="fixed w-48 bg-white dark:bg-dpurple-900 rounded-lg shadow-xl border border-zinc-200 dark:border-dpurple-600 p-1 z-[9999] max-h-[70vh] overflow-y-auto"
+              className="fixed w-48 bg-beige-50 dark:bg-dpurple-900 rounded-lg shadow-xl border border-beige-200 dark:border-dpurple-600 p-1 z-[9999] max-h-[70vh] overflow-y-auto"
               style={{ top: `${menuPos.top}px`, left: `${menuPos.left}px` }}
               onClick={(e) => e.stopPropagation()}
             >

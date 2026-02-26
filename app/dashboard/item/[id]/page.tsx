@@ -6,7 +6,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import PageTransition from '@/components/ui/PageTransition';
-import { Receipt, FileText, Plus, Trash2, Shield, BarChart3, Lock } from 'lucide-react';
+import { Receipt, FileText, Plus, Trash2, Shield, BarChart3, Lock, PackageX, PackageCheck } from 'lucide-react';
 
 export default function ItemDetail() {
   const params = useParams(); 
@@ -210,8 +210,8 @@ export default function ItemDetail() {
         <div className="grid gap-8 lg:grid-cols-3">
           {/* LEFT COLUMN: Image & Info */}
           <div className="lg:col-span-1">
-            <div className="overflow-hidden rounded-xl bg-white dark:bg-dpurple-900 shadow-sm ring-1 ring-gray-900/5 dark:ring-dpurple-700">
-              <div className="aspect-square w-full bg-white dark:bg-dpurple-900 p-6 flex items-center justify-center">
+            <div className="overflow-hidden rounded-xl bg-beige-100 dark:bg-dpurple-900 shadow-sm ring-1 ring-gray-900/5 dark:ring-dpurple-700">
+              <div className="aspect-square w-full bg-beige-50 dark:bg-dpurple-900 p-6 flex items-center justify-center">
                 <img src={item.image_url || item.image} alt={item.title} className="max-h-full max-w-full object-contain" />
               </div>
               <div className="p-6 border-t border-gray-100 dark:border-dpurple-700">
@@ -231,6 +231,23 @@ export default function ItemDetail() {
                     )}
                   </div>
                   
+                  {/* Stock Status (Wist+ and above) */}
+                  {userTier !== 'free' && (
+                    <div className="pt-2 border-t border-gray-100 dark:border-dpurple-700">
+                      {item.out_of_stock ? (
+                        <div className="flex items-center gap-2 text-red-500">
+                          <PackageX className="w-4 h-4" />
+                          <span className="text-sm font-semibold">Out of Stock</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 text-emerald-500">
+                          <PackageCheck className="w-4 h-4" />
+                          <span className="text-sm font-semibold">In Stock</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Last Checked Time */}
                   <div className="pt-2 border-t border-gray-100">
                     <p className="text-sm text-gray-600">
@@ -269,7 +286,7 @@ export default function ItemDetail() {
           <div className="lg:col-span-2 space-y-6">
             
             {/* Price History Chart */}
-            <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-900/5">
+            <div className="rounded-xl bg-beige-100 p-6 shadow-sm ring-1 ring-gray-900/5">
               <h2 className="mb-6 text-lg font-bold text-gray-900 dark:text-zinc-100">Price History</h2>
               
               <div className="h-80 w-full">
@@ -334,7 +351,7 @@ export default function ItemDetail() {
 
             {/* Weekly Price Log */}
             {history.length > 0 && (
-              <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-900/5">
+              <div className="rounded-xl bg-beige-100 p-6 shadow-sm ring-1 ring-gray-900/5">
                 <h3 className="font-bold text-gray-900 dark:text-zinc-100 mb-4">Weekly Price Log</h3>
                 <div className="divide-y divide-gray-100">
                   {(() => {
@@ -379,7 +396,7 @@ export default function ItemDetail() {
             )}
 
             {/* Receipts & Warranties */}
-            <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-900/5">
+            <div className="rounded-xl bg-beige-100 p-6 shadow-sm ring-1 ring-gray-900/5">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-bold text-gray-900 flex items-center gap-2">
                   <Receipt className="w-4 h-4 text-violet-500" />
@@ -516,7 +533,7 @@ export default function ItemDetail() {
             </div>
 
             {/* Compare Prices */}
-            <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-900/5">
+            <div className="rounded-xl bg-beige-100 p-6 shadow-sm ring-1 ring-gray-900/5">
               <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-4">
                 <BarChart3 className="w-4 h-4 text-violet-500" />
                 Compare Prices

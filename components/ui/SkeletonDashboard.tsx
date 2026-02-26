@@ -2,7 +2,7 @@
 
 export default function SkeletonDashboard() {
   return (
-    <div className="min-h-screen bg-white dark:bg-dpurple-950 pb-32 animate-pulse">
+    <div className="min-h-screen bg-beige-50 dark:bg-dpurple-950 pb-32 animate-pulse">
       {/* Profile header skeleton */}
       <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pt-8 pb-6">
         <div className="flex items-center gap-4 mb-6">
@@ -37,7 +37,7 @@ const heights = [220, 280, 200, 260, 240, 300, 210, 250]
 function SkeletonCard({ height }: { height: number }) {
   return (
     <div
-      className="break-inside-avoid bg-white dark:bg-dpurple-900 rounded-xl border border-zinc-100 dark:border-dpurple-700 overflow-hidden"
+      className="break-inside-avoid bg-beige-100 dark:bg-dpurple-900 rounded-xl border border-zinc-100 dark:border-dpurple-700 overflow-hidden"
       style={{ height }}
     >
       <div className="bg-zinc-100 w-full" style={{ height: height - 70 }} />

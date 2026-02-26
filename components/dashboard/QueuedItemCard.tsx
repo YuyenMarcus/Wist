@@ -167,7 +167,7 @@ export default function QueuedItemCard({ item, onUpdate, onDelete }: Props) {
 
   if (isEditing) {
     return (
-      <div className="bg-white border-2 border-dashed border-violet-300 rounded-xl p-4 space-y-3">
+      <div className="bg-beige-100 border-2 border-dashed border-violet-300 rounded-xl p-4 space-y-3">
         <p className="text-xs text-violet-600 font-medium">Fill in details manually</p>
         <input
           type="text"
@@ -205,7 +205,7 @@ export default function QueuedItemCard({ item, onUpdate, onDelete }: Props) {
   }
 
   return (
-    <div className="bg-white dark:bg-dpurple-900 border-2 border-dashed border-zinc-200 dark:border-dpurple-600 rounded-xl p-3 sm:p-4 hover:border-violet-300 dark:hover:border-violet-700 transition-colors group">
+    <div className="bg-beige-100 dark:bg-dpurple-900 border-2 border-dashed border-zinc-200 dark:border-dpurple-600 rounded-xl p-3 sm:p-4 hover:border-violet-300 dark:hover:border-violet-700 transition-colors group">
       <div className="flex items-start gap-3">
         {/* Favicon */}
         <div className="flex-shrink-0 w-10 h-10 bg-zinc-100 rounded-lg flex items-center justify-center overflow-hidden">

@@ -13,6 +13,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
+import { useTranslation } from '@/lib/i18n/context'
 
 interface OnboardingFlowProps {
   userId: string
@@ -132,101 +133,103 @@ function MockItemCard() {
   )
 }
 
-const TUTORIAL_STEPS = [
-  {
-    key: 'welcome',
-    title: 'Welcome to Wist',
-    subtitle: 'Your smart wishlist that tracks prices for you.',
-    content: (
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-16 h-16 rounded-2xl bg-violet-100 flex items-center justify-center">
-          <ShoppingBag className="w-8 h-8 text-violet-600" />
-        </div>
-        <p className="text-sm text-zinc-500 text-center max-w-xs leading-relaxed">
-          Save items from any store, track price drops automatically, and organize
-          everything into collections. Let's show you the basics.
-        </p>
-      </div>
-    ),
-  },
-  {
-    key: 'dashboard',
-    title: 'Your Dashboard',
-    subtitle: 'Every item you save shows up as a card.',
-    content: (
-      <div className="flex flex-col items-center gap-4">
-        <MockItemCard />
-        <p className="text-sm text-zinc-500 text-center max-w-xs leading-relaxed">
-          Use the <strong className="text-violet-600">browser extension</strong> to save items in one click, or
-          paste a product URL directly. Each card shows the price, store, and any
-          recent changes.
-        </p>
-      </div>
-    ),
-  },
-  {
-    key: 'price',
-    title: 'Price Tracking',
-    subtitle: 'We check prices daily so you don\'t have to.',
-    content: (
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-full max-w-xs bg-white rounded-xl border border-zinc-200 p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-zinc-900">Price History</span>
-            <span className="text-[10px] text-green-600 font-semibold">-20%</span>
-          </div>
-          <MiniChart />
-          <div className="flex justify-between text-[10px] text-zinc-400 mt-1">
-            <span>Mon</span>
-            <span>Sun</span>
-          </div>
-        </div>
-        <p className="text-sm text-zinc-500 text-center max-w-xs leading-relaxed">
-          Click <strong>History</strong> on any card to see the full price graph.
-          You'll get notified when prices drop significantly.
-        </p>
-      </div>
-    ),
-  },
-  {
-    key: 'collections',
-    title: 'Collections',
-    subtitle: 'Organize your items however you like.',
-    content: (
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-full max-w-xs space-y-2">
-          {[
-            { name: 'Tech', count: 12, color: 'bg-blue-100 text-blue-600' },
-            { name: 'Fashion', count: 8, color: 'bg-pink-100 text-pink-600' },
-            { name: 'Home', count: 5, color: 'bg-amber-100 text-amber-600' },
-          ].map((col) => (
-            <div
-              key={col.name}
-              className="flex items-center gap-3 bg-white rounded-lg border border-zinc-200 px-4 py-3"
-            >
-              <div className={`w-8 h-8 rounded-lg ${col.color} flex items-center justify-center`}>
-                <FolderOpen className="w-4 h-4" />
-              </div>
-              <span className="text-sm font-medium text-zinc-900 flex-1">{col.name}</span>
-              <span className="text-xs text-zinc-400">{col.count} items</span>
-            </div>
-          ))}
-        </div>
-        <p className="text-sm text-zinc-500 text-center max-w-xs leading-relaxed">
-          Switch to <strong>Categories</strong> view to see your collections.
-          Drag items between collections or let Wist auto-organize them for you.
-        </p>
-      </div>
-    ),
-  },
-]
-
 export default function OnboardingFlow({ userId, onComplete }: OnboardingFlowProps) {
+  const { t } = useTranslation()
   const [phase, setPhase] = useState<Phase>('age')
   const [age, setAge] = useState('')
   const [ageError, setAgeError] = useState('')
   const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
+
+  const TUTORIAL_STEPS = [
+    {
+      key: 'welcome',
+      title: t('Welcome to Wist'),
+      subtitle: t('Your smart wishlist that tracks prices for you.'),
+      content: (
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-16 h-16 rounded-2xl bg-violet-100 flex items-center justify-center">
+            <ShoppingBag className="w-8 h-8 text-violet-600" />
+          </div>
+          <p className="text-sm text-zinc-500 text-center max-w-xs leading-relaxed">
+            {t("Save items from any store, track price drops automatically, and organize everything into collections. Let's show you the basics.")}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: 'dashboard',
+      title: t('Your Dashboard'),
+      subtitle: t('Every item you save shows up as a card.'),
+      content: (
+        <div className="flex flex-col items-center gap-4">
+          <MockItemCard />
+          <p className="text-sm text-zinc-500 text-center max-w-xs leading-relaxed">
+            {t('Use the ')}
+            <strong className="text-violet-600">{t('Browser extension')}</strong>
+            {t(' to save items in one click, or paste a product URL directly. Each card shows the price, store, and any recent changes.')}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: 'price',
+      title: t('Price Tracking'),
+      subtitle: t("We check prices daily so you don't have to."),
+      content: (
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-full max-w-xs bg-white rounded-xl border border-zinc-200 p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-zinc-900">{t('Price History')}</span>
+              <span className="text-[10px] text-green-600 font-semibold">-20%</span>
+            </div>
+            <MiniChart />
+            <div className="flex justify-between text-[10px] text-zinc-400 mt-1">
+              <span>Mon</span>
+              <span>Sun</span>
+            </div>
+          </div>
+          <p className="text-sm text-zinc-500 text-center max-w-xs leading-relaxed">
+            {t('Click ')}
+            <strong>{t('History')}</strong>
+            {t(" on any card to see the full price graph. You'll get notified when prices drop significantly.")}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: 'collections',
+      title: t('Collections'),
+      subtitle: t('Organize your items however you like.'),
+      content: (
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-full max-w-xs space-y-2">
+            {[
+              { name: 'Tech', count: 12, color: 'bg-blue-100 text-blue-600' },
+              { name: 'Fashion', count: 8, color: 'bg-pink-100 text-pink-600' },
+              { name: 'Home', count: 5, color: 'bg-amber-100 text-amber-600' },
+            ].map((col) => (
+              <div
+                key={col.name}
+                className="flex items-center gap-3 bg-white rounded-lg border border-zinc-200 px-4 py-3"
+              >
+                <div className={`w-8 h-8 rounded-lg ${col.color} flex items-center justify-center`}>
+                  <FolderOpen className="w-4 h-4" />
+                </div>
+                <span className="text-sm font-medium text-zinc-900 flex-1">{col.name}</span>
+                <span className="text-xs text-zinc-400">{col.count} {t('items')}</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-sm text-zinc-500 text-center max-w-xs leading-relaxed">
+            {t('Switch to ')}
+            <strong>{t('Categories')}</strong>
+            {t(' view to see your collections. Drag items between collections or let Wist auto-organize them for you.')}
+          </p>
+        </div>
+      ),
+    },
+  ]
 
   useEffect(() => {
     supabase
@@ -244,7 +247,7 @@ export default function OnboardingFlow({ userId, onComplete }: OnboardingFlowPro
   const handleAgeSubmit = async () => {
     const parsed = parseInt(age, 10)
     if (isNaN(parsed) || parsed < 5 || parsed > 120) {
-      setAgeError('Please enter a valid age between 5 and 120.')
+      setAgeError(t('Please enter a valid age between 5 and 120.'))
       return
     }
 
@@ -258,7 +261,7 @@ export default function OnboardingFlow({ userId, onComplete }: OnboardingFlowPro
 
       if (error) {
         console.error('Failed to save age:', error)
-        setAgeError('Could not save. Please try again.')
+        setAgeError(t('Could not save. Please try again.'))
         setSaving(false)
         return
       }
@@ -266,7 +269,7 @@ export default function OnboardingFlow({ userId, onComplete }: OnboardingFlowPro
       setPhase('tutorial')
     } catch (e: any) {
       console.error('Age submit error:', e)
-      setAgeError('Something went wrong. Please try again.')
+      setAgeError(t('Something went wrong. Please try again.'))
     } finally {
       setSaving(false)
     }
@@ -316,9 +319,9 @@ export default function OnboardingFlow({ userId, onComplete }: OnboardingFlowPro
           <div className="w-14 h-14 rounded-2xl bg-violet-100 flex items-center justify-center mx-auto mb-5">
             <Sparkles className="w-7 h-7 text-violet-600" />
           </div>
-          <h2 className="text-xl font-bold text-zinc-900 mb-1">Before we start</h2>
+          <h2 className="text-xl font-bold text-zinc-900 mb-1">{t('Before we start')}</h2>
           <p className="text-sm text-zinc-500 mb-6">
-            How old are you? This helps us personalize your experience.
+            {t('How old are you? This helps us personalize your experience.')}
           </p>
 
           <input
@@ -329,7 +332,7 @@ export default function OnboardingFlow({ userId, onComplete }: OnboardingFlowPro
               setAgeError('')
             }}
             onKeyDown={(e) => e.key === 'Enter' && handleAgeSubmit()}
-            placeholder="Your age"
+            placeholder={t('Your age')}
             min={5}
             max={120}
             className="w-full px-4 py-3 text-center text-lg font-semibold border border-zinc-200 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition text-zinc-900 placeholder:text-zinc-300"
@@ -349,7 +352,7 @@ export default function OnboardingFlow({ userId, onComplete }: OnboardingFlowPro
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
             ) : (
               <>
-                Continue
+                {t('Continue')}
                 <ChevronRight className="w-4 h-4" />
               </>
             )}
@@ -404,7 +407,7 @@ export default function OnboardingFlow({ userId, onComplete }: OnboardingFlowPro
                   className="flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700 transition-colors"
                 >
                   <ChevronLeft className="w-4 h-4" />
-                  Back
+                  {t('Back')}
                 </button>
               ) : (
                 <div />
@@ -419,12 +422,12 @@ export default function OnboardingFlow({ userId, onComplete }: OnboardingFlowPro
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : step < TUTORIAL_STEPS.length - 1 ? (
                   <>
-                    Next
+                    {t('Next')}
                     <ChevronRight className="w-4 h-4" />
                   </>
                 ) : (
                   <>
-                    Get Started
+                    {t('Get Started')}
                     <Sparkles className="w-4 h-4" />
                   </>
                 )}

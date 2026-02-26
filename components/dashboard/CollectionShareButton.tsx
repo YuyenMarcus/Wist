@@ -36,7 +36,7 @@ export default function CollectionShareButton({ collectionId, collectionSlug, in
       <button
         onClick={handleShare}
         disabled={loading}
-        className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-dpurple-900 text-zinc-600 dark:text-zinc-300 rounded-lg text-sm font-medium border border-zinc-200 dark:border-dpurple-700 hover:bg-violet-50 dark:hover:bg-violet-900/20 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-300 dark:hover:border-violet-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="flex items-center gap-2 px-4 py-2 bg-beige-100 dark:bg-dpurple-900 text-zinc-600 dark:text-zinc-300 rounded-lg text-sm font-medium border border-zinc-200 dark:border-dpurple-700 hover:bg-violet-50 dark:hover:bg-violet-900/20 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-300 dark:hover:border-violet-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <Share2 size={16} />
         Share List

@@ -155,6 +155,9 @@ function scrapeCurrentPage() {
     const priceMatch = price.toString().replace(/[^0-9.]/g, '');
     priceValue = parseFloat(priceMatch) || 0;
   }
+
+  // Detect stock status
+  const outOfStock = detectOutOfStock();
   
   return {
     title: title || document.title || 'Unknown Item',
@@ -165,7 +168,53 @@ function scrapeCurrentPage() {
     retailer: domain.replace('www.', '').replace('m.', '').split('.')[0],
     currency: currencyInfo.code,
     original_price_raw: price || null,
+    out_of_stock: outOfStock,
   };
+}
+
+function detectOutOfStock() {
+  // 1. JSON-LD availability
+  const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
+  for (const script of jsonLdScripts) {
+    try {
+      const data = JSON.parse(script.textContent || '{}');
+      const items = Array.isArray(data) ? data : [data];
+      for (const item of items) {
+        const avail = item?.offers?.availability || item?.availability || '';
+        if (/OutOfStock|SoldOut|Discontinued|PreOrder/i.test(avail)) return true;
+        if (/InStock|InStoreOnly|OnlineOnly|LimitedAvailability/i.test(avail)) return false;
+      }
+    } catch (e) {}
+  }
+
+  // 2. Common out-of-stock selectors
+  const oosSelectors = [
+    '[data-test="soldOutBlock"]', '[data-test="outOfStockBlock"]',
+    '#outOfStock', '#soldout', '.out-of-stock', '.sold-out',
+    '#availability .a-color-price',
+    '[class*="OutOfStock"]', '[class*="SoldOut"]',
+    '[class*="out-of-stock"]', '[class*="sold-out"]',
+  ];
+  for (const sel of oosSelectors) {
+    const el = document.querySelector(sel);
+    if (el && el.offsetParent !== null) return true;
+  }
+
+  // 3. Amazon-specific availability text
+  const availEl = document.querySelector('#availability span, #availability');
+  if (availEl) {
+    const text = availEl.textContent?.trim().toLowerCase() || '';
+    if (/currently unavailable|out of stock|unavailable/i.test(text)) return true;
+  }
+
+  // 4. Visible text patterns (limited scope to avoid false positives)
+  const textElements = document.querySelectorAll('[class*="stock"], [class*="availability"], [data-test*="stock"], [data-test*="availability"]');
+  for (const el of textElements) {
+    const text = el.textContent?.trim().toLowerCase() || '';
+    if (/out of stock|sold out|currently unavailable|no longer available/i.test(text)) return true;
+  }
+
+  return false;
 }
 
 // Amazon scraper

@@ -1,14 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { ShoppingBag, Bell, BellOff, Upload } from 'lucide-react'
+import { ShoppingBag, Upload, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import AddItemForm from '@/components/dashboard/AddItemForm'
 import ShareButton from '@/components/dashboard/ShareButton'
 import TierBadge from '@/components/ui/TierBadge'
 import ImportModal from '@/components/dashboard/ImportModal'
 import { Profile } from '@/lib/supabase/profile'
-import { isTierAtLeast } from '@/lib/tier-guards'
+import { useTranslation } from '@/lib/i18n/context'
+import NotificationCenter from '@/components/dashboard/NotificationCenter'
 
 interface ProfileHeaderProps {
   user: {
@@ -21,29 +22,8 @@ interface ProfileHeaderProps {
   refreshing: boolean
 }
 
-function NotificationToggle() {
-  const [enabled, setEnabled] = useState(true)
-
-  return (
-    <button
-      onClick={() => setEnabled(!enabled)}
-      className={`rounded-full p-2.5 sm:p-3 shadow-sm border transition-all ${
-        enabled
-          ? 'bg-white dark:bg-dpurple-900 text-violet-600 dark:text-violet-400 border-violet-200 dark:border-violet-800 hover:bg-violet-50 dark:hover:bg-violet-950'
-          : 'bg-white dark:bg-dpurple-900 text-zinc-400 border-zinc-200 dark:border-dpurple-600 hover:bg-zinc-50 dark:hover:bg-dpurple-800'
-      }`}
-      title={enabled ? 'Notifications on' : 'Notifications off'}
-    >
-      {enabled ? (
-        <Bell size={18} className="sm:w-5 sm:h-5" />
-      ) : (
-        <BellOff size={18} className="sm:w-5 sm:h-5" />
-      )}
-    </button>
-  )
-}
-
 export default function ProfileHeader({ user, profile, itemCount, onRefreshPrices, refreshing }: ProfileHeaderProps) {
+  const { t } = useTranslation()
   const [showImport, setShowImport] = useState(false)
   const displayName = profile?.full_name || 'Curator'
   const username = profile?.username || 'username'
@@ -99,22 +79,27 @@ export default function ProfileHeader({ user, profile, itemCount, onRefreshPrice
 
       {/* Share Button, Import, and Notifications */}
       <div className="flex flex-wrap justify-end gap-2 sm:gap-3 mb-4 sm:mb-6">
-        {isTierAtLeast(profile?.subscription_tier, 'pro_plus') && (
-          <button
-            onClick={() => setShowImport(true)}
-            className="rounded-full p-2.5 sm:p-3 shadow-sm border bg-white dark:bg-dpurple-900 text-zinc-500 dark:text-zinc-400 border-zinc-200 dark:border-dpurple-600 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-200 dark:hover:border-violet-800 transition-all"
-            title="Import items"
-          >
-            <Upload className="w-4 h-4 sm:w-5 sm:h-5" />
-          </button>
-        )}
+        <button
+          onClick={() => setShowImport(true)}
+          className="rounded-full p-2.5 sm:p-3 shadow-sm border bg-beige-100 dark:bg-dpurple-900 text-zinc-400 dark:text-zinc-500 border-beige-200 dark:border-dpurple-600 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-200 dark:hover:border-violet-800 transition-all"
+          title={t('Import from spreadsheet or Amazon')}
+        >
+          <Upload className="w-4 h-4 sm:w-5 sm:h-5" />
+        </button>
         <ShareButton />
-        <NotificationToggle />
+        <NotificationCenter />
       </div>
 
       {/* 2. The "Compose" Area - Your AddItemForm lives here now */}
       <div className="mb-10">
         <AddItemForm />
+        <button
+          onClick={() => setShowImport(true)}
+          className="mt-1.5 mx-auto flex items-center gap-1 text-[10px] text-zinc-300 dark:text-zinc-600 hover:text-violet-500 dark:hover:text-violet-400 transition-colors"
+        >
+          <Upload size={9} />
+          {t('Have items elsewhere?')} <span className="underline underline-offset-2">{t('Import them')}</span>
+        </button>
       </div>
 
       {/* Import Modal */}

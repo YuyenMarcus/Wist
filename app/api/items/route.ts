@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   try {
     // 1. Get the data sent from the extension or dashboard
     const body = await request.json();
-    let { title, price, url, image_url, status, retailer, note, collection_id, is_public, currency } = body;
+    let { title, price, url, image_url, status, retailer, note, collection_id, is_public, currency, out_of_stock } = body;
 
     console.log("📥 [API] Incoming Item Request:", { url, hasTitle: !!title, hasPrice: !!price });
 
@@ -241,14 +241,17 @@ export async function POST(request: Request) {
       let scrapeQuality: 'good' | 'poor' = 'poor';
       try {
         const scraperModule = await import('@/lib/scraper/index');
-        const scrapeResult = await scraperModule.scrapeProduct(url) as { ok: boolean; data?: { title?: string; price?: number; image?: string; domain?: string }; error?: string; detail?: string } | null;
+        const scrapeResult = await scraperModule.scrapeProduct(url) as { ok: boolean; data?: { title?: string; price?: number; image?: string; domain?: string; outOfStock?: boolean }; error?: string; detail?: string } | null;
         
         if (scrapeResult && scrapeResult.ok && scrapeResult.data) {
           title = scrapeResult.data.title || title || 'New Item';
           currentPrice = price ? parseFloat(price.toString().replace(/[^0-9.]/g, '')) : (scrapeResult.data.price || 0);
           image_url = image_url || scrapeResult.data.image || null;
           retailer = retailer || scrapeResult.data.domain || 'Unknown';
-          console.log("✅ [API] Scrape successful:", title, "Price:", currentPrice);
+          if (scrapeResult.data.outOfStock !== undefined) {
+            out_of_stock = scrapeResult.data.outOfStock;
+          }
+          console.log("✅ [API] Scrape successful:", title, "Price:", currentPrice, "OOS:", out_of_stock);
           
           const hasGoodTitle = title && title.length > 10 && title !== 'New Item';
           const hasImage = !!image_url;
@@ -361,6 +364,7 @@ export async function POST(request: Request) {
         user_id: user.id,
         wishlist_id: wishlistId,
         original_currency: sourceCurrency,
+        out_of_stock: out_of_stock === true,
     };
 
     // Add collection_id if provided

@@ -79,7 +79,7 @@ export default function ReceiptsPage() {
           </div>
 
           {!isPremium ? (
-            <div className="rounded-xl bg-white dark:bg-dpurple-950 p-12 shadow-sm ring-1 ring-gray-900/5 dark:ring-dpurple-700 text-center space-y-3">
+            <div className="rounded-xl bg-beige-100 dark:bg-dpurple-950 p-12 shadow-sm ring-1 ring-gray-900/5 dark:ring-dpurple-700 text-center space-y-3">
               <Shield className="w-12 h-12 text-gray-300 dark:text-zinc-500 mx-auto" />
               <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-100">Wist Pro Feature</h2>
               <p className="text-sm text-gray-500 dark:text-zinc-400 max-w-md mx-auto">
@@ -105,13 +105,13 @@ export default function ReceiptsPage() {
               )}
 
               {receipts.length === 0 ? (
-                <div className="rounded-xl bg-white dark:bg-dpurple-950 p-12 shadow-sm ring-1 ring-gray-900/5 dark:ring-dpurple-700 text-center space-y-3">
+                <div className="rounded-xl bg-beige-100 dark:bg-dpurple-950 p-12 shadow-sm ring-1 ring-gray-900/5 dark:ring-dpurple-700 text-center space-y-3">
                   <FileText className="w-12 h-12 text-gray-300 dark:text-zinc-500 mx-auto" />
                   <h2 className="text-lg font-semibold text-gray-600 dark:text-zinc-400">No receipts yet</h2>
                   <p className="text-sm text-gray-400 dark:text-zinc-400">Add receipts from individual item pages to start tracking warranties.</p>
                 </div>
               ) : (
-                <div className="rounded-xl bg-white dark:bg-dpurple-950 shadow-sm ring-1 ring-gray-900/5 dark:ring-dpurple-700 divide-y divide-gray-100 dark:divide-dpurple-700">
+                <div className="rounded-xl bg-beige-100 dark:bg-dpurple-950 shadow-sm ring-1 ring-gray-900/5 dark:ring-dpurple-700 divide-y divide-gray-100 dark:divide-dpurple-700">
                   {receipts.map(r => (
                     <div key={r.id} className="flex items-start justify-between p-4 hover:bg-gray-50 dark:hover:bg-dpurple-900 transition-colors gap-4">
                       <div className="flex items-start gap-3 min-w-0">

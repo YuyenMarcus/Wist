@@ -12,6 +12,11 @@ module.exports = {
         'brand-blue': 'var(--color-brand-blue)',
         'brand-light': 'var(--color-brand-light)',
         'accent-pink': 'var(--color-accent-pink)',
+        'beige': {
+          50: '#faf8f5',
+          100: '#f5f0ea',
+          200: '#ebe4d9',
+        },
         'dpurple': {
           950: '#0d0a1a',
           900: '#15102b',

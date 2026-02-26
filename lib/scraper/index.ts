@@ -78,6 +78,7 @@ export async function scrapeProduct(
       domain,
       url,
       description: data.description || null,
+      outOfStock: (data as any).outOfStock || false,
     };
 
     return {

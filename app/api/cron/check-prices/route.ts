@@ -375,10 +375,29 @@ export async function GET(req: Request) {
             console.log(`   Old: $${oldPrice} → New: $${newPrice}`);
             updateCount++;
             
-            // Queue notification if price DROPPED (newPrice < oldPrice)
+            // Queue notification if price DROPPED (all tiers)
             if (newPrice < oldPrice && item.user_id) {
               await queuePriceDropNotification(supabase, item.user_id, item.id, oldPrice, newPrice);
               notificationCount++;
+            }
+
+            // Queue notification if price INCREASED (pro+ only)
+            if (newPrice > oldPrice && item.user_id) {
+              const tier = (item as any).subscription_tier || 'free';
+              if (isTierAtLeast(tier, 'pro')) {
+                const changePct = ((newPrice - oldPrice) / oldPrice) * 100;
+                await supabase.from('notification_queue').insert({
+                  user_id: item.user_id,
+                  item_id: item.id,
+                  notification_type: 'price_increase',
+                  old_price: oldPrice,
+                  new_price: newPrice,
+                  price_change_percent: changePct,
+                  sent: false,
+                });
+                notificationCount++;
+                console.log(`   📈 Price increase notification queued (+${changePct.toFixed(1)}%)`);
+              }
             }
           } else {
             console.log("   💤 No change in price.");

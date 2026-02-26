@@ -96,7 +96,7 @@ export default function CollectionSettings({ collectionId, collectionName }: Pro
     <div className="relative z-20" ref={menuRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2 bg-white dark:bg-dpurple-900 border border-zinc-200 dark:border-dpurple-700 rounded-lg hover:bg-zinc-50 dark:hover:bg-dpurple-800 transition-colors text-zinc-500 dark:text-zinc-400"
+        className="p-2 bg-beige-100 dark:bg-dpurple-900 border border-zinc-200 dark:border-dpurple-700 rounded-lg hover:bg-zinc-50 dark:hover:bg-dpurple-800 transition-colors text-zinc-500 dark:text-zinc-400"
         aria-label="Collection settings"
       >
         <Settings size={18} />
@@ -109,7 +109,7 @@ export default function CollectionSettings({ collectionId, collectionName }: Pro
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-dpurple-900 rounded-xl shadow-xl border border-zinc-200 dark:border-dpurple-700 p-2 overflow-hidden z-30"
+            className="absolute right-0 top-full mt-2 w-64 bg-beige-50 dark:bg-dpurple-900 rounded-xl shadow-xl border border-zinc-200 dark:border-dpurple-700 p-2 overflow-hidden z-30"
           >
             {/* RENAME MODE */}
             {isEditing ? (
@@ -172,7 +172,7 @@ export default function CollectionSettings({ collectionId, collectionName }: Pro
                   <button 
                     onClick={() => setIsDeleting(false)} 
                     disabled={loading}
-                    className="flex-1 py-1.5 bg-white dark:bg-dpurple-900 border border-zinc-200 dark:border-dpurple-600 text-zinc-600 dark:text-zinc-300 text-xs font-bold rounded hover:bg-zinc-50 dark:hover:bg-dpurple-800 transition-colors"
+                    className="flex-1 py-1.5 bg-beige-50 dark:bg-dpurple-900 border border-zinc-200 dark:border-dpurple-600 text-zinc-600 dark:text-zinc-300 text-xs font-bold rounded hover:bg-zinc-50 dark:hover:bg-dpurple-800 transition-colors"
                   >
                     Cancel
                   </button>

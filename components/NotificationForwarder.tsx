@@ -53,6 +53,7 @@ export default function NotificationForwarder() {
         .select(`
           id,
           item_id,
+          notification_type,
           old_price,
           new_price,
           price_change_percent,
@@ -65,7 +66,7 @@ export default function NotificationForwarder() {
         .eq('user_id', user.id)
         .eq('sent', false)
         .order('created_at', { ascending: true })
-        .limit(10); // Limit to 10 notifications at a time
+        .limit(10);
 
       if (error) {
         console.error('❌ [NotificationForwarder] Error fetching notifications:', error);
@@ -83,6 +84,7 @@ export default function NotificationForwarder() {
         const item = Array.isArray(n.items) ? n.items[0] : n.items;
         return {
           itemId: n.item_id,
+          type: (n as any).notification_type || 'price_drop',
           itemTitle: item?.title || 'Unknown Item',
           itemImage: item?.image_url,
           itemUrl: item?.url,

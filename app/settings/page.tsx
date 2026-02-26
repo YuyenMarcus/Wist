@@ -15,7 +15,7 @@ import { useDarkMode } from '@/lib/hooks/useDarkMode'
 function AppearanceSection() {
   const { isDark, toggle } = useDarkMode()
   return (
-    <div className="bg-white dark:bg-dpurple-900 p-8 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm space-y-6 scroll-mt-20">
+    <div className="bg-beige-100 dark:bg-dpurple-900 p-8 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm space-y-6 scroll-mt-20">
       <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-dpurple-700 pb-2 flex items-center gap-2">
         {isDark ? <Moon size={16} /> : <Sun size={16} />} Appearance
       </h2>
@@ -198,7 +198,7 @@ export default function SettingsPage() {
         <form onSubmit={handleUpdate} className="space-y-8">
           
           {/* --- SECTION 1: BASIC INFO --- */}
-          <div className="bg-white dark:bg-dpurple-900 p-8 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm space-y-6">
+          <div className="bg-beige-100 dark:bg-dpurple-900 p-8 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm space-y-6">
             <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-dpurple-700 pb-2">Basic Info</h2>
             
             <div>
@@ -207,7 +207,7 @@ export default function SettingsPage() {
                 type="text"
                 value={formData.fullName}
                 onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                className="w-full px-4 py-2 border border-zinc-200 dark:border-dpurple-600 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition text-zinc-900 dark:text-zinc-100 bg-white dark:bg-dpurple-800"
+                className="w-full px-4 py-2 border border-zinc-200 dark:border-dpurple-600 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition text-zinc-900 dark:text-zinc-100 bg-beige-50 dark:bg-dpurple-800"
                 placeholder="Enter your full name"
               />
             </div>
@@ -236,7 +236,7 @@ export default function SettingsPage() {
                         value={formData.username}
                         onChange={(e) => setFormData({ ...formData, username: e.target.value.toLowerCase().replace(/\s/g, '').replace(/[^a-zA-Z0-9_]/g, '') })}
                         disabled={!canChange && !isChanging}
-                        className={`w-full pl-8 pr-4 py-2 border border-zinc-200 dark:border-dpurple-600 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition text-zinc-900 dark:text-zinc-100 bg-white dark:bg-dpurple-800 ${
+                        className={`w-full pl-8 pr-4 py-2 border border-zinc-200 dark:border-dpurple-600 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition text-zinc-900 dark:text-zinc-100 bg-beige-50 dark:bg-dpurple-800 ${
                           !canChange && !isChanging ? 'opacity-60 cursor-not-allowed' : ''
                         }`}
                         placeholder="username"
@@ -269,7 +269,7 @@ export default function SettingsPage() {
                     setFormData({ ...formData, bio: e.target.value })
                   }
                 }}
-                className="w-full px-4 py-2 border border-zinc-200 dark:border-dpurple-600 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition resize-none text-zinc-900 dark:text-zinc-100 bg-white dark:bg-dpurple-800"
+                className="w-full px-4 py-2 border border-zinc-200 dark:border-dpurple-600 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition resize-none text-zinc-900 dark:text-zinc-100 bg-beige-50 dark:bg-dpurple-800"
                 rows={3}
                 placeholder="Tell us a bit about yourself..."
                 maxLength={160}
@@ -281,7 +281,7 @@ export default function SettingsPage() {
           </div>
 
           {/* --- SECTION 2: CREATOR & SOCIAL --- */}
-          <div id="creator" className="bg-white dark:bg-dpurple-900 p-8 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm space-y-6 scroll-mt-20">
+          <div id="creator" className="bg-beige-100 dark:bg-dpurple-900 p-8 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm space-y-6 scroll-mt-20">
             <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-dpurple-700 pb-2 flex items-center gap-2">
               Creator Links <span className="text-xs bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 px-2 py-0.5 rounded-full font-medium">Monetization</span>
             </h2>
@@ -299,7 +299,7 @@ export default function SettingsPage() {
                     value={formData.instagram}
                     onChange={(e) => setFormData({ ...formData, instagram: e.target.value })}
                     placeholder="username"
-                    className="w-full pl-8 pr-4 py-2 border border-zinc-200 dark:border-dpurple-600 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition text-zinc-900 dark:text-zinc-100 bg-white dark:bg-dpurple-800"
+                    className="w-full pl-8 pr-4 py-2 border border-zinc-200 dark:border-dpurple-600 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition text-zinc-900 dark:text-zinc-100 bg-beige-50 dark:bg-dpurple-800"
                   />
                 </div>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">We'll remove the @ when saving</p>
@@ -315,7 +315,7 @@ export default function SettingsPage() {
                     value={formData.tiktok}
                     onChange={(e) => setFormData({ ...formData, tiktok: e.target.value })}
                     placeholder="username"
-                    className="w-full pl-8 pr-4 py-2 border border-zinc-200 dark:border-dpurple-600 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition text-zinc-900 dark:text-zinc-100 bg-white dark:bg-dpurple-800"
+                    className="w-full pl-8 pr-4 py-2 border border-zinc-200 dark:border-dpurple-600 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition text-zinc-900 dark:text-zinc-100 bg-beige-50 dark:bg-dpurple-800"
                   />
                 </div>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">We'll remove the @ when saving</p>
@@ -331,7 +331,7 @@ export default function SettingsPage() {
                 value={formData.website}
                 onChange={(e) => setFormData({ ...formData, website: e.target.value })}
                 placeholder="https://mysite.com"
-                className="w-full px-4 py-2 border border-zinc-200 dark:border-dpurple-600 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition text-zinc-900 dark:text-zinc-100 bg-white dark:bg-dpurple-800"
+                className="w-full px-4 py-2 border border-zinc-200 dark:border-dpurple-600 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition text-zinc-900 dark:text-zinc-100 bg-beige-50 dark:bg-dpurple-800"
               />
             </div>
 
@@ -341,20 +341,20 @@ export default function SettingsPage() {
                 <ShoppingCart size={14} /> Amazon Associate Store ID
               </label>
               <p className="text-xs text-zinc-600 dark:text-zinc-400 mb-3">
-                Enter your ID (e.g., <code className="bg-white px-1.5 py-0.5 rounded text-violet-700 font-mono">sarah-20</code>). We will automatically replace our links with yours on your profile so you keep 100% of commissions.
+                Enter your ID (e.g., <code className="bg-beige-50 px-1.5 py-0.5 rounded text-violet-700 font-mono">sarah-20</code>). We will automatically replace our links with yours on your profile so you keep 100% of commissions.
               </p>
               <input
                 type="text"
                 value={formData.amazonId}
                 onChange={(e) => setFormData({ ...formData, amazonId: e.target.value })}
                 placeholder="tag-20"
-                className="w-full px-4 py-2 border border-violet-300 dark:border-violet-700 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none bg-white dark:bg-dpurple-800 text-zinc-900 dark:text-zinc-100"
+                className="w-full px-4 py-2 border border-violet-300 dark:border-violet-700 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none bg-beige-50 dark:bg-dpurple-800 text-zinc-900 dark:text-zinc-100"
               />
             </div>
           </div>
 
           {/* --- SECTION 3: CONTENT PREFERENCES --- */}
-          <div id="content" className="bg-white dark:bg-dpurple-900 p-8 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm space-y-6 scroll-mt-20">
+          <div id="content" className="bg-beige-100 dark:bg-dpurple-900 p-8 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm space-y-6 scroll-mt-20">
             <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-dpurple-700 pb-2 flex items-center gap-2">
               <Shield size={16} /> Content Preferences
             </h2>
@@ -425,7 +425,7 @@ export default function SettingsPage() {
           <AppearanceSection />
 
           {/* --- SECTION: CURRENCY --- */}
-          <div className="bg-white dark:bg-dpurple-900 p-8 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm space-y-6 scroll-mt-20">
+          <div className="bg-beige-100 dark:bg-dpurple-900 p-8 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm space-y-6 scroll-mt-20">
             <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-dpurple-700 pb-2 flex items-center gap-2">
               <DollarSign size={16} /> Currency
             </h2>
@@ -439,7 +439,7 @@ export default function SettingsPage() {
               <select
                 value={formData.preferredCurrency}
                 onChange={(e) => setFormData(prev => ({ ...prev, preferredCurrency: e.target.value }))}
-                className="w-full sm:w-64 px-3 py-2 border border-zinc-300 dark:border-dpurple-600 rounded-lg text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent bg-white dark:bg-dpurple-800 text-zinc-900 dark:text-zinc-100"
+                className="w-full sm:w-64 px-3 py-2 border border-zinc-300 dark:border-dpurple-600 rounded-lg text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent bg-beige-50 dark:bg-dpurple-800 text-zinc-900 dark:text-zinc-100"
               >
                 {SUPPORTED_CURRENCIES.map(code => {
                   const info = CURRENCY_INFO[code]
@@ -454,7 +454,7 @@ export default function SettingsPage() {
           </div>
 
           {/* --- SECTION 4: PROFILE THEME (Creator+) --- */}
-          <div id="theme" className="bg-white dark:bg-dpurple-900 p-8 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm space-y-6 scroll-mt-20">
+          <div id="theme" className="bg-beige-100 dark:bg-dpurple-900 p-8 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm space-y-6 scroll-mt-20">
             <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-dpurple-700 pb-2 flex items-center gap-2">
               <Palette size={16} /> Profile Theme
             </h2>
@@ -494,7 +494,7 @@ export default function SettingsPage() {
           </div>
 
           {/* --- SECTION 5: GIFTING (Pro+) --- */}
-          <div id="gifting" className="bg-white dark:bg-dpurple-900 p-8 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm space-y-6 scroll-mt-20">
+          <div id="gifting" className="bg-beige-100 dark:bg-dpurple-900 p-8 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm space-y-6 scroll-mt-20">
             <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-dpurple-700 pb-2 flex items-center gap-2">
               <Gift size={16} /> Gifting
             </h2>

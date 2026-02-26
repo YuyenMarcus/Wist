@@ -14,6 +14,7 @@ export interface ScrapeResult {
   url: string;
   html?: string;
   currency?: string;
+  outOfStock?: boolean;
 }
 
 // Site-specific selectors for better extraction
@@ -491,7 +492,66 @@ export async function staticScrape(url: string): Promise<ScrapeResult> {
   const urlCurrency = detectCurrencyFromUrl(url);
   const currency = detectCurrencyFromPrice(priceRaw, urlCurrency);
 
-  console.log(`[StaticScraper] ${domainKey || 'generic'}: title="${title?.substring(0, 50)}", price=${priceRaw}, currency=${currency}, hasImage=${!!image}`);
+  // === STOCK DETECTION ===
+  let outOfStock = false;
+
+  // Check JSON-LD availability
+  $('script[type="application/ld+json"]').each((_, el) => {
+    try {
+      const jsonLd = JSON.parse($(el).html() || '');
+      const items = Array.isArray(jsonLd) ? jsonLd : [jsonLd];
+      for (const item of items) {
+        const avail = item?.offers?.availability || item?.availability || '';
+        if (/OutOfStock|SoldOut|Discontinued|PreOrder/i.test(avail)) {
+          outOfStock = true;
+        }
+      }
+    } catch {}
+  });
+
+  // Check common out-of-stock indicators in the page
+  if (!outOfStock) {
+    const oosSelectors = [
+      '[data-test="soldOutBlock"]',
+      '[data-test="outOfStockBlock"]',
+      '.out-of-stock',
+      '.sold-out',
+      '#outOfStock',
+      '#soldout',
+      '[class*="OutOfStock"]',
+      '[class*="SoldOut"]',
+      '[class*="out-of-stock"]',
+      '[class*="sold-out"]',
+      '[data-availability="out-of-stock"]',
+    ];
+    for (const sel of oosSelectors) {
+      if ($(sel).length > 0) {
+        outOfStock = true;
+        break;
+      }
+    }
+  }
+
+  // Text-based detection in visible elements
+  if (!outOfStock) {
+    const bodyText = $('body').text();
+    const oosPatterns = [
+      /currently\s+unavailable/i,
+      /out\s+of\s+stock/i,
+      /sold\s+out/i,
+      /no\s+longer\s+available/i,
+      /temporarily\s+out\s+of\s+stock/i,
+      /this\s+item\s+is\s+not\s+available/i,
+    ];
+    for (const pat of oosPatterns) {
+      if (pat.test(bodyText)) {
+        outOfStock = true;
+        break;
+      }
+    }
+  }
+
+  console.log(`[StaticScraper] ${domainKey || 'generic'}: title="${title?.substring(0, 50)}", price=${priceRaw}, currency=${currency}, hasImage=${!!image}, outOfStock=${outOfStock}`);
 
   return {
     title,
@@ -502,5 +562,6 @@ export async function staticScrape(url: string): Promise<ScrapeResult> {
     url,
     html,
     currency,
+    outOfStock,
   };
 }

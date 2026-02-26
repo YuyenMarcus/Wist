@@ -7,6 +7,7 @@ export interface TierConfig {
   price: number | null; // null = custom pricing
   priceLabel: string;
   itemLimit: number | null; // null = unlimited
+  collectionLimit: number | null; // null = unlimited
   frequency: 'weekly' | 'daily' | 'instant';
   intervalMs: number;
   badgeColor: string; // tailwind color prefix
@@ -21,11 +22,13 @@ export const TIERS: Record<SubscriptionTier, TierConfig> = {
     price: 0,
     priceLabel: '$0',
     itemLimit: 20,
+    collectionLimit: 5,
     frequency: 'weekly',
     intervalMs: 7 * 24 * 60 * 60 * 1000,
     badgeColor: 'zinc',
     features: [
       '20 items in dashboard',
+      '5 collections',
       'Weekly price checks',
       'Basic dashboard',
     ],
@@ -37,12 +40,13 @@ export const TIERS: Record<SubscriptionTier, TierConfig> = {
     price: 5,
     priceLabel: '$5/mo',
     itemLimit: 45,
-    frequency: 'weekly',
-    intervalMs: 7 * 24 * 60 * 60 * 1000,
+    collectionLimit: null,
+    frequency: 'daily',
+    intervalMs: 24 * 60 * 60 * 1000,
     badgeColor: 'blue',
     features: [
       '45 items in dashboard',
-      'Weekly price checks',
+      'Daily price notifications',
       'Back-in-stock detection & alerts',
       'No ads',
       'Similar products price comparison',
@@ -55,6 +59,7 @@ export const TIERS: Record<SubscriptionTier, TierConfig> = {
     price: 10,
     priceLabel: '$10/mo',
     itemLimit: null,
+    collectionLimit: null,
     frequency: 'daily',
     intervalMs: 24 * 60 * 60 * 1000,
     badgeColor: 'violet',
@@ -76,6 +81,7 @@ export const TIERS: Record<SubscriptionTier, TierConfig> = {
     price: 30,
     priceLabel: '$30/mo',
     itemLimit: null,
+    collectionLimit: null,
     frequency: 'instant',
     intervalMs: 0,
     badgeColor: 'amber',
@@ -95,6 +101,7 @@ export const TIERS: Record<SubscriptionTier, TierConfig> = {
     price: null,
     priceLabel: 'Custom',
     itemLimit: null,
+    collectionLimit: null,
     frequency: 'instant',
     intervalMs: 0,
     badgeColor: 'emerald',
@@ -143,6 +150,10 @@ export function getNextNotificationTime(
 
 export function getItemLimit(tier: SubscriptionTier): number | null {
   return TIERS[tier].itemLimit;
+}
+
+export function getCollectionLimit(tier: SubscriptionTier): number | null {
+  return TIERS[tier].collectionLimit;
 }
 
 export function getTierDisplayName(tier: SubscriptionTier): string {

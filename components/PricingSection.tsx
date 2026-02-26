@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { TIERS, type SubscriptionTier } from '@/lib/constants/subscription-tiers'
 import { Check, ArrowRight, Sparkles } from 'lucide-react'
+import { useTranslation } from '@/lib/i18n/context'
 
 const PLANS: {
   key: SubscriptionTier
@@ -76,6 +77,8 @@ const PLANS: {
 ]
 
 export default function PricingSection() {
+  const { t } = useTranslation()
+
   return (
     <section id="pricing" className="relative py-28 sm:py-32 px-4 sm:px-6 overflow-hidden" style={{ fontFamily: "'DM Sans', sans-serif" }}>
       {/* Background */}
@@ -87,13 +90,13 @@ export default function PricingSection() {
         <div className="text-center mb-16 sm:mb-20">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-100/80 border border-violet-200/60 mb-5">
             <Sparkles className="w-3.5 h-3.5 text-violet-600" />
-            <span className="text-xs font-semibold text-violet-700 tracking-wide">PRICING</span>
+            <span className="text-xs font-semibold text-violet-700 tracking-wide">{t('PRICING')}</span>
           </div>
           <h2 className="text-4xl sm:text-5xl font-bold text-zinc-900 tracking-tight leading-tight" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-            Pick the plan that<br className="hidden sm:block" /> fits your lifestyle
+            {t('Pick the plan that')}<br className="hidden sm:block" /> {t('fits your lifestyle')}
           </h2>
           <p className="mt-5 text-base sm:text-lg text-zinc-500 max-w-xl mx-auto leading-relaxed">
-            Start free, upgrade anytime. Every plan includes a 14-day trial on paid features.
+            {t('Start free, upgrade anytime. Every plan includes a 14-day trial on paid features.')}
           </p>
         </div>
 
@@ -115,7 +118,7 @@ export default function PricingSection() {
                 {isPopular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                     <span className="inline-flex items-center gap-1.5 px-3.5 py-1 bg-gradient-to-r from-violet-500 to-purple-600 text-white text-[11px] font-bold tracking-wide rounded-full shadow-lg shadow-violet-500/30">
-                      <Sparkles className="w-3 h-3" /> MOST POPULAR
+                      <Sparkles className="w-3 h-3" /> {t('MOST POPULAR')}
                     </span>
                   </div>
                 )}
@@ -126,7 +129,7 @@ export default function PricingSection() {
                     {tier.displayName}
                   </h3>
                   <p className={`mt-1 text-[13px] leading-snug ${isPopular ? 'text-zinc-400' : 'text-zinc-400'}`}>
-                    {plan.tagline}
+                    {t(plan.tagline)}
                   </p>
                 </div>
 
@@ -135,12 +138,12 @@ export default function PricingSection() {
                   {tier.price === 0 ? (
                     <div className="flex items-baseline gap-1">
                       <span className={`text-5xl font-extrabold tracking-tight ${isPopular ? 'text-white' : 'text-zinc-900'}`}>$0</span>
-                      <span className={`text-sm font-medium ${isPopular ? 'text-zinc-500' : 'text-zinc-400'}`}>/mo</span>
+                      <span className={`text-sm font-medium ${isPopular ? 'text-zinc-500' : 'text-zinc-400'}`}>{t('/mo')}</span>
                     </div>
                   ) : (
                     <div className="flex items-baseline gap-1">
                       <span className={`text-5xl font-extrabold tracking-tight ${isPopular ? 'text-white' : 'text-zinc-900'}`}>${tier.price}</span>
-                      <span className={`text-sm font-medium ${isPopular ? 'text-zinc-500' : 'text-zinc-400'}`}>/mo</span>
+                      <span className={`text-sm font-medium ${isPopular ? 'text-zinc-500' : 'text-zinc-400'}`}>{t('/mo')}</span>
                     </div>
                   )}
                 </div>
@@ -156,7 +159,7 @@ export default function PricingSection() {
                         : 'bg-zinc-900 text-white hover:bg-zinc-800'
                   }`}
                 >
-                  {plan.ctaLabel}
+                  {t(plan.ctaLabel)}
                   <ArrowRight className="w-4 h-4" />
                 </Link>
 
@@ -170,7 +173,7 @@ export default function PricingSection() {
                         }`}>
                           <Check className={`w-3 h-3 ${isPopular ? 'text-violet-400' : plan.checkColor}`} />
                         </div>
-                        <span className={`text-[13px] leading-snug ${isPopular ? 'text-zinc-300' : 'text-zinc-600'}`}>{feature}</span>
+                        <span className={`text-[13px] leading-snug ${isPopular ? 'text-zinc-300' : 'text-zinc-600'}`}>{t(feature)}</span>
                       </li>
                     ))}
                   </ul>
@@ -183,24 +186,24 @@ export default function PricingSection() {
         {/* Enterprise bar */}
         <div className="mt-14 rounded-2xl bg-zinc-900 p-8 sm:p-10 flex flex-col sm:flex-row items-center gap-6 sm:gap-8">
           <div className="flex-1 text-center sm:text-left">
-            <h3 className="text-lg font-bold text-white mb-1">Need something bigger?</h3>
+            <h3 className="text-lg font-bold text-white mb-1">{t('Need something bigger?')}</h3>
             <p className="text-sm text-zinc-400 max-w-lg">
-              Wist Enterprise includes API access, team wishlists, bulk gifting, custom branding, and a dedicated account manager.
+              {t('Wist Enterprise includes API access, team wishlists, bulk gifting, custom branding, and a dedicated account manager.')}
             </p>
           </div>
           <Link
             href="mailto:julien@nitron.digital?subject=Wist Enterprise"
             className="flex-shrink-0 inline-flex items-center gap-2 px-6 py-3 bg-white text-zinc-900 text-sm font-bold rounded-xl hover:bg-zinc-100 transition-colors"
           >
-            Talk to Sales <ArrowRight className="w-4 h-4" />
+            {t('Talk to Sales')} <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
 
         {/* Reassurance */}
         <div className="mt-10 flex flex-wrap justify-center gap-x-8 gap-y-2 text-xs text-zinc-400">
-          <span>No credit card required</span>
+          <span>{t('No credit card required')}</span>
           <span className="hidden sm:inline">·</span>
-          <span>Cancel anytime</span>
+          <span>{t('Cancel anytime')}</span>
         </div>
       </div>
     </section>

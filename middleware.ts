@@ -1,12 +1,37 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+const SPANISH_COUNTRIES = new Set([
+  'MX', 'GT', 'SV', 'HN', 'NI', 'CR', 'PA',
+  'CO', 'VE', 'EC', 'PE', 'BO', 'PY', 'UY',
+  'AR', 'CL', 'CU', 'DO', 'PR', 'ES', 'GQ',
+])
+
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
     request: {
       headers: request.headers,
     },
   })
+
+  // Locale detection: skip if user already has a locale cookie
+  if (!request.cookies.get('locale')?.value) {
+    const country = request.headers.get('x-vercel-ip-country') || request.geo?.country || ''
+    const acceptLang = request.headers.get('accept-language') || ''
+
+    let locale: 'en' | 'es' = 'en'
+    if (country && SPANISH_COUNTRIES.has(country.toUpperCase())) {
+      locale = 'es'
+    } else if (acceptLang.toLowerCase().startsWith('es') || acceptLang.toLowerCase().includes(',es')) {
+      locale = 'es'
+    }
+
+    response.cookies.set('locale', locale, {
+      path: '/',
+      maxAge: 60 * 60 * 24 * 365,
+      sameSite: 'lax',
+    })
+  }
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

@@ -57,4 +57,5 @@ export interface NormalizedProduct {
   domain: string;
   url: string;
   description: string | null;
+  outOfStock?: boolean;
 }

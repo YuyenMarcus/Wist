@@ -123,12 +123,12 @@ export default function PurchasedPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50/50 dark:bg-dpurple-900/50 pb-32">
+    <div className="min-h-screen bg-beige-50 dark:bg-dpurple-900/50 pb-32">
       {/* Background */}
       <div className="fixed inset-0 z-[-1] bg-grid-pattern opacity-30 pointer-events-none" />
 
       {/* Header */}
-      <header className="bg-white dark:bg-dpurple-950 border-b border-zinc-200 dark:border-dpurple-700 sticky top-0 z-10">
+      <header className="bg-beige-50 dark:bg-dpurple-950 border-b border-beige-200 dark:border-dpurple-700 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -180,7 +180,7 @@ export default function PurchasedPage() {
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
-                  className="group relative bg-white dark:bg-dpurple-950 rounded-xl overflow-hidden border border-zinc-200 dark:border-dpurple-700 hover:border-green-500 hover:shadow-lg transition-all duration-300"
+                  className="group relative bg-beige-100 dark:bg-dpurple-950 rounded-xl overflow-hidden border border-beige-200 dark:border-dpurple-700 hover:border-green-500 hover:shadow-lg transition-all duration-300"
                 >
                   {/* Purchased Badge */}
                   <div className="absolute top-3 left-3 z-10">

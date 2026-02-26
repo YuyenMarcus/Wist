@@ -3,6 +3,8 @@ import '@/styles/globals.css'
 import ThemeProvider from '@/components/layout/ThemeProvider'
 import FloatingNav from '@/components/layout/FloatingNav'
 import ClientProvider from '@/components/ClientProvider'
+import { cookies } from 'next/headers'
+import type { Locale } from '@/lib/i18n/index'
 
 const siteUrl = 'https://wishlist.nuvio.cloud'
 
@@ -90,11 +92,13 @@ export const metadata: Metadata = {
   category: 'shopping',
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const cookieStore = await cookies()
+  const locale = (cookieStore.get('locale')?.value || 'en') as Locale
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebApplication',
@@ -124,7 +128,7 @@ export default function RootLayout({
   }
 
   return (
-    <html lang="en" suppressHydrationWarning className="antialiased">
+    <html lang={locale} suppressHydrationWarning className="antialiased">
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#7c3aed" />
@@ -139,7 +143,7 @@ export default function RootLayout({
       </head>
       <body className="bg-white dark:bg-dpurple-950 font-sans tracking-tight transition-colors">
         <ThemeProvider>
-          <ClientProvider>
+          <ClientProvider locale={locale}>
             {children}
             <FloatingNav />
           </ClientProvider>

@@ -9,12 +9,16 @@ import {
   Sparkles, Zap, Coffee, Music, Gamepad2, Shirt, Car, Plane, 
   Camera, Palette, Dumbbell, BookOpen, Laptop, Phone, Watch, 
   Headphones, Utensils, Bed, Sofa, TreePine, Menu, X, EyeOff,
-  Moon, Sun
+  Moon, Sun, Upload
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import AdSlot from '@/components/ui/AdSlot';
 import { useDarkMode } from '@/lib/hooks/useDarkMode';
+import NotificationCenter from '@/components/dashboard/NotificationCenter';
+import ImportModal from '@/components/dashboard/ImportModal';
+import { getCollectionLimit, type SubscriptionTier } from '@/lib/constants/subscription-tiers';
+import { useTranslation } from '@/lib/i18n/context';
 
 interface Collection {
   id: string;
@@ -162,7 +166,7 @@ function CollectionItem({
             }}
           />
           <div 
-            className="fixed z-[9999] bg-white dark:bg-dpurple-900 border border-zinc-200 dark:border-dpurple-700 rounded-lg shadow-xl p-2 w-64 max-h-64 overflow-y-auto"
+            className="fixed z-[9999] bg-beige-50 dark:bg-dpurple-900 border border-beige-200 dark:border-dpurple-700 rounded-lg shadow-xl p-2 w-64 max-h-64 overflow-y-auto"
             style={{
               top: `${iconPickerPosition.top}px`,
               left: `${iconPickerPosition.left}px`,
@@ -219,8 +223,9 @@ function CollectionItem({
 
 // Mobile Menu Context - allows mobile header to control sidebar state
 export function MobileHeader({ onMenuClick }: { onMenuClick: () => void }) {
+  const { t } = useTranslation();
   return (
-    <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white dark:bg-dpurple-950 border-b border-zinc-200 dark:border-dpurple-700 px-4 py-3 flex items-center justify-between transition-colors">
+    <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-beige-50 dark:bg-dpurple-950 border-b border-beige-200 dark:border-dpurple-700 px-4 py-3 flex items-center justify-between transition-colors">
       <Link href="/dashboard" className="flex items-center gap-2">
         <Image 
           src="/logo.svg" 
@@ -240,18 +245,35 @@ export function MobileHeader({ onMenuClick }: { onMenuClick: () => void }) {
           BETA
         </span>
       </Link>
-      <button 
-        onClick={onMenuClick}
-        className="p-2 -mr-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-dpurple-800 rounded-lg transition-colors"
-        aria-label="Open menu"
-      >
-        <Menu size={24} />
-      </button>
+      <div className="flex items-center gap-1">
+        <NotificationCenter compact />
+        <button 
+          onClick={onMenuClick}
+          className="p-2 -mr-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-dpurple-800 rounded-lg transition-colors"
+          aria-label="Open menu"
+        >
+          <Menu size={24} />
+        </button>
+      </div>
     </header>
   );
 }
 
+function LanguageToggle() {
+  const { locale, setLocale, t } = useTranslation();
+  return (
+    <button
+      onClick={() => setLocale(locale === 'en' ? 'es' : 'en')}
+      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-zinc-50 dark:hover:bg-dpurple-900 transition-colors"
+    >
+      <span className="text-base w-[18px] text-center">{locale === 'en' ? '🇪🇸' : '🇺🇸'}</span>
+      {locale === 'en' ? 'Español' : 'English'}
+    </button>
+  );
+}
+
 function DarkModeToggle() {
+  const { t } = useTranslation();
   const { isDark, toggle } = useDarkMode();
   return (
     <button
@@ -259,7 +281,7 @@ function DarkModeToggle() {
       className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-zinc-50 dark:hover:bg-dpurple-900 transition-colors"
     >
       {isDark ? <Sun size={18} /> : <Moon size={18} />}
-      {isDark ? 'Light Mode' : 'Dark Mode'}
+      {isDark ? t('Light Mode') : t('Dark Mode')}
     </button>
   );
 }
@@ -278,6 +300,8 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
   const [showCreateIconPicker, setShowCreateIconPicker] = useState(false);
   const [loading, setLoading] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const { t } = useTranslation();
   const createIconPickerRef = useRef<HTMLDivElement>(null);
   const createIconButtonRef = useRef<HTMLButtonElement>(null);
   const [createIconPickerPosition, setCreateIconPickerPosition] = useState({ top: 0, left: 0 });
@@ -352,9 +376,17 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
   }, []); // Runs once when component mounts
 
 
+  const collectionLimit = getCollectionLimit((tier || 'free') as SubscriptionTier);
+  const isAtCollectionLimit = collectionLimit !== null && collections.length >= collectionLimit;
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCollectionName.trim() || loading) return;
+
+    if (isAtCollectionLimit) {
+      alert(`You've reached the limit of ${collectionLimit} collections on your current plan. Upgrade to add more.`);
+      return;
+    }
 
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
@@ -363,7 +395,6 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
       return;
     }
     
-    // Create a simple URL-friendly slug (e.g., "Living Room" -> "living-room")
     const slug = newCollectionName.toLowerCase().replace(/ /g, '-').replace(/[^\w-]/g, '');
 
     const { data, error } = await supabase
@@ -449,7 +480,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
     <>
       {/* View Switcher (Timeline / Categories) */}
       <div className="px-4 pt-4 mb-4">
-        <div className="flex p-1 bg-white dark:bg-dpurple-900 border border-zinc-200 dark:border-dpurple-600 rounded-lg shadow-sm">
+        <div className="flex p-1 bg-beige-100 dark:bg-dpurple-900 border border-beige-200 dark:border-dpurple-600 rounded-lg shadow-sm">
           <Link 
             href="/dashboard" 
             className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
@@ -459,7 +490,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
             }`}
           >
             <LayoutGrid size={16} />
-            Timeline
+            {t('Timeline')}
           </Link>
           <Link 
             href="/dashboard?view=grouped" 
@@ -470,7 +501,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
             }`}
           >
             <Layers size={16} />
-            Categories
+            {t('Categories')}
           </Link>
         </div>
       </div>
@@ -486,7 +517,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
           }`}
         >
           <Gift size={18} />
-          Purchased
+          {t('Purchased')}
         </Link>
         <Link 
           href="/dashboard/hidden" 
@@ -497,7 +528,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
           }`}
         >
           <EyeOff size={18} />
-          Hidden
+          {t('Hidden')}
         </Link>
       </div>
 
@@ -505,7 +536,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
 
       {/* Collections Header with Manage Button */}
       <div className="flex items-center justify-between mb-2 px-4 group">
-        <h3 className="text-xs font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-wider">Collections</h3>
+        <h3 className="text-xs font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-wider">{t('Collections')}</h3>
         <div className="flex gap-1 md:opacity-40 md:group-hover:opacity-100 transition-opacity">
           <button 
             onClick={() => setIsManaging(!isManaging)}
@@ -516,9 +547,16 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
             <Settings size={14} />
           </button>
           <button 
-            onClick={() => setIsCreating(true)}
-            className="p-1 text-zinc-400 hover:text-violet-500 hover:bg-zinc-100 dark:hover:bg-dpurple-800 rounded transition-all"
+            onClick={() => {
+              if (isAtCollectionLimit) {
+                alert(`You've reached the limit of ${collectionLimit} collections on your free plan. Upgrade to add more.`);
+                return;
+              }
+              setIsCreating(true);
+            }}
+            className={`p-1 rounded transition-all ${isAtCollectionLimit ? 'text-zinc-300 dark:text-zinc-600 cursor-not-allowed' : 'text-zinc-400 hover:text-violet-500 hover:bg-zinc-100 dark:hover:bg-dpurple-800'}`}
             aria-label="Create new collection"
+            title={isAtCollectionLimit ? `Limit: ${collectionLimit} collections (upgrade for more)` : 'Create new collection'}
           >
             <Plus size={16} />
           </button>
@@ -542,7 +580,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
           />
           
           {/* Slide-out Menu */}
-          <aside className="absolute left-0 top-0 bottom-0 w-[280px] bg-white dark:bg-dpurple-950 shadow-xl flex flex-col animate-slide-in-left transition-colors">
+          <aside className="absolute left-0 top-0 bottom-0 w-[280px] bg-beige-50 dark:bg-dpurple-950 shadow-xl flex flex-col animate-slide-in-left transition-colors">
             {/* Mobile Menu Header */}
             <div className="flex items-center justify-between px-4 py-4 border-b border-zinc-200 dark:border-dpurple-700">
               <Link href="/dashboard" className="flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
@@ -622,7 +660,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
                             }}
                           />
                           <div 
-                            className="fixed z-[9999] bg-white dark:bg-dpurple-900 border border-zinc-200 dark:border-dpurple-700 rounded-lg shadow-xl p-2 w-64 max-h-64 overflow-y-auto"
+                            className="fixed z-[9999] bg-beige-50 dark:bg-dpurple-900 border border-beige-200 dark:border-dpurple-700 rounded-lg shadow-xl p-2 w-64 max-h-64 overflow-y-auto"
                             style={{
                               top: `${createIconPickerPosition.top}px`,
                               left: `${createIconPickerPosition.left}px`,
@@ -684,7 +722,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
                   <input 
                     autoFocus
                     type="text" 
-                    placeholder="List Name..."
+                    placeholder={t('List Name...')}
                     className="w-full bg-transparent text-sm focus:outline-none text-zinc-900 dark:text-white px-2 py-2 mb-3 border-b border-zinc-200 dark:border-dpurple-700"
                     value={newCollectionName}
                     onChange={(e) => setNewCollectionName(e.target.value)}
@@ -703,7 +741,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
                       disabled={loading || !newCollectionName.trim()}
                       className="flex-1 bg-violet-600 text-white text-xs py-1.5 px-2 rounded font-medium hover:bg-violet-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {loading ? 'Adding...' : 'Add'}
+                      {loading ? t('Adding...') : t('Add')}
                     </button>
                     <button 
                       type="button" 
@@ -711,7 +749,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
                       disabled={loading}
                       className="flex-1 bg-zinc-200 dark:bg-dpurple-800 text-zinc-600 dark:text-zinc-400 text-xs py-1.5 px-2 rounded font-medium hover:bg-zinc-300 dark:hover:bg-dpurple-700 transition-colors disabled:opacity-50"
                     >
-                      Cancel
+                      {t('Cancel')}
                     </button>
                   </div>
                 </form>
@@ -742,22 +780,30 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
 
             {/* Settings & Dark Mode at Bottom */}
             <div className="border-t border-zinc-200 dark:border-dpurple-700 px-4 py-4 mt-auto space-y-1">
+              <button
+                onClick={() => { setMobileMenuOpen(false); setShowImport(true) }}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-zinc-400 dark:text-zinc-500 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-zinc-50 dark:hover:bg-dpurple-900 transition-colors"
+              >
+                <Upload size={18} />
+                {t('Import')}
+              </button>
               <Link 
                 href="/settings" 
                 className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-zinc-50 dark:hover:bg-dpurple-900 transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 <Settings size={18} />
-                Settings
+                {t('Settings')}
               </Link>
               <DarkModeToggle />
+              <LanguageToggle />
             </div>
           </aside>
         </div>
       )}
 
       {/* Desktop Sidebar */}
-      <aside className="w-64 border-r border-zinc-200 dark:border-dpurple-700 h-screen sticky top-0 hidden md:flex flex-col bg-white dark:bg-dpurple-950 transition-colors">
+      <aside className="w-64 border-r border-beige-200 dark:border-dpurple-700 h-screen sticky top-0 hidden md:flex flex-col bg-beige-50 dark:bg-dpurple-950 transition-colors">
         
         {/* Logo - Top Corner */}
         <Link href="/dashboard" className="flex items-center gap-2 px-4 pt-4 pb-6 hover:opacity-80 transition-opacity border-b border-zinc-200 dark:border-dpurple-700">
@@ -830,7 +876,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
                       }}
                     />
                     <div 
-                      className="fixed z-[9999] bg-white dark:bg-dpurple-900 border border-zinc-200 dark:border-dpurple-700 rounded-lg shadow-xl p-2 w-64 max-h-64 overflow-y-auto"
+                      className="fixed z-[9999] bg-beige-50 dark:bg-dpurple-900 border border-beige-200 dark:border-dpurple-700 rounded-lg shadow-xl p-2 w-64 max-h-64 overflow-y-auto"
                       style={{
                         top: `${createIconPickerPosition.top}px`,
                         left: `${createIconPickerPosition.left}px`,
@@ -911,7 +957,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
                 disabled={loading || !newCollectionName.trim()}
                 className="flex-1 bg-violet-600 text-white text-xs py-1.5 px-2 rounded font-medium hover:bg-violet-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Adding...' : 'Add'}
+                {loading ? t('Adding...') : t('Add')}
               </button>
               <button 
                 type="button" 
@@ -919,7 +965,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
                 disabled={loading}
                 className="flex-1 bg-zinc-200 dark:bg-dpurple-800 text-zinc-600 dark:text-zinc-400 text-xs py-1.5 px-2 rounded font-medium hover:bg-zinc-300 dark:hover:bg-dpurple-700 transition-colors disabled:opacity-50"
               >
-                Cancel
+                {t('Cancel')}
               </button>
             </div>
           </form>
@@ -945,8 +991,25 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
 
       {/* Bottom actions */}
       <div className="border-t border-zinc-200 dark:border-dpurple-700 px-4 py-3 mt-auto space-y-1">
+        <button
+          onClick={() => setShowImport(true)}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-zinc-400 dark:text-zinc-500 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-zinc-50 dark:hover:bg-dpurple-900 transition-colors"
+        >
+          <Upload size={18} />
+          {t('Import')}
+        </button>
         <DarkModeToggle />
+        <LanguageToggle />
       </div>
+
+      <ImportModal
+        isOpen={showImport}
+        onClose={() => setShowImport(false)}
+        onComplete={() => {
+          setShowImport(false)
+          window.location.reload()
+        }}
+      />
     </aside>
     </>
   );

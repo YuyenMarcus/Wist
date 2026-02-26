@@ -1,13 +1,14 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Trash2, Edit2, Check, X, MoreHorizontal, FolderInput, TrendingDown, TrendingUp, EyeOff, ShoppingBag } from 'lucide-react'
+import { Trash2, Edit2, Check, X, MoreHorizontal, FolderInput, TrendingDown, TrendingUp, EyeOff, ShoppingBag, PackageX, PackageCheck, Pencil } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { SupabaseProduct } from '@/lib/supabase/products'
 import { isAdultContent } from '@/lib/content-filter'
+import { useTranslation } from '@/lib/i18n/context'
 
 export interface WishlistItem {
   id: string
@@ -33,9 +34,10 @@ interface ItemCardProps {
   userCollections?: Collection[]
   adultFilterEnabled?: boolean
   index?: number
+  tier?: string | null
 }
 
-export default function ItemCard({ item, isOwner = true, onDelete, onReserve, onUpdate, onHide, userCollections = [], adultFilterEnabled = false, index = 0 }: ItemCardProps) {
+export default function ItemCard({ item, isOwner = true, onDelete, onReserve, onUpdate, onHide, userCollections = [], adultFilterEnabled = false, index = 0, tier }: ItemCardProps) {
   const router = useRouter()
   const [isHovered, setIsHovered] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -55,6 +57,9 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
   const priceChange = (item as any).price_change ?? null
   const priceChangePercent = (item as any).price_change_percent ?? null
   const previousPrice = (item as any).previous_price ?? null
+  const outOfStock = item.out_of_stock === true
+  const isPaidTier = tier && tier !== 'free'
+  const { t } = useTranslation()
 
   const getDomain = (url: string) => {
     try {
@@ -370,6 +375,34 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
     }
   }
 
+  const handleGotIt = async () => {
+    try {
+      const { supabase } = await import('@/lib/supabase/client')
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { error } = await supabase
+        .from('items')
+        .update({ status: 'purchased' })
+        .eq('id', item.id)
+        .eq('user_id', user.id)
+
+      if (error) {
+        console.error('Error marking item as purchased:', error)
+        return
+      }
+
+      setIsMenuOpen(false)
+      if (onHide) {
+        onHide(item.id)
+      } else {
+        window.location.reload()
+      }
+    } catch (err: any) {
+      console.error('Error marking item as purchased:', err)
+    }
+  }
+
   // Close menu on Escape key
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -395,14 +428,14 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
       onHoverEnd={() => setIsHovered(false)}
       className="relative mb-3 sm:mb-6 break-inside-avoid"
     >
-      <div className={`group relative overflow-hidden rounded-xl sm:rounded-2xl bg-white dark:bg-dpurple-900 border transition-all duration-300 ${
+      <div className={`group relative overflow-hidden rounded-xl sm:rounded-2xl bg-beige-100 dark:bg-dpurple-900 border transition-all duration-300 ${
         isHovered 
           ? 'border-violet-500 shadow-lg -translate-y-1' 
           : 'border-zinc-100 dark:border-dpurple-700 shadow-sm'
       } ${isReserved && !isOwner ? 'opacity-60' : ''}`}>
         
         {/* Image Container */}
-        <div className="relative w-full bg-zinc-50 dark:bg-dpurple-800">
+        <div className="relative w-full bg-beige-50 dark:bg-dpurple-800">
           {imageUrl ? (
             <img 
               src={imageUrl} 
@@ -427,12 +460,23 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
           )}
 
           {/* Price Drop Badge */}
-          {priceChange != null && priceChange < 0 && (priceChangePercent || 0) <= -5 && (
+          {priceChange != null && priceChange < 0 && (priceChangePercent || 0) <= -5 && !outOfStock && (
             <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10">
               <span className="inline-flex items-center gap-0.5 sm:gap-1 bg-green-500 text-white text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full shadow-lg animate-pulse">
                 <TrendingDown className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                <span className="hidden sm:inline">Price Drop!</span>
-                <span className="sm:hidden">Drop!</span>
+                <span className="hidden sm:inline">{t('Price Drop!')}</span>
+                <span className="sm:hidden">{t('Drop!')}</span>
+              </span>
+            </div>
+          )}
+
+          {/* Out of Stock Badge (Wist+ and above only) */}
+          {isPaidTier && outOfStock && (
+            <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10">
+              <span className="inline-flex items-center gap-0.5 sm:gap-1 bg-red-500/90 text-white text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full shadow-lg">
+                <PackageX className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                <span className="hidden sm:inline">{t('Out of Stock')}</span>
+                <span className="sm:hidden">{t('OOS')}</span>
               </span>
             </div>
           )}
@@ -458,7 +502,7 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
           {isReserved && !isOwner && (
             <div className="absolute inset-0 bg-black/30 flex items-center justify-center z-20">
               <div className="px-4 py-2 bg-white/90 backdrop-blur-sm rounded-lg">
-                <span className="text-xs font-medium text-zinc-900">Claimed</span>
+                <span className="text-xs font-medium text-zinc-900">{t('Claimed')}</span>
               </div>
             </div>
           )}
@@ -507,7 +551,7 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                   }}
                   className="px-4 py-2 bg-violet-500 text-white rounded-full text-sm font-medium hover:bg-violet-600 transition-colors shadow-sm"
                 >
-                  Reserve
+                  {t('Reserve')}
                 </button>
               )}
             </div>
@@ -524,7 +568,7 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                 onChange={(e) => setEditedTitle(e.target.value)}
                 onKeyDown={handleKeyDown}
                 autoFocus
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-zinc-900 dark:text-zinc-100 bg-white dark:bg-dpurple-800 border border-violet-300 dark:border-violet-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-200 dark:focus:ring-violet-800 focus:border-violet-400"
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-zinc-900 dark:text-zinc-100 bg-beige-50 dark:bg-dpurple-800 border border-violet-300 dark:border-violet-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-200 dark:focus:ring-violet-800 focus:border-violet-400"
                 disabled={isSaving}
               />
               <div className="flex items-center gap-1.5 sm:gap-2">
@@ -537,13 +581,13 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                   {isSaving ? (
                     <>
                       <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                      <span className="hidden sm:inline">Saving...</span>
+                      <span className="hidden sm:inline">{t('Saving...')}</span>
                     </>
                   ) : (
                     <>
                       <Check size={12} className="sm:hidden" />
                       <Check size={14} className="hidden sm:block" />
-                      Save
+                      {t('Save')}
                     </>
                   )}
                 </button>
@@ -555,19 +599,29 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                 >
                   <X size={12} className="sm:hidden" />
                   <X size={14} className="hidden sm:block" />
-                  <span className="hidden sm:inline">Cancel</span>
+                  <span className="hidden sm:inline">{t('Cancel')}</span>
                 </button>
               </div>
             </div>
           ) : (
             <>
-              <h3 
-                className="font-medium text-zinc-900 dark:text-zinc-100 text-xs sm:text-sm leading-snug line-clamp-2 cursor-text"
-                onDoubleClick={isOwner ? handleStartEdit : undefined}
-                title={isOwner ? 'Double-click to edit' : undefined}
-              >
-                {title}
-              </h3>
+              <div className="group/title relative flex items-start gap-1">
+                <h3 
+                  className="font-medium text-zinc-900 dark:text-zinc-100 text-xs sm:text-sm leading-snug line-clamp-2 cursor-text flex-1"
+                  onDoubleClick={isOwner ? handleStartEdit : undefined}
+                >
+                  {title}
+                </h3>
+                {isOwner && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleStartEdit(); }}
+                    className="flex-shrink-0 mt-0.5 p-0.5 rounded opacity-0 group-hover/title:opacity-100 hover:bg-zinc-100 dark:hover:bg-dpurple-800 text-zinc-400 hover:text-violet-500 transition-all"
+                    aria-label="Edit title"
+                  >
+                    <Pencil size={12} />
+                  </button>
+                )}
+              </div>
               
               {price && (
                 <div className="mt-1.5 sm:mt-3 flex items-center gap-1 sm:gap-1.5 flex-wrap">
@@ -592,10 +646,17 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
               {/* Footer with History and Buy buttons */}
               <div className="mt-2 sm:mt-4 flex items-end justify-between pt-2 sm:pt-4 border-t border-zinc-100 dark:border-dpurple-700">
                 <div className="flex flex-col">
-                  <span className="text-[10px] sm:text-xs text-gray-500 dark:text-zinc-400">Price</span>
+                  <span className="text-[10px] sm:text-xs text-gray-500 dark:text-zinc-400">{t('Price')}</span>
                   <span className="text-xs sm:text-lg font-bold text-gray-900 dark:text-zinc-100">
-                    {price || 'N/A'}
+                    {price || t('N/A')}
                   </span>
+                  {isPaidTier && (
+                    <span className={`text-[9px] sm:text-[10px] font-medium mt-0.5 ${
+                      outOfStock ? 'text-red-500' : 'text-emerald-500'
+                    }`}>
+                      {outOfStock ? t('Out of Stock') : t('In Stock')}
+                    </span>
+                  )}
                   {previousPrice && priceChange !== 0 && (
                     <span className="text-[9px] sm:text-xs text-zinc-400 line-through">
                       ${typeof previousPrice === 'number' ? previousPrice.toFixed(2) : previousPrice}
@@ -609,7 +670,7 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                     className="rounded-md sm:rounded-lg bg-gray-100 dark:bg-dpurple-800 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold text-gray-900 dark:text-zinc-200 transition hover:bg-gray-200 dark:hover:bg-dpurple-700"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    History
+                    {t('History')}
                   </Link>
 
                   {!isOwner && (item as any).gifting_enabled && (
@@ -621,7 +682,7 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                       onClick={(e) => e.stopPropagation()}
                       title={(item as any).gifting_message || `Gift this to ${(item as any).profile_name || 'them'}`}
                     >
-                      Gift
+                      {t('Gift')}
                     </a>
                   )}
 
@@ -632,7 +693,7 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                     className="rounded-md sm:rounded-lg bg-violet-600 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold text-white transition hover:bg-violet-700"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    Buy
+                    {t('Buy')}
                   </a>
                 </div>
               </div>
@@ -646,21 +707,21 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
         <>
           <div className="fixed inset-0 z-[9998]" onClick={() => setIsMenuOpen(false)} />
           <div
-            className="fixed w-48 bg-white dark:bg-dpurple-900 rounded-lg shadow-xl border border-zinc-200 dark:border-dpurple-600 p-1 z-[9999] max-h-[70vh] overflow-y-auto"
+            className="fixed w-48 bg-beige-50 dark:bg-dpurple-900 rounded-lg shadow-xl border border-beige-200 dark:border-dpurple-600 p-1 z-[9999] max-h-[70vh] overflow-y-auto"
             style={{ top: `${menuPos.top}px`, left: `${menuPos.left}px` }}
             onClick={(e) => e.stopPropagation()}
           >
             {userCollections.length > 0 && (
               <>
                 <div className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 px-2 py-1.5 uppercase tracking-wider">
-                  Move to...
+                  {t('Move to...')}
                 </div>
                 <button
                   onClick={() => handleMoveToCollection(null)}
                   className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 dark:hover:bg-dpurple-800 text-zinc-600 dark:text-zinc-300 transition-colors"
                 >
                   <FolderInput size={14} />
-                  <span>Uncategorized</span>
+                  <span>{t('Uncategorized')}</span>
                   {!itemCollectionId && (
                     <Check size={14} className="ml-auto text-violet-500" />
                   )}
@@ -684,13 +745,12 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
             <button
               onClick={(e) => {
                 e.stopPropagation()
-                setIsMenuOpen(false)
-                handleStartEdit()
+                handleGotIt()
               }}
-              className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 dark:hover:bg-dpurple-800 text-zinc-600 dark:text-zinc-300 transition-colors"
+              className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-emerald-50 dark:hover:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 transition-colors"
             >
-              <Edit2 size={14} />
-              <span>Edit Title</span>
+              <ShoppingBag size={14} />
+              <span>{t('I just got it!')}</span>
             </button>
 
             <button
@@ -701,7 +761,7 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
               className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 dark:hover:bg-dpurple-800 text-zinc-600 dark:text-zinc-300 transition-colors"
             >
               <EyeOff size={14} />
-              <span>Hide</span>
+              <span>{t('Hide')}</span>
             </button>
 
             {onDelete && (
@@ -717,7 +777,7 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                   className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 transition-colors"
                 >
                   <Trash2 size={14} />
-                  <span>Delete</span>
+                  <span>{t('Delete')}</span>
                 </button>
               </>
             )}

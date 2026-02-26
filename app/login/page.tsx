@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
+import { useTranslation } from '@/lib/i18n/context'
 
 // Custom purple theme to match the website
 const purpleTheme = {
@@ -36,6 +37,7 @@ const purpleTheme = {
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { t } = useTranslation()
   const [message, setMessage] = useState<string | null>(null)
   const [messageType, setMessageType] = useState<'success' | 'error' | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -123,7 +125,7 @@ function LoginForm() {
             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
           </svg>
-          {isLoading ? 'Signing in...' : 'Continue with Google'}
+          {isLoading ? t('Signing in...') : t('Continue with Google')}
         </button>
 
         <div className="relative mb-6">
@@ -131,7 +133,7 @@ function LoginForm() {
             <div className="w-full border-t border-zinc-200"></div>
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white text-zinc-500">or sign in with email</span>
+            <span className="px-2 bg-white text-zinc-500">{t('or sign in with email')}</span>
           </div>
         </div>
 
@@ -148,21 +150,21 @@ function LoginForm() {
       </div>
 
       <p className="mt-4 text-center text-xs text-zinc-400 max-w-sm mx-auto leading-relaxed">
-        By signing in, you agree to our{' '}
+        {t('By signing in, you agree to our')}{' '}
         <Link href="/terms" className="text-violet-500 hover:text-violet-600 underline underline-offset-2">
-          Terms of Service
+          {t('Terms of Service')}
         </Link>{' '}
-        and{' '}
+        {t('and')}{' '}
         <Link href="/terms#privacy" className="text-violet-500 hover:text-violet-600 underline underline-offset-2">
-          Privacy Policy
+          {t('Privacy Policy')}
         </Link>.
       </p>
 
       <div className="mt-4 text-center">
         <p className="text-sm text-zinc-600">
-          Don't have an account?{' '}
+          {t("Don't have an account?")}{' '}
           <Link href="/signup" className="text-violet-600 hover:text-violet-700 font-medium">
-            Sign up
+            {t('Sign up')}
           </Link>
         </p>
       </div>
@@ -171,6 +173,7 @@ function LoginForm() {
 }
 
 export default function LoginPage() {
+  const { t } = useTranslation()
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-white py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
@@ -178,15 +181,15 @@ export default function LoginPage() {
           <Image src="/logo.svg" alt="Wist Logo" width={48} height={48} />
         </div>
         <h2 className="text-center text-2xl font-bold tracking-tight text-zinc-900">
-          Sign in to your account
+          {t('Sign in to your account')}
         </h2>
         <p className="mt-2 text-center text-sm text-zinc-500">
-          Welcome back! Please enter your details.
+          {t('Welcome back! Please enter your details.')}
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <Suspense fallback={<div className="text-center">Loading...</div>}>
+        <Suspense fallback={<div className="text-center">{t('Loading...')}</div>}>
           <LoginForm />
         </Suspense>
       </div>

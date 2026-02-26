@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Puzzle, Check, Download, Smartphone, Link as LinkIcon } from 'lucide-react'
+import { useTranslation } from '@/lib/i18n/context'
 
 type Priority = 'high' | 'medium' | 'low'
 
@@ -66,6 +67,7 @@ function useFakeProgress(isActive: boolean) {
 }
 
 export default function AddItemForm() {
+  const { t } = useTranslation()
   const [url, setUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -158,7 +160,7 @@ export default function AddItemForm() {
     try {
       new URL(newUrl.trim())
     } catch {
-      setError('Invalid URL')
+      setError(t('Invalid URL'))
       setIsExpanded(false)
       return
     }
@@ -199,7 +201,7 @@ export default function AddItemForm() {
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
-      setError('Please log in to save items')
+      setError(t('Please log in to save items'))
       return
     }
 
@@ -273,8 +275,8 @@ export default function AddItemForm() {
       setIsExpanded(false)
       setSuccess(true)
       setSuccessMessage(wasQueued
-        ? 'Saved to queue! Full details will load on desktop with the extension.'
-        : 'Item added to wishlist!')
+        ? t('Saved to queue! Full details will load on desktop with the extension.')
+        : t('Item added to wishlist!'))
       setTimeout(() => setSuccess(false), wasQueued ? 5000 : 3000)
       router.refresh()
       window.location.reload()
@@ -295,12 +297,12 @@ export default function AddItemForm() {
       {extensionInstalled && !isMobile ? (
         <div className="flex items-center justify-center gap-2 mb-3 text-xs text-green-600">
           <Check className="w-3.5 h-3.5" />
-          <span>Extension connected</span>
+          <span>{t('Extension connected')}</span>
         </div>
       ) : isMobile ? (
         <div className="flex items-center justify-center gap-2 mb-3 text-xs text-violet-600">
           <Smartphone className="w-3.5 h-3.5" />
-          <span>Paste a link or use Share to save items</span>
+          <span>{t('Paste a link or use Share to save items')}</span>
         </div>
       ) : null}
 
@@ -312,9 +314,9 @@ export default function AddItemForm() {
               <Puzzle className="w-5 h-5 text-violet-600" />
             </div>
             <div className="flex-1 min-w-0">
-              <h4 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Install the extension for the best experience</h4>
+              <h4 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{t('Install the extension for the best experience')}</h4>
               <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                The Wist extension enables one-click saving from any shopping site. You can also paste links below.
+                {t('The Wist extension enables one-click saving from any shopping site. You can also paste links below.')}
               </p>
               <a
                 href="/wist-extension-download.zip"
@@ -322,7 +324,7 @@ export default function AddItemForm() {
                 className="inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 bg-violet-600 text-white text-xs font-medium rounded-lg hover:bg-violet-700 transition-colors"
               >
                 <Download className="w-3.5 h-3.5" />
-                Download Extension
+                {t('Download Extension')}
               </a>
             </div>
           </div>
@@ -332,7 +334,7 @@ export default function AddItemForm() {
       {/* URL Input */}
       <div className="relative">
         <div
-          className={`relative bg-white dark:bg-dpurple-900 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm transition-all duration-300 overflow-hidden ${
+          className={`relative bg-beige-100 dark:bg-dpurple-900 rounded-2xl border border-beige-200 dark:border-dpurple-700 shadow-sm transition-all duration-300 overflow-hidden ${
             isExpanded ? 'shadow-xl border-violet-200 dark:border-violet-800 ring-2 ring-violet-200 dark:ring-violet-900' : ''
           }`}
         >
@@ -344,7 +346,7 @@ export default function AddItemForm() {
                 download
                 className="flex-1 text-zinc-400 dark:text-zinc-500 text-sm cursor-pointer hover:text-violet-500 dark:hover:text-violet-400 transition-colors"
               >
-                Install the extension to add items...
+                {t('Install the extension to add items...')}
               </a>
             ) : (
             <input
@@ -354,7 +356,7 @@ export default function AddItemForm() {
               onFocus={() => {
                 if (url.trim()) setIsExpanded(true)
               }}
-              placeholder="Paste a product link..."
+              placeholder={t('Paste a product link...')}
               className="flex-1 bg-transparent border-none outline-none text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 text-sm focus:ring-0"
               disabled={loading || saving}
             />
@@ -370,7 +372,7 @@ export default function AddItemForm() {
                 disabled={saving}
                 className="ml-3 h-8 px-4 bg-violet-500 text-white rounded-full text-xs font-medium hover:bg-violet-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:ring-2 focus:ring-violet-200"
               >
-                {saving ? 'Adding...' : 'Add'}
+                {saving ? t('Adding...') : t('Add')}
               </button>
             )}
           </div>
@@ -394,15 +396,15 @@ export default function AddItemForm() {
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               className="mt-3 overflow-hidden"
             >
-              <div className="bg-white dark:bg-dpurple-900 rounded-xl border border-zinc-200 dark:border-dpurple-700 shadow-sm p-4">
+              <div className="bg-beige-100 dark:bg-dpurple-900 rounded-xl border border-beige-200 dark:border-dpurple-700 shadow-sm p-4">
                 {loading && (
                   <div className="mb-3 flex items-center gap-2 text-xs text-zinc-400">
                     <div className="w-3.5 h-3.5 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />
                     <span>
-                      {progress < 20 ? 'Connecting...' :
-                       progress < 50 ? 'Loading page...' :
-                       progress < 75 ? 'Extracting product data...' :
-                       'Almost there...'}
+                      {progress < 20 ? t('Connecting...') :
+                       progress < 50 ? t('Loading page...') :
+                       progress < 75 ? t('Extracting product data...') :
+                       t('Almost there...')}
                     </span>
                   </div>
                 )}
@@ -415,14 +417,14 @@ export default function AddItemForm() {
 
                 {success && (
                   <div className="mb-3 text-xs text-green-600">
-                    {successMessage || 'Item added to wishlist!'}
+                    {successMessage || t('Item added to wishlist!')}
                   </div>
                 )}
 
                 {scrapeMethod === 'extension' && preview && (
                   <div className="mb-3 flex items-center gap-2 text-xs text-green-600">
                     <Check className="w-3.5 h-3.5" />
-                    <span>Scraped via extension</span>
+                    <span>{t('Scraped via extension')}</span>
                   </div>
                 )}
 
@@ -462,12 +464,12 @@ export default function AddItemForm() {
 
                 {preview?.extensionRequired && !extensionInstalled && !isMobile && (
                   <div className="mb-3 p-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
-                    This site may have limited data. Install the extension for better results.
+                    {t('This site may have limited data. Install the extension for better results.')}
                   </div>
                 )}
 
                 <div className="flex items-center gap-2">
-                  <label className="text-xs text-zinc-500 dark:text-zinc-400">Priority:</label>
+                  <label className="text-xs text-zinc-500 dark:text-zinc-400">{t('Priority:')}</label>
                   <div className="flex gap-1">
                     {(['high', 'medium', 'low'] as Priority[]).map((p) => (
                       <button
@@ -480,7 +482,7 @@ export default function AddItemForm() {
                             : 'bg-zinc-100 dark:bg-dpurple-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-dpurple-700'
                         }`}
                       >
-                        {p.charAt(0).toUpperCase() + p.slice(1)}
+                        {t(p.charAt(0).toUpperCase() + p.slice(1))}
                       </button>
                     ))}
                   </div>
@@ -490,6 +492,10 @@ export default function AddItemForm() {
           )}
         </AnimatePresence>
       </div>
+
+      <p className="mt-2 text-center text-[10px] text-zinc-300 dark:text-zinc-600">
+        {t('Wist can make mistakes — double-check important info.')}
+      </p>
     </div>
   )
 }

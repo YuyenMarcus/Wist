@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react';
 import ExtensionSync from './ExtensionSync';
 import NotificationForwarder from './NotificationForwarder';
 import { supabase } from '@/lib/supabase/client';
+import { I18nProvider, type Locale } from '@/lib/i18n/context';
 
-export default function ClientProvider({ children }: { children: React.ReactNode }) {
+export default function ClientProvider({ children, locale = 'en' }: { children: React.ReactNode; locale?: Locale }) {
   const [mounted, setMounted] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
@@ -51,7 +52,7 @@ export default function ClientProvider({ children }: { children: React.ReactNode
   }, []);
 
   return (
-    <>
+    <I18nProvider initialLocale={locale}>
       {mounted && (
         <>
           <ExtensionSync />
@@ -59,7 +60,7 @@ export default function ClientProvider({ children }: { children: React.ReactNode
         </>
       )}
       {children}
-    </>
+    </I18nProvider>
   );
 }
 

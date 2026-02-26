@@ -27,6 +27,8 @@ export interface SupabaseProduct {
   last_price_check?: string | null;
   // Currency fields
   original_currency?: string | null;
+  // Stock status
+  out_of_stock?: boolean;
 }
 
 /**
@@ -109,7 +111,8 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
         collection_id,
         created_at,
         last_price_check,
-        original_currency
+        original_currency,
+        out_of_stock
       `)
       .eq('user_id', userId)
       .eq('status', 'active')
@@ -251,6 +254,7 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
         previous_price: previousPrice,
         last_price_check: item.last_price_check || null,
         original_currency: item.original_currency || 'USD',
+        out_of_stock: item.out_of_stock || false,
       });
     });
   }
