@@ -13,8 +13,8 @@ module.exports = {
         'brand-light': 'var(--color-brand-light)',
         'accent-pink': 'var(--color-accent-pink)',
         'beige': {
-          50: '#ffffff',
-          100: '#faf8f5',
+          50: '#faf8f5',
+          100: '#ffffff',
           200: '#f0ebe3',
         },
         'dpurple': {
