@@ -259,19 +259,6 @@ export function MobileHeader({ onMenuClick }: { onMenuClick: () => void }) {
   );
 }
 
-function LanguageToggle() {
-  const { locale, setLocale, t } = useTranslation();
-  return (
-    <button
-      onClick={() => setLocale(locale === 'en' ? 'es' : 'en')}
-      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-zinc-50 dark:hover:bg-dpurple-900 transition-colors"
-    >
-      <span className="text-base w-[18px] text-center">{locale === 'en' ? '🇪🇸' : '🇺🇸'}</span>
-      {locale === 'en' ? 'Español' : 'English'}
-    </button>
-  );
-}
-
 function DarkModeToggle() {
   const { t } = useTranslation();
   const { isDark, toggle } = useDarkMode();
@@ -796,7 +783,6 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
                 {t('Settings')}
               </Link>
               <DarkModeToggle />
-              <LanguageToggle />
             </div>
           </aside>
         </div>
@@ -999,7 +985,6 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
           {t('Import')}
         </button>
         <DarkModeToggle />
-        <LanguageToggle />
       </div>
 
       <ImportModal

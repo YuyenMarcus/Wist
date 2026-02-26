@@ -11,25 +11,27 @@ import { CURRENCY_INFO, SUPPORTED_CURRENCIES } from '@/lib/currency'
 import LavenderLoader from '@/components/ui/LavenderLoader'
 import PageTransition from '@/components/ui/PageTransition'
 import { useDarkMode } from '@/lib/hooks/useDarkMode'
+import { useTranslation } from '@/lib/i18n/context'
 
 function AppearanceSection() {
   const { isDark, toggle } = useDarkMode()
+  const { locale, setLocale, t } = useTranslation()
   return (
     <div className="bg-beige-100 dark:bg-dpurple-900 p-8 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm space-y-6 scroll-mt-20">
       <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-dpurple-700 pb-2 flex items-center gap-2">
-        {isDark ? <Moon size={16} /> : <Sun size={16} />} Appearance
+        {isDark ? <Moon size={16} /> : <Sun size={16} />} {t('Appearance')}
       </h2>
       <div className="flex items-center justify-between">
         <div className="flex-1 pr-4">
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Dark Mode</label>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">{t('Dark Mode')}</label>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-            Switch the dashboard and settings to a dark theme. This only affects the app interface.
+            {t('Switch the dashboard and settings to a dark theme.')}
           </p>
         </div>
         <button
           type="button"
           onClick={toggle}
-          className={`relative w-11 h-6 rounded-full transition-colors ${
+          className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${
             isDark ? 'bg-violet-600' : 'bg-zinc-300'
           }`}
         >
@@ -39,6 +41,22 @@ function AppearanceSection() {
             }`}
           />
         </button>
+      </div>
+      <div className="flex items-center justify-between">
+        <div className="flex-1 pr-4">
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">{t('Language')}</label>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+            {t('Choose your preferred language for the interface.')}
+          </p>
+        </div>
+        <select
+          value={locale}
+          onChange={(e) => setLocale(e.target.value as 'en' | 'es')}
+          className="w-36 px-3 py-2 border border-zinc-300 dark:border-dpurple-600 rounded-lg text-sm bg-beige-50 dark:bg-dpurple-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-violet-500 focus:border-transparent flex-shrink-0"
+        >
+          <option value="en">English</option>
+          <option value="es">Español</option>
+        </select>
       </div>
     </div>
   )
