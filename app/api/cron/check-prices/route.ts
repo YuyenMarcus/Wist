@@ -152,7 +152,7 @@ export async function GET(req: Request) {
     let offset = 0;
     let hasMore = true;
 
-    const selectColumns = 'id, user_id, title, url, current_price, status, updated_at, out_of_stock';
+    const selectColumns = 'id, user_id, title, url, current_price, status, updated_at';
 
     console.log(`📊 Starting tier-aware batch processing (batch size: ${BATCH_SIZE}, max items: ${MAX_ITEMS_TO_CHECK})`);
 
@@ -330,12 +330,13 @@ export async function GET(req: Request) {
             };
 
             // If the item previously had a price, mark it as out of stock
-            if (item.current_price && item.current_price > 0 && !item.out_of_stock && failureCount >= 2) {
+            // (requires out_of_stock column - run supabase-add-stock-status.sql)
+            if (item.current_price && item.current_price > 0 && failureCount >= 2) {
               stockUpdate.out_of_stock = true;
               console.log(`   📦 Marked as out of stock (no price after ${failureCount} failures)`);
             }
-
-            await supabase.from('items').update(stockUpdate).eq('id', item.id);
+            const { out_of_stock, ...colsForUpdate } = stockUpdate;
+            await supabase.from('items').update(colsForUpdate).eq('id', item.id);
             
             if (failureCount >= 5) {
               console.log(`   ⚠️  Item has failed ${failureCount} times - may need manual review`);
@@ -362,11 +363,11 @@ export async function GET(req: Request) {
           }
 
           // Update item (always update last_price_check and reset failures)
+          // Note: out_of_stock requires supabase-add-stock-status.sql
           const updateData: any = {
             last_price_check: new Date().toISOString(),
             updated_at: new Date().toISOString(),
             price_check_failures: 0,
-            out_of_stock: false,
           };
 
           if (priceChanged) {
