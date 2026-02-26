@@ -115,7 +115,7 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
         out_of_stock
       `)
       .eq('user_id', userId)
-      .eq('status', 'active')
+      .or('status.eq.active,status.is.null')
       .order('created_at', { ascending: false })
       .limit(ITEMS_LIMIT),
     
