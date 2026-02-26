@@ -30,6 +30,7 @@ const es: Record<string, string> = {
   'Settings': 'Configuración',
   'Hidden Items': 'Artículos Ocultos',
   'Hidden': 'Ocultos',
+  'Items': 'Artículos',
   'Purchased': 'Comprados',
   'Timeline': 'Línea de tiempo',
   'Categories': 'Categorías',

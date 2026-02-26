@@ -66,13 +66,13 @@ export default function ProfileHeader({ user, profile, itemCount, onRefreshPrice
         <div className="flex gap-6 sm:pt-3 text-center flex-shrink-0 items-center sm:items-start justify-start sm:justify-end">
           <div>
             <div className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100 h-6 sm:h-7 flex items-center justify-center">{itemCount}</div>
-            <div className="text-[10px] sm:text-xs text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-semibold">Items</div>
+            <div className="text-[10px] sm:text-xs text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-semibold">{t('Items')}</div>
           </div>
           <Link href="/dashboard/purchased" className="group">
             <div className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-green-600 transition-colors h-6 sm:h-7 flex items-center justify-center">
               <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div className="text-[10px] sm:text-xs text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-semibold group-hover:text-green-600 transition-colors">Purchased</div>
+            <div className="text-[10px] sm:text-xs text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-semibold group-hover:text-green-600 transition-colors">{t('Purchased')}</div>
           </Link>
         </div>
       </div>

@@ -14,25 +14,30 @@ export async function middleware(request: NextRequest) {
     },
   })
 
-  // Locale detection: skip if user already has a locale cookie
-  if (!request.cookies.get('locale')?.value) {
-    const country = request.headers.get('x-vercel-ip-country') || request.geo?.country || ''
+  // --- Locale detection ---
+  // Determine locale: check existing cookie first, then detect
+  let detectedLocale: 'en' | 'es' = 'en'
+  const existingLocale = request.cookies.get('locale')?.value
+
+  if (existingLocale === 'en' || existingLocale === 'es') {
+    detectedLocale = existingLocale
+  } else {
+    // No cookie yet — detect from headers
+    const country = request.headers.get('x-vercel-ip-country') || ''
     const acceptLang = request.headers.get('accept-language') || ''
 
-    let locale: 'en' | 'es' = 'en'
     if (country && SPANISH_COUNTRIES.has(country.toUpperCase())) {
-      locale = 'es'
-    } else if (acceptLang.toLowerCase().startsWith('es') || acceptLang.toLowerCase().includes(',es')) {
-      locale = 'es'
+      detectedLocale = 'es'
+    } else if (acceptLang) {
+      const primary = acceptLang.split(',')[0]?.trim().toLowerCase() || ''
+      if (primary.startsWith('es')) {
+        detectedLocale = 'es'
+      }
     }
-
-    response.cookies.set('locale', locale, {
-      path: '/',
-      maxAge: 60 * 60 * 24 * 365,
-      sameSite: 'lax',
-    })
+    // Default stays 'en' if nothing matched
   }
 
+  // --- Supabase auth ---
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -49,6 +54,12 @@ export async function middleware(request: NextRequest) {
             },
           })
           response.cookies.set({ name, value, ...options })
+          // Re-apply locale cookie after response recreation
+          response.cookies.set('locale', detectedLocale, {
+            path: '/',
+            maxAge: 60 * 60 * 24 * 365,
+            sameSite: 'lax',
+          })
         },
         remove(name: string, options: CookieOptions) {
           request.cookies.set({ name, value: '', ...options })
@@ -58,6 +69,12 @@ export async function middleware(request: NextRequest) {
             },
           })
           response.cookies.set({ name, value: '', ...options })
+          // Re-apply locale cookie after response recreation
+          response.cookies.set('locale', detectedLocale, {
+            path: '/',
+            maxAge: 60 * 60 * 24 * 365,
+            sameSite: 'lax',
+          })
         },
       },
     }
@@ -65,18 +82,20 @@ export async function middleware(request: NextRequest) {
 
   await supabase.auth.getUser()
 
+  // Always set locale cookie on the final response
+  if (!existingLocale || existingLocale !== detectedLocale) {
+    response.cookies.set('locale', detectedLocale, {
+      path: '/',
+      maxAge: 60 * 60 * 24 * 365,
+      sameSite: 'lax',
+    })
+  }
+
   return response
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
