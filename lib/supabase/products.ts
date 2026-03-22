@@ -113,7 +113,9 @@ export async function getUserProducts(userId: string, viewerId?: string): Promis
         collection_id,
         created_at,
         last_price_check,
-        original_currency
+        price_check_failures,
+        original_currency,
+        out_of_stock
       `)
       .eq('user_id', userId)
       .order('created_at', { ascending: false })

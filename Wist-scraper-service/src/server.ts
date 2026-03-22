@@ -166,6 +166,92 @@ app.post('/api/fetch-product', async (req: Request, res: Response) => {
   }
 });
 
+// Alias endpoint — the Next.js cron and check-price routes call /api/scrape/sync
+// and expect { success: true, result: { price, title, image, ... } }
+app.post('/api/scrape/sync', async (req: Request, res: Response) => {
+  const { url }: { url?: string } = req.body;
+
+  if (!url || typeof url !== 'string') {
+    return res.status(400).json({ success: false, error: 'Missing url' });
+  }
+
+  let domain: string | null;
+  try {
+    domain = extractDomain(url);
+    if (!domain) return res.status(400).json({ success: false, error: 'Invalid URL' });
+  } catch {
+    return res.status(400).json({ success: false, error: 'Invalid URL' });
+  }
+
+  const cacheKey = generateCacheKey(url);
+  const cached = getCache<NormalizedProduct>(cacheKey);
+  if (cached) {
+    return res.json({ success: true, result: cached, cached: true });
+  }
+
+  const rateLimit = checkRateLimit(url);
+  if (!rateLimit.allowed) {
+    return res.status(429).json({ success: false, error: 'Rate limit exceeded' });
+  }
+
+  try {
+    let result: {
+      title?: string | null;
+      image?: string | null;
+      priceRaw?: string | null;
+      description?: string | null;
+      html?: string | null;
+    } | null = null;
+
+    if (looksDynamic(domain)) {
+      try {
+        result = await playwrightScrape(url);
+      } catch (err: any) {
+        try {
+          result = await staticScrape(url);
+        } catch {
+          return res.status(500).json({ success: false, error: 'Scrape failed' });
+        }
+      }
+    } else {
+      try {
+        result = await staticScrape(url);
+      } catch {
+        return res.status(500).json({ success: false, error: 'Scrape failed' });
+      }
+    }
+
+    const htmlSample = (result?.html || '').slice(0, 2000);
+    if (detectBlock(htmlSample)) {
+      return res.status(403).json({ success: false, error: 'Blocked by site' });
+    }
+
+    const price = result?.priceRaw ? cleanPrice(result.priceRaw) : null;
+    const currency = result?.priceRaw
+      ? parseCurrencyFromRaw(result.priceRaw)
+      : 'USD';
+
+    const normalized: NormalizedProduct = {
+      title: result?.title?.trim() || null,
+      price,
+      priceRaw: result?.priceRaw || null,
+      currency,
+      image: result?.image || null,
+      description: result?.description || null,
+      domain,
+      url,
+      blocked: false,
+      rawHtmlSample: null,
+    };
+
+    setCache(cacheKey, normalized);
+
+    return res.json({ success: true, result: normalized });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Scrape failed' });
+  }
+});
+
 const PORT = Number(process.env.PORT || 3000);
 
 app.listen(PORT, () => {

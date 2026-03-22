@@ -91,8 +91,10 @@ export async function POST() {
           });
           if (!res.ok) continue;
           const data = await res.json();
-          if (data.success && data.result?.price) {
-            newPrice = parseFloat(data.result.price) || null;
+          const payload = data.result || data.data;
+          const isOk = data.success || data.ok;
+          if (isOk && payload?.price) {
+            newPrice = parseFloat(payload.price) || null;
           }
         } catch (err: any) {
           if (err.name === 'TimeoutError' || err.message?.includes('timeout')) {

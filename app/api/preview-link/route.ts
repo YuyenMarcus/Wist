@@ -47,8 +47,9 @@ export async function POST(request: Request) {
 
         const scrapeResult = await response.json();
         
-        if (response.ok && scrapeResult.success && scrapeResult.result?.title) {
-          const result = scrapeResult.result;
+        const isOk = scrapeResult.success || scrapeResult.ok;
+        const result = scrapeResult.result || scrapeResult.data;
+        if (response.ok && isOk && result?.title) {
           const data = {
             url,
             title: result.title || 'No Title Found',

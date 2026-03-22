@@ -34,8 +34,9 @@ export async function GET(request: Request) {
 
         const scrapeResult = await response.json()
         
-        if (response.ok && scrapeResult.success && scrapeResult.result?.title) {
-          const result = scrapeResult.result
+        const isOk = scrapeResult.success || scrapeResult.ok
+        const result = scrapeResult.result || scrapeResult.data
+        if (response.ok && isOk && result?.title) {
           console.log(`✅ [Metadata] Python scraper succeeded: ${result.title?.substring(0, 50)}`)
           return NextResponse.json({
             title: result.title || '',

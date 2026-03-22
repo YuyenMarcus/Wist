@@ -320,13 +320,18 @@ export async function GET(req: Request) {
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             const data = await response.json();
-            if (data.success && data.result && data.result.price) {
+            // Handle both response formats:
+            //   New: { success: true, result: { price, title, ... } }
+            //   Old: { ok: true, data: { price, title, ... } }
+            const payload = data.result || data.data;
+            const isOk = data.success || data.ok;
+            if (isOk && payload && payload.price) {
               freshData = {
-                current_price: parseFloat(data.result.price) || null,
-                title: data.result.title || item.title,
-                priceRaw: data.result.priceRaw || data.result.price,
-                image: data.result.image,
-                description: data.result.description,
+                current_price: parseFloat(payload.price) || null,
+                title: payload.title || item.title,
+                priceRaw: payload.priceRaw || payload.price,
+                image: payload.image,
+                description: payload.description,
               };
               console.log(`   ✅ External scraper: $${freshData.current_price}`);
             } else {

@@ -80,8 +80,10 @@ export async function POST(
         })
         if (!response.ok) continue
         const data = await response.json()
-        if (data.success && data.result?.price) {
-          newPrice = parseFloat(data.result.price)
+        const payload = data.result || data.data
+        const isOk = data.success || data.ok
+        if (isOk && payload?.price) {
+          newPrice = parseFloat(payload.price)
           scrapeSource = 'external'
         }
       } catch {}
