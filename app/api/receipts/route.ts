@@ -6,7 +6,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { isTierAtLeast } from '@/lib/tier-guards';
 
-const REQUIRED_TIER = 'pro_plus' as const;
+const REQUIRED_TIER = 'pro' as const;
 
 async function getAuthenticatedUser(request: Request) {
   const cookieStore = await cookies();

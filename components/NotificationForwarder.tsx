@@ -69,6 +69,7 @@ export default function NotificationForwarder() {
         .limit(10);
 
       if (error) {
+        if ((error as any).code === 'PGRST205') return; // table missing, skip silently
         console.error('❌ [NotificationForwarder] Error fetching notifications:', error);
         return;
       }
@@ -129,7 +130,9 @@ export default function NotificationForwarder() {
         .in('id', notificationIds);
 
       if (error) {
-        console.error('❌ [NotificationForwarder] Error marking notifications as sent:', error);
+        if ((error as any).code !== 'PGRST205') {
+          console.error('❌ [NotificationForwarder] Error marking notifications as sent:', error);
+        }
       } else {
         console.log(`✅ [NotificationForwarder] Marked ${notificationIds.length} notification(s) as sent`);
       }

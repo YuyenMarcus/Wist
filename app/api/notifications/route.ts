@@ -4,6 +4,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { isTierAtLeast } from '@/lib/tier-guards';
+import { getServiceRoleSupabase, hasServiceRoleKey } from '@/lib/supabase/service-role';
 
 async function getSupabaseClient() {
   const cookieStore = await cookies();
@@ -38,7 +39,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data: profile } = await supabase
+    // Use service role to bypass RLS — we already verified the user's identity above
+    const admin = hasServiceRoleKey() ? getServiceRoleSupabase() : supabase;
+
+    const { data: profile } = await admin
       .from('profiles')
       .select('subscription_tier')
       .eq('id', user.id)
@@ -47,7 +51,7 @@ export async function GET(request: Request) {
     const tier = profile?.subscription_tier || 'free';
 
     // Fetch last 50 notifications, newest first
-    const { data: notifications, error } = await supabase
+    const { data: notifications, error } = await admin
       .from('notification_queue')
       .select(`
         id,
@@ -72,12 +76,10 @@ export async function GET(request: Request) {
 
     if (error) {
       console.error('Failed to fetch notifications:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ notifications: [], unreadCount: 0, tier });
     }
 
-    // Filter notification types by tier:
-    // - Free: price_drop only
-    // - Pro+: price_drop + back_in_stock + price_increase
+    // Filter notification types by tier
     const filtered = (notifications || []).filter(n => {
       if (n.notification_type === 'price_drop') return true;
       if (n.notification_type === 'back_in_stock') return isTierAtLeast(tier, 'pro');
@@ -85,10 +87,8 @@ export async function GET(request: Request) {
       return false;
     });
 
-    // Count unread
     const unreadCount = filtered.filter(n => !(n as any).is_read).length;
 
-    // Map is_read -> read for the frontend
     const mapped = filtered.map(n => ({
       ...n,
       read: (n as any).is_read ?? false,
@@ -119,16 +119,18 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const admin = hasServiceRoleKey() ? getServiceRoleSupabase() : supabase;
     const body = await request.json();
 
     if (body.markAllRead) {
-      const { error } = await supabase
+      const { error } = await admin
         .from('notification_queue')
         .update({ is_read: true })
         .eq('user_id', user.id)
         .eq('is_read', false);
 
       if (error) {
+        console.error('Mark all read error:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
 
@@ -136,13 +138,14 @@ export async function PATCH(request: Request) {
     }
 
     if (body.ids && Array.isArray(body.ids)) {
-      const { error } = await supabase
+      const { error } = await admin
         .from('notification_queue')
         .update({ is_read: true })
         .in('id', body.ids)
         .eq('user_id', user.id);
 
       if (error) {
+        console.error('Mark read error:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
 

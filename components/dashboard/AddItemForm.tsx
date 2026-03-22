@@ -3,8 +3,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Puzzle, Check, Download, Smartphone, Link as LinkIcon } from 'lucide-react'
+import { Puzzle, Check, Download, Smartphone, Link as LinkIcon, Package } from 'lucide-react'
 import { useTranslation } from '@/lib/i18n/context'
 
 type Priority = 'high' | 'medium' | 'low'
@@ -66,14 +67,16 @@ function useFakeProgress(isActive: boolean) {
   return progress
 }
 
-export default function AddItemForm() {
-  const { t } = useTranslation()
+export default function AddItemForm({ compact = false }: { compact?: boolean }) {
+  const { t, locale } = useTranslation()
   const [url, setUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [preview, setPreview] = useState<PreviewData | null>(null)
   const [priority, setPriority] = useState<Priority>('medium')
   const [error, setError] = useState<string | null>(null)
+  /** Shown instead of plain red text when API returns upgrade + limit */
+  const [itemLimitBanner, setItemLimitBanner] = useState<{ current: number; limit: number } | null>(null)
   const [success, setSuccess] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
   const [isExpanded, setIsExpanded] = useState(false)
@@ -149,6 +152,7 @@ export default function AddItemForm() {
   const handleUrlChange = async (newUrl: string) => {
     setUrl(newUrl)
     setError(null)
+    setItemLimitBanner(null)
     setPreview(null)
     setScrapeMethod(null)
 
@@ -160,6 +164,7 @@ export default function AddItemForm() {
     try {
       new URL(newUrl.trim())
     } catch {
+      setItemLimitBanner(null)
       setError(t('Invalid URL'))
       setIsExpanded(false)
       return
@@ -189,6 +194,7 @@ export default function AddItemForm() {
         throw new Error('Could not fetch product data')
       }
     } catch (err: any) {
+      setItemLimitBanner(null)
       setError(err.message || 'Failed to fetch product data')
       setPreview(null)
     } finally {
@@ -201,12 +207,14 @@ export default function AddItemForm() {
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
+      setItemLimitBanner(null)
       setError(t('Please log in to save items'))
       return
     }
 
     setSaving(true)
     setError(null)
+    setItemLimitBanner(null)
     setSuccess(false)
 
     try {
@@ -260,7 +268,10 @@ export default function AddItemForm() {
 
       if (!response.ok) {
         if (result.upgrade) {
-          setError(`Item limit reached (${result.current}/${result.limit}). Upgrade your plan to add more items.`)
+          const lim = result.limit != null ? Number(result.limit) : 100
+          const cur = result.current != null ? Number(result.current) : lim
+          setError(null)
+          setItemLimitBanner({ current: cur, limit: lim })
           setSaving(false)
           return
         }
@@ -282,6 +293,7 @@ export default function AddItemForm() {
       window.location.reload()
     } catch (err: any) {
       console.error('Error saving item:', err)
+      setItemLimitBanner(null)
       setError(err.message || 'Failed to save item')
     } finally {
       setSaving(false)
@@ -292,14 +304,14 @@ export default function AddItemForm() {
   const showExtensionPrompt = !isMobile && !extensionInstalled
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className={compact ? '' : 'max-w-2xl mx-auto'}>
       {/* Extension / mobile status */}
-      {extensionInstalled && !isMobile ? (
+      {!compact && extensionInstalled && !isMobile ? (
         <div className="flex items-center justify-center gap-2 mb-3 text-xs text-green-600">
           <Check className="w-3.5 h-3.5" />
           <span>{t('Extension connected')}</span>
         </div>
-      ) : isMobile ? (
+      ) : !compact && isMobile ? (
         <div className="flex items-center justify-center gap-2 mb-3 text-xs text-violet-600">
           <Smartphone className="w-3.5 h-3.5" />
           <span>{t('Paste a link or use Share to save items')}</span>
@@ -307,7 +319,7 @@ export default function AddItemForm() {
       ) : null}
 
       {/* Desktop: Extension prompt (non-blocking) */}
-      {showExtensionPrompt && (
+      {!compact && showExtensionPrompt && (
         <div className="mb-4 p-3 sm:p-4 bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-950/30 dark:to-purple-950/30 border border-violet-200 dark:border-violet-800 rounded-xl">
           <div className="flex flex-col sm:flex-row items-start gap-3">
             <div className="p-2 bg-violet-100 rounded-lg flex-shrink-0">
@@ -338,8 +350,8 @@ export default function AddItemForm() {
             isExpanded ? 'shadow-xl border-violet-200 dark:border-violet-800 ring-2 ring-violet-200 dark:ring-violet-900' : ''
           }`}
         >
-          <div className="flex items-center h-14 px-4">
-            <LinkIcon className="w-4 h-4 text-zinc-400 mr-2 flex-shrink-0" />
+          <div className={`flex items-center ${compact ? 'h-10 px-3' : 'h-14 px-4'}`}>
+            <LinkIcon className={`${compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} text-zinc-400 mr-2 flex-shrink-0`} />
             {showExtensionPrompt ? (
               <a
                 href="/wist-extension-download.zip"
@@ -368,9 +380,14 @@ export default function AddItemForm() {
             )}
             {isExpanded && !loading && preview && (
               <button
+                type="button"
                 onClick={handleSave}
                 disabled={saving}
-                className="ml-3 h-8 px-4 bg-violet-500 text-white rounded-full text-xs font-medium hover:bg-violet-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:ring-2 focus:ring-violet-200"
+                className={`ml-2 shrink-0 font-semibold text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-dpurple-900 ${
+                  compact
+                    ? 'h-9 px-4 text-sm bg-zinc-900 hover:bg-zinc-800 dark:bg-violet-600 dark:hover:bg-violet-500 shadow-md'
+                    : 'h-8 px-4 bg-violet-500 text-xs font-medium rounded-full hover:bg-violet-600 focus:ring-2 focus:ring-violet-200'
+                }`}
               >
                 {saving ? t('Adding...') : t('Add')}
               </button>
@@ -409,7 +426,36 @@ export default function AddItemForm() {
                   </div>
                 )}
 
-                {error && (
+                {itemLimitBanner && (
+                  <div
+                    className="mb-3 rounded-xl border border-violet-200/80 dark:border-violet-800/60 bg-gradient-to-b from-violet-50 to-white dark:from-violet-950/35 dark:to-dpurple-900 p-4 text-left shadow-sm"
+                    role="alert"
+                  >
+                    <div className="flex gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-violet-200 bg-violet-100/80 dark:border-violet-800 dark:bg-violet-950/50 text-violet-600 dark:text-violet-400">
+                        <Package className="h-5 w-5" aria-hidden />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                          {t('Plan limit reached')}
+                        </p>
+                        <p className="mt-1 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
+                          {locale === 'es'
+                            ? `Estás usando ${itemLimitBanner.current} de ${itemLimitBanner.limit} artículos en tu plan actual. Mejora para guardados ilimitados, comprobaciones de precio diarias y más.`
+                            : `You're using ${itemLimitBanner.current} of ${itemLimitBanner.limit} items on your current plan. Upgrade for unlimited saves, daily price checks, and more.`}
+                        </p>
+                        <Link
+                          href="/dashboard/subscription"
+                          className="mt-3 inline-flex w-full items-center justify-center rounded-lg bg-zinc-900 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-zinc-800 dark:bg-violet-600 dark:hover:bg-violet-500"
+                        >
+                          {t('View plans & upgrade')}
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {error && !itemLimitBanner && (
                   <div className="mb-3 text-xs text-red-600">
                     {error}
                   </div>
@@ -487,15 +533,33 @@ export default function AddItemForm() {
                     ))}
                   </div>
                 </div>
+
+                {preview && !loading && (
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={saving}
+                    className={`mt-4 w-full flex items-center justify-center gap-2 rounded-xl font-semibold text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-dpurple-900 ${
+                      compact
+                        ? 'py-3 text-sm bg-zinc-900 hover:bg-zinc-800 dark:bg-violet-600 dark:hover:bg-violet-500 shadow-lg'
+                        : 'py-2.5 text-sm bg-violet-600 hover:bg-violet-700'
+                    }`}
+                  >
+                    <Package className="h-4 w-4 opacity-90" aria-hidden />
+                    {saving ? t('Adding...') : t('Add to wishlist')}
+                  </button>
+                )}
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      <p className="mt-2 text-center text-[10px] text-zinc-300 dark:text-zinc-600">
-        {t('Wist can make mistakes — double-check important info.')}
-      </p>
+      {!compact && (
+        <p className="mt-2 text-center text-[10px] text-zinc-300 dark:text-zinc-600">
+          {t('Wist can make mistakes — double-check important info.')}
+        </p>
+      )}
     </div>
   )
 }

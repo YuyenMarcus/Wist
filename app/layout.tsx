@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Script from 'next/script'
 import '@/styles/globals.css'
 import ThemeProvider from '@/components/layout/ThemeProvider'
 import FloatingNav from '@/components/layout/FloatingNav'
@@ -130,6 +131,18 @@ export default async function RootLayout({
   return (
     <html lang={locale} suppressHydrationWarning className="antialiased">
       <head>
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-9R59R2MYEN"
+          strategy="afterInteractive"
+        />
+        <Script id="gtag-init" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-9R59R2MYEN');
+          `}
+        </Script>
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#7c3aed" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -141,7 +154,7 @@ export default async function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body className="bg-white dark:bg-dpurple-950 font-sans tracking-tight transition-colors">
+      <body className="bg-white dark:bg-dpurple-950 font-sans tracking-tight transition-colors overflow-x-hidden">
         <ThemeProvider>
           <ClientProvider locale={locale}>
             {children}

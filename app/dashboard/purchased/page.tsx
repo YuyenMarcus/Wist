@@ -8,6 +8,7 @@ import LavenderLoader from '@/components/ui/LavenderLoader'
 import { ShoppingBag, ArrowLeft, ExternalLink, Undo2, Trash2, Calendar } from 'lucide-react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
+import { affiliateUrl } from '@/lib/amazon-affiliate'
 
 interface PurchasedItem {
   id: string
@@ -249,7 +250,7 @@ export default function PurchasedPage() {
                     
                     {/* View Product Button */}
                     <a
-                      href={item.url}
+                      href={affiliateUrl(item.url, profile?.amazon_affiliate_id)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="w-full inline-flex items-center justify-center gap-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 px-3 py-2 rounded-lg transition-colors"

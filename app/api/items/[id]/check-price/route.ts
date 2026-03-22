@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { staticScrape } from '@/lib/scraper/static-scraper'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,13 +12,11 @@ export async function POST(
     const supabase = await createClient()
     const itemId = params.id
 
-    // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Fetch item with latest price data
     const { data: item, error } = await supabase
       .from('items')
       .select('id, url, title, current_price, last_price_check, user_id')
@@ -29,65 +28,150 @@ export async function POST(
       return NextResponse.json({ error: 'Item not found' }, { status: 404 })
     }
 
-    // Calculate time since last check
-    const lastChecked = item.last_price_check ? new Date(item.last_price_check) : null
-    const now = new Date()
-    const hoursSinceCheck = lastChecked 
-      ? Math.floor((now.getTime() - lastChecked.getTime()) / (1000 * 60 * 60))
-      : null
+    // Cooldown between manual checks (per item) — keep short so users can recover from bad scrapes
+    const COOLDOWN_MS = 45_000
+    if (item.last_price_check) {
+      const msSinceLast = Date.now() - new Date(item.last_price_check).getTime()
+      if (msSinceLast < COOLDOWN_MS) {
+        const waitSec = Math.ceil((COOLDOWN_MS - msSinceLast) / 1000)
+        const { data: priceHistory } = await supabase
+          .from('price_history')
+          .select('price, recorded_at')
+          .eq('item_id', itemId)
+          .order('recorded_at', { ascending: false })
+          .limit(10)
 
-    // Get price history for trend
-    // Note: price_history table uses 'created_at' column, not 'recorded_at'
+        return NextResponse.json({
+          success: true,
+          cached: true,
+          currentPrice: item.current_price,
+          lastChecked: item.last_price_check,
+          priceHistory: priceHistory || [],
+          message: `Checked recently. Try again in ${waitSec}s.`,
+        })
+      }
+    }
+
+    // Actually scrape the price
+    let newPrice: number | null = null
+    let scrapeSource = ''
+
+    // Try external scraper services first
+    const scraperUrls = [
+      process.env.PRICE_TRACKER_URL,
+      process.env.MAIN_SCRAPER_URL,
+      process.env.NEXT_PUBLIC_SCRAPER_SERVICE_URL,
+    ].filter(Boolean) as string[]
+
+    const fwd =
+      request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || ''
+
+    for (const scraperUrl of scraperUrls) {
+      if (newPrice) break
+      try {
+        const response = await fetch(`${scraperUrl}/api/scrape/sync`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(fwd ? { 'X-Forwarded-For': fwd } : {}),
+          },
+          body: JSON.stringify({ url: item.url }),
+          signal: AbortSignal.timeout(15000),
+        })
+        if (!response.ok) continue
+        const data = await response.json()
+        if (data.success && data.result?.price) {
+          newPrice = parseFloat(data.result.price)
+          scrapeSource = 'external'
+        }
+      } catch {}
+    }
+
+    // Fallback to built-in static scraper
+    if (!newPrice) {
+      try {
+        const result = await staticScrape(item.url)
+        if (result?.price && result.price > 0) {
+          newPrice = result.price
+          scrapeSource = 'static'
+        } else if (result?.priceRaw) {
+          const parsed = parseFloat(result.priceRaw.replace(/[^0-9.]/g, ''))
+          if (parsed > 0) {
+            newPrice = parsed
+            scrapeSource = 'static-parsed'
+          }
+        }
+      } catch {}
+    }
+
+    const oldPrice = item.current_price || 0
+    const now = new Date().toISOString()
+
+    if (newPrice && newPrice > 0) {
+      const priceChanged = Math.abs(newPrice - oldPrice) > 0.01
+      const updateData: Record<string, any> = {
+        last_price_check: now,
+        updated_at: now,
+        price_check_failures: 0,
+      }
+      if (priceChanged) {
+        updateData.current_price = newPrice
+      }
+
+      await supabase.from('items').update(updateData).eq('id', itemId)
+      await supabase.from('price_history').insert({ item_id: itemId, price: newPrice })
+
+      const { data: priceHistory } = await supabase
+        .from('price_history')
+        .select('price, recorded_at')
+        .eq('item_id', itemId)
+        .order('recorded_at', { ascending: false })
+        .limit(10)
+
+      let priceChange = null
+      let priceChangePercent = null
+      if (priceChanged && oldPrice > 0) {
+        priceChange = newPrice - oldPrice
+        priceChangePercent = ((priceChange / oldPrice) * 100).toFixed(1)
+      }
+
+      return NextResponse.json({
+        success: true,
+        cached: false,
+        currentPrice: newPrice,
+        previousPrice: oldPrice,
+        priceChanged,
+        priceChange,
+        priceChangePercent,
+        lastChecked: now,
+        priceHistory: priceHistory || [],
+        scrapeSource,
+        message: priceChanged
+          ? `Price ${newPrice < oldPrice ? 'dropped' : 'increased'}: $${oldPrice.toFixed(2)} → $${newPrice.toFixed(2)}`
+          : `Price unchanged at $${newPrice.toFixed(2)}`,
+      })
+    }
+
+    // Scrape failed — return cached data
+    await supabase.from('items').update({
+      last_price_check: now,
+      price_check_failures: (item as any).price_check_failures ? (item as any).price_check_failures + 1 : 1,
+    }).eq('id', itemId)
+
     const { data: priceHistory } = await supabase
       .from('price_history')
-      .select('price, created_at')
+      .select('price, recorded_at')
       .eq('item_id', itemId)
-      .order('created_at', { ascending: false })
+      .order('recorded_at', { ascending: false })
       .limit(10)
 
-    // Calculate price trend
-    let priceChange = null
-    let priceChangePercent = null
-    if (priceHistory && priceHistory.length >= 2) {
-      const latestPrice = priceHistory[0].price
-      const previousPrice = priceHistory[1].price
-      priceChange = latestPrice - previousPrice
-      priceChangePercent = ((priceChange / previousPrice) * 100).toFixed(1)
-    }
-
-    // Determine next check time (based on 24-hour cron)
-    const nextCheck = lastChecked 
-      ? new Date(lastChecked.getTime() + 24 * 60 * 60 * 1000)
-      : new Date(now.getTime() + 24 * 60 * 60 * 1000)
-    
-    const hoursUntilNextCheck = Math.max(
-      0,
-      Math.floor((nextCheck.getTime() - now.getTime()) / (1000 * 60 * 60))
-    )
-
-    // Build response message
-    let message = ''
-    if (!lastChecked) {
-      message = 'This item will be checked within 24 hours.'
-    } else if (hoursUntilNextCheck > 0) {
-      message = `Next automatic check in ${hoursUntilNextCheck} hour${hoursUntilNextCheck !== 1 ? 's' : ''}.`
-    } else {
-      message = 'Price will be checked shortly.'
-    }
-
-    // Return cached data with context
     return NextResponse.json({
       success: true,
       cached: true,
       currentPrice: item.current_price,
-      lastChecked: lastChecked?.toISOString(),
-      nextCheck: nextCheck.toISOString(),
-      hoursUntilNextCheck,
+      lastChecked: now,
       priceHistory: priceHistory || [],
-      priceChange,
-      priceChangePercent,
-      message,
-      dataPoints: priceHistory?.length || 0
+      message: 'Could not fetch latest price. Showing last known price.',
     })
 
   } catch (error) {
@@ -98,4 +182,3 @@ export async function POST(
     )
   }
 }
-

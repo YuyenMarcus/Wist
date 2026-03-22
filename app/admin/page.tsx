@@ -38,32 +38,28 @@ interface BannedEmail {
 
 const TIER_BADGE_STYLES: Record<string, string> = {
   free: 'bg-zinc-50 text-zinc-600 border-zinc-200',
-  pro: 'bg-blue-50 text-blue-700 border-blue-200',
-  pro_plus: 'bg-violet-50 text-violet-700 border-violet-200',
+  pro: 'bg-violet-50 text-violet-700 border-violet-200',
   creator: 'bg-amber-50 text-amber-700 border-amber-200',
   enterprise: 'bg-emerald-50 text-emerald-700 border-emerald-200',
 }
 
 const TIER_ICONS: Record<string, typeof User> = {
   free: User,
-  pro: Star,
-  pro_plus: Gem,
+  pro: Gem,
   creator: Crown,
   enterprise: Building2,
 }
 
 const TIER_ICON_COLORS: Record<string, string> = {
   free: 'text-zinc-400',
-  pro: 'text-blue-500',
-  pro_plus: 'text-violet-500',
+  pro: 'text-violet-500',
   creator: 'text-amber-500',
   enterprise: 'text-emerald-500',
 }
 
 const TIER_SELECTOR_ACTIVE: Record<string, string> = {
   free: 'border-zinc-500 bg-zinc-50',
-  pro: 'border-blue-500 bg-blue-50',
-  pro_plus: 'border-violet-500 bg-violet-50',
+  pro: 'border-violet-500 bg-violet-50',
   creator: 'border-amber-500 bg-amber-50',
   enterprise: 'border-emerald-500 bg-emerald-50',
 }
@@ -494,7 +490,7 @@ function EditUserModal({
         {/* Subscription tier — 5 tiers in a scrollable grid */}
         <div>
           <label className="block text-sm font-medium text-zinc-700 mb-2">Subscription Plan</label>
-          <div className="grid grid-cols-5 gap-1.5">
+          <div className="grid grid-cols-4 gap-1.5">
             {TIER_ORDER.map(t => {
               const cfg = TIERS[t]
               const Icon = TIER_ICONS[t] || User

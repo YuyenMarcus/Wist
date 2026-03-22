@@ -4,10 +4,6 @@ import { type SubscriptionTier } from '@/lib/constants/subscription-tiers'
 
 const BADGE_CONFIG: Record<string, { colors: string[]; label: string }> = {
   pro: {
-    colors: ['#3b82f6', '#6366f1'],
-    label: 'Plus',
-  },
-  pro_plus: {
     colors: ['#8b5cf6', '#9333ea'],
     label: 'Pro',
   },
@@ -23,7 +19,6 @@ const BADGE_CONFIG: Record<string, { colors: string[]; label: string }> = {
 
 function FourPointStar({ colors, size = 14 }: { colors: string[]; size?: number }) {
   const id = `star-grad-${colors[0].replace('#', '')}`;
-  // 4-point star: top, right, bottom, left with curved inner edges
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="flex-shrink-0">
       <defs>
@@ -40,6 +35,22 @@ function FourPointStar({ colors, size = 14 }: { colors: string[]; size?: number 
   )
 }
 
+/** Diamond (Pro tier) — same gradient as legacy Pro badge */
+function DiamondMark({ colors, size = 14 }: { colors: string[]; size?: number }) {
+  const id = `diamond-grad-${colors[0].replace('#', '')}`;
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="flex-shrink-0">
+      <defs>
+        <linearGradient id={id} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor={colors[0]} />
+          <stop offset="100%" stopColor={colors[1]} />
+        </linearGradient>
+      </defs>
+      <path d="M12 2l9 10-9 10-9-10 9-10z" fill={`url(#${id})`} />
+    </svg>
+  )
+}
+
 interface TierBadgeProps {
   tier: SubscriptionTier | string | null | undefined
   size?: 'sm' | 'md'
@@ -51,11 +62,15 @@ export default function TierBadge({ tier, size = 'sm' }: TierBadgeProps) {
   const config = BADGE_CONFIG[tier]
   if (!config) return null
 
-  const starSize = size === 'sm' ? 14 : 18
+  const markSize = size === 'sm' ? 14 : 18
 
   return (
     <span className="inline-flex items-center" title={`Wist ${config.label}`}>
-      <FourPointStar colors={config.colors} size={starSize} />
+      {tier === 'pro' ? (
+        <DiamondMark colors={config.colors} size={markSize} />
+      ) : (
+        <FourPointStar colors={config.colors} size={markSize} />
+      )}
     </span>
   )
 }

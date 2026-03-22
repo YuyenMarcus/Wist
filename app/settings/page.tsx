@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, AlertCircle, Check, Instagram, Link as LinkIcon, ShoppingCart, Video, Shield, Lock, ArrowLeft, Zap, Palette, Gift, DollarSign, Moon, Sun } from 'lucide-react'
+import { Loader2, AlertCircle, Check, Instagram, Facebook, Link as LinkIcon, ShoppingCart, Video, Shield, Lock, ArrowLeft, Zap, Gift, DollarSign, Moon, Sun, Camera, X as XIcon } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { getProfile, updateProfile } from '@/lib/supabase/profile'
-import { PROFILE_THEMES, THEME_KEYS } from '@/lib/constants/profile-themes'
+// Profile themes removed from settings UI
 import { isTierAtLeast } from '@/lib/tier-guards'
 import { CURRENCY_INFO, SUPPORTED_CURRENCIES } from '@/lib/currency'
 import LavenderLoader from '@/components/ui/LavenderLoader'
@@ -69,6 +69,12 @@ export default function SettingsPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error' | ''; text: string }>({ type: '', text: '' })
   const [profile, setProfile] = useState<any>(null)
   
+  const [bannerUrl, setBannerUrl] = useState<string | null>(null)
+  const [bannerPos, setBannerPos] = useState({ x: 50, y: 50 })
+  const bannerPosSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [uploadingBanner, setUploadingBanner] = useState(false)
+  const [messengerBusy, setMessengerBusy] = useState(false)
+
   // Expanded Form State
   const [formData, setFormData] = useState({
     username: '',
@@ -102,6 +108,13 @@ export default function SettingsPage() {
 
         if (data) {
           setProfile(data)
+          setBannerUrl(data.banner_url || null)
+          const bx = typeof data.banner_position_x === 'number' ? data.banner_position_x : 50
+          const by = typeof data.banner_position_y === 'number' ? data.banner_position_y : 50
+          setBannerPos({
+            x: Math.min(100, Math.max(0, bx)),
+            y: Math.min(100, Math.max(0, by)),
+          })
           setFormData({
             username: data.username || '',
             bio: data.bio || '',
@@ -127,6 +140,143 @@ export default function SettingsPage() {
     }
     getProfileData()
   }, [router])
+
+  async function handleBannerUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage({ type: 'error', text: 'Banner image must be under 5MB.' })
+      return
+    }
+
+    setUploadingBanner(true)
+    try {
+      const ext = file.name.split('.').pop()
+      const filePath = `${user.id}/banner-${Date.now()}.${ext}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { cacheControl: '3600', upsert: false })
+
+      if (uploadError) throw uploadError
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath)
+
+      const { error: updateError } = await updateProfile(user.id, { banner_url: publicUrl })
+      if (updateError) throw updateError
+
+      setBannerUrl(publicUrl)
+      setMessage({ type: 'success', text: 'Cover image updated!' })
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000)
+    } catch (err: any) {
+      console.error('Banner upload error:', err)
+      setMessage({ type: 'error', text: err.message || 'Failed to upload cover image.' })
+    } finally {
+      setUploadingBanner(false)
+    }
+  }
+
+  async function handleBannerRemove() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    setUploadingBanner(true)
+    try {
+      const { error } = await updateProfile(user.id, { banner_url: null })
+      if (error) throw error
+      setBannerUrl(null)
+      setMessage({ type: 'success', text: 'Cover image removed.' })
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000)
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || 'Failed to remove cover image.' })
+    } finally {
+      setUploadingBanner(false)
+    }
+  }
+
+  const scheduleSaveBannerPosition = useCallback((x: number, y: number) => {
+    if (bannerPosSaveTimer.current) clearTimeout(bannerPosSaveTimer.current)
+    bannerPosSaveTimer.current = setTimeout(async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data: updated, error } = await updateProfile(user.id, {
+        banner_position_x: x,
+        banner_position_y: y,
+      })
+      if (error) {
+        console.error('Banner position save:', error)
+        return
+      }
+      if (updated) setProfile(updated)
+    }, 450)
+  }, [])
+
+  const updateBannerPos = useCallback(
+    (patch: Partial<{ x: number; y: number }>) => {
+      setBannerPos((p) => {
+        const n = {
+          x: Math.min(100, Math.max(0, patch.x !== undefined ? patch.x : p.x)),
+          y: Math.min(100, Math.max(0, patch.y !== undefined ? patch.y : p.y)),
+        }
+        scheduleSaveBannerPosition(n.x, n.y)
+        return n
+      })
+    },
+    [scheduleSaveBannerPosition]
+  )
+
+  async function generateMessengerLinkCode() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    setMessengerBusy(true)
+    setMessage({ type: '', text: '' })
+    try {
+      const bytes = new Uint8Array(4)
+      crypto.getRandomValues(bytes)
+      const code = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+      const { data, error } = await updateProfile(user.id, { messenger_link_token: code })
+      if (error) throw error
+      if (data) setProfile(data)
+      setMessage({
+        type: 'success',
+        text: 'Link code ready. Send it from Facebook Messenger as shown below.',
+      })
+      setTimeout(() => setMessage({ type: '', text: '' }), 5000)
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || 'Could not generate code.' })
+    } finally {
+      setMessengerBusy(false)
+    }
+  }
+
+  async function disconnectMessenger() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    setMessengerBusy(true)
+    setMessage({ type: '', text: '' })
+    try {
+      const { data, error } = await updateProfile(user.id, {
+        messenger_psid: null,
+        messenger_link_token: null,
+      })
+      if (error) throw error
+      if (data) setProfile(data)
+      setMessage({ type: 'success', text: 'Facebook Messenger disconnected.' })
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000)
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || 'Could not disconnect.' })
+    } finally {
+      setMessengerBusy(false)
+    }
+  }
 
   // 2. Handle Update
   const handleUpdate = async (e: React.FormEvent) => {
@@ -201,7 +351,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <PageTransition className="min-h-screen bg-zinc-50 dark:bg-dpurple-950 py-12 px-4 sm:px-6 lg:px-8 transition-colors">
+    <PageTransition className="min-h-screen bg-zinc-50 dark:bg-dpurple-950 pt-20 pb-16 px-4 sm:px-6 lg:px-8 transition-colors">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center gap-4 mb-8">
           <button
@@ -296,6 +446,95 @@ export default function SettingsPage() {
                 {formData.bio.length}/160
               </div>
             </div>
+
+            {/* Cover Image */}
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2 flex items-center gap-2">
+                <Camera size={14} /> Cover Image
+              </label>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
+                This banner appears at the top of your dashboard profile. Recommended size: 1200 x 300px. Max 5MB.
+              </p>
+              <div className="relative w-full h-28 sm:h-36 rounded-xl overflow-hidden border border-zinc-200 dark:border-dpurple-600">
+                {bannerUrl ? (
+                  <img
+                    src={bannerUrl}
+                    alt="Cover"
+                    className="w-full h-full object-cover"
+                    style={{ objectPosition: `${bannerPos.x}% ${bannerPos.y}%` }}
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-r from-violet-200 via-purple-100 to-pink-100 dark:from-violet-950 dark:via-purple-950 dark:to-dpurple-900" />
+                )}
+                <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/0 hover:bg-black/30 transition-colors group">
+                  <label className="cursor-pointer p-2 rounded-lg bg-white/80 dark:bg-black/60 text-zinc-700 dark:text-zinc-200 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-white dark:hover:bg-black/80">
+                    <Camera className="w-5 h-5" />
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={handleBannerUpload}
+                      disabled={uploadingBanner}
+                      className="hidden"
+                    />
+                  </label>
+                  {bannerUrl && (
+                    <button
+                      type="button"
+                      onClick={handleBannerRemove}
+                      disabled={uploadingBanner}
+                      className="p-2 rounded-lg bg-white/80 dark:bg-black/60 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-white dark:hover:bg-black/80"
+                    >
+                      <XIcon className="w-5 h-5" />
+                    </button>
+                  )}
+                </div>
+                {uploadingBanner && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                    <Loader2 className="w-6 h-6 text-white animate-spin" />
+                  </div>
+                )}
+              </div>
+              {bannerUrl && (
+                <div className="mt-4 space-y-3">
+                  <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Banner position</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                    Choose which part of the image stays visible in the cropped header (saved automatically).
+                  </p>
+                  <div>
+                    <div className="flex justify-between text-[10px] uppercase tracking-wide text-zinc-400 mb-1">
+                      <span>Left</span>
+                      <span>Horizontal</span>
+                      <span>Right</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={bannerPos.x}
+                      onChange={(e) => updateBannerPos({ x: Number(e.target.value) })}
+                      className="w-full h-2 accent-violet-600 bg-zinc-200 dark:bg-dpurple-700 rounded-lg appearance-none cursor-pointer"
+                      aria-label="Banner horizontal position"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-[10px] uppercase tracking-wide text-zinc-400 mb-1">
+                      <span>Top</span>
+                      <span>Vertical</span>
+                      <span>Bottom</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={bannerPos.y}
+                      onChange={(e) => updateBannerPos({ y: Number(e.target.value) })}
+                      className="w-full h-2 accent-violet-600 bg-zinc-200 dark:bg-dpurple-700 rounded-lg appearance-none cursor-pointer"
+                      aria-label="Banner vertical position"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* --- SECTION 2: CREATOR & SOCIAL --- */}
@@ -306,7 +545,7 @@ export default function SettingsPage() {
 
             {/* Social Row */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
+              <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2 flex items-center gap-2">
                   <Instagram size={14} /> Instagram Handle
                 </label>
@@ -321,7 +560,77 @@ export default function SettingsPage() {
                   />
                 </div>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">We'll remove the @ when saving</p>
+                <div className="mt-3 p-4 rounded-xl bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800">
+                  <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-2">Save links via Instagram (paper plane)</p>
+                  <p className="text-xs text-zinc-600 dark:text-zinc-400 mb-2">
+                    The usual flow: tap the <strong className="text-zinc-800 dark:text-zinc-200">share</strong> button (paper plane) on a post, reel, or ad and send it to our Instagram account — no need to copy a link.
+                  </p>
+                  <p className="text-xs text-zinc-600 dark:text-zinc-400 mb-2">One-time setup after you save your handle above:</p>
+                  <ol className="text-xs text-zinc-600 dark:text-zinc-400 space-y-1 list-decimal list-inside">
+                    <li>Open our Instagram profile and tap <strong className="text-zinc-800 dark:text-zinc-200">Follow</strong> (required).</li>
+                    <li>Message us <strong className="text-zinc-800 dark:text-zinc-200">connect</strong> or <strong className="text-zinc-800 dark:text-zinc-200">confirm</strong> to link this Instagram to Wist.</li>
+                    <li>After that, share anything to us with the paper plane — we’ll queue it in your Wist dashboard.</li>
+                  </ol>
+                </div>
               </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2 flex items-center gap-2">
+                  <Facebook size={14} /> Facebook Messenger
+                </label>
+                <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 space-y-3">
+                  {profile?.messenger_psid ? (
+                    <>
+                      <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                        <Check size={16} className="text-green-600 dark:text-green-400 shrink-0" />
+                        Messenger is linked to this Wist account
+                      </p>
+                      <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                        Send product links in a chat with our Facebook Page and we’ll add them to your wishlist (same as Instagram DM).
+                      </p>
+                      <button
+                        type="button"
+                        onClick={disconnectMessenger}
+                        disabled={messengerBusy}
+                        className="text-sm px-4 py-2 rounded-lg border border-zinc-300 dark:border-dpurple-600 text-zinc-700 dark:text-zinc-200 hover:bg-white/80 dark:hover:bg-dpurple-800 disabled:opacity-50"
+                      >
+                        {messengerBusy ? 'Working…' : 'Disconnect Messenger'}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm text-zinc-700 dark:text-zinc-300">
+                        Link your <strong className="text-zinc-900 dark:text-zinc-100">Facebook Messenger</strong> chat to Wist using a one-time code.
+                      </p>
+                      {profile?.messenger_link_token ? (
+                        <div className="rounded-lg bg-white dark:bg-dpurple-900/80 border border-blue-200 dark:border-blue-800 p-3 font-mono text-lg tracking-wider text-center text-zinc-900 dark:text-zinc-100">
+                          {profile.messenger_link_token}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                          Generate a code, then message our Facebook Page from the account you use in Messenger.
+                        </p>
+                      )}
+                      <ol className="text-xs text-zinc-600 dark:text-zinc-400 space-y-1 list-decimal list-inside">
+                        <li>Open <strong className="text-zinc-800 dark:text-zinc-200">Facebook Messenger</strong> and start a chat with our Page.</li>
+                        <li>Click <strong className="text-zinc-800 dark:text-zinc-200">Generate link code</strong> below (or use the code already shown).</li>
+                        <li>Send exactly: <code className="bg-beige-100 dark:bg-dpurple-800 px-1 rounded">connect</code> followed by a space and your code, e.g. <code className="bg-beige-100 dark:bg-dpurple-800 px-1 rounded">connect abcdef12</code></li>
+                      </ol>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={generateMessengerLinkCode}
+                          disabled={messengerBusy}
+                          className="text-sm px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                        >
+                          {messengerBusy ? 'Working…' : profile?.messenger_link_token ? 'New code' : 'Generate link code'}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2 flex items-center gap-2">
                   <Video size={14} /> TikTok Handle
@@ -471,53 +780,13 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* --- SECTION 4: PROFILE THEME (Creator+) --- */}
-          <div id="theme" className="bg-beige-100 dark:bg-dpurple-900 p-8 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm space-y-6 scroll-mt-20">
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-dpurple-700 pb-2 flex items-center gap-2">
-              <Palette size={16} /> Profile Theme
-            </h2>
-
-            {!isTierAtLeast(profile?.subscription_tier, 'creator') ? (
-              <div className="text-center py-4 space-y-2">
-                <Lock size={24} className="text-zinc-300 mx-auto" />
-                <p className="text-sm text-zinc-500">Upgrade to <span className="font-semibold text-violet-600">Wist Creator</span> to customize your profile theme</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-                {THEME_KEYS.map(key => {
-                  const theme = PROFILE_THEMES[key]
-                  const selected = formData.profileTheme === key
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, profileTheme: key }))}
-                      className={`relative rounded-xl p-3 text-center transition-all border-2 ${
-                        selected ? 'border-violet-500 ring-2 ring-violet-200' : 'border-zinc-200 hover:border-zinc-300'
-                      }`}
-                    >
-                      <div className={`w-full h-8 rounded-lg ${theme.bg} mb-2 border border-zinc-100`} />
-                      <div className={`w-full h-1 rounded bg-gradient-to-r ${theme.avatarGradient} mb-2`} />
-                      <span className="text-xs font-medium text-zinc-700">{theme.name}</span>
-                      {selected && (
-                        <div className="absolute top-1 right-1 w-4 h-4 bg-violet-500 rounded-full flex items-center justify-center">
-                          <Check size={10} className="text-white" />
-                        </div>
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-
           {/* --- SECTION 5: GIFTING (Pro+) --- */}
           <div id="gifting" className="bg-beige-100 dark:bg-dpurple-900 p-8 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm space-y-6 scroll-mt-20">
             <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-dpurple-700 pb-2 flex items-center gap-2">
               <Gift size={16} /> Gifting
             </h2>
 
-            {!isTierAtLeast(profile?.subscription_tier, 'pro_plus') ? (
+            {!isTierAtLeast(profile?.subscription_tier, 'pro') ? (
               <div className="text-center py-4 space-y-2">
                 <Lock size={24} className="text-zinc-300 mx-auto" />
                 <p className="text-sm text-zinc-500">Upgrade to <span className="font-semibold text-violet-600">Wist Pro</span> to enable gifting on your profile</p>
@@ -582,7 +851,7 @@ export default function SettingsPage() {
           <button
             type="submit"
             disabled={saving}
-            className="w-full bg-violet-600 text-white font-semibold py-4 rounded-xl hover:bg-violet-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2 focus:outline-none focus:ring-2 focus:ring-violet-200"
+            className="w-full bg-violet-600 text-white font-semibold py-4 rounded-xl hover:bg-violet-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2 focus:outline-none focus:ring-2 focus:ring-violet-200 mb-24"
           >
             {saving ? (
               <>

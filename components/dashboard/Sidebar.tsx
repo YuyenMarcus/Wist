@@ -4,19 +4,19 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { 
-  Folder, Plus, Grid, Gift, Settings, Trash2, Layers, LayoutGrid, 
+  Folder, Plus, Grid, Gift, Settings, Trash2, Layers, LayoutGrid, Pencil, Check,
   Heart, Home, ShoppingBag, Star, Bookmark, Tag, Box, Package, 
   Sparkles, Zap, Coffee, Music, Gamepad2, Shirt, Car, Plane, 
   Camera, Palette, Dumbbell, BookOpen, Laptop, Phone, Watch, 
   Headphones, Utensils, Bed, Sofa, TreePine, Menu, X, EyeOff,
-  Moon, Sun, Upload
+  Moon, Sun, Upload, CreditCard
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
-import AdSlot from '@/components/ui/AdSlot';
 import { useDarkMode } from '@/lib/hooks/useDarkMode';
 import NotificationCenter from '@/components/dashboard/NotificationCenter';
 import ImportModal from '@/components/dashboard/ImportModal';
+import AddItemForm from '@/components/dashboard/AddItemForm';
 import { getCollectionLimit, type SubscriptionTier } from '@/lib/constants/subscription-tiers';
 import { useTranslation } from '@/lib/i18n/context';
 
@@ -88,12 +88,17 @@ function CollectionItem({
   isManaging,
   onDelete,
   onIconChange,
+  onRename,
+  onNavigate,
 }: {
   collection: Collection;
   pathname: string | null;
   isManaging: boolean;
   onDelete: (id: string) => void;
   onIconChange?: (id: string, iconName: string) => void;
+  onRename: (id: string, newName: string) => Promise<void>;
+  /** e.g. close mobile drawer when a collection link is followed */
+  onNavigate?: () => void;
 }) {
   const IconComponent = getIconComponent(collection.icon);
   const colorClass = COLOR_PALETTE.find(c => c.name === collection.color)?.class || 'text-violet-600 dark:text-violet-400';
@@ -101,6 +106,9 @@ function CollectionItem({
   const iconPickerRef = useRef<HTMLDivElement>(null);
   const iconButtonRef = useRef<HTMLButtonElement>(null);
   const [iconPickerPosition, setIconPickerPosition] = useState({ top: 0, left: 0 });
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState(collection.name);
+  const [renameSubmitting, setRenameSubmitting] = useState(false);
 
   // Close icon picker when clicking outside
   useEffect(() => {
@@ -119,18 +127,55 @@ function CollectionItem({
     };
   }, [showIconPicker]);
 
+  // Keep rename field in sync when not actively editing
+  useEffect(() => {
+    if (!isRenaming) setRenameValue(collection.name);
+  }, [collection.name, isRenaming]);
+
+  const activeClass = pathname?.includes(collection.slug)
+    ? 'text-violet-600 dark:text-violet-400'
+    : 'text-zinc-500 dark:text-zinc-400';
+
+  const cancelRename = () => {
+    setIsRenaming(false);
+    setRenameValue(collection.name);
+  };
+
+  const submitRename = async (e: React.FormEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const trimmed = renameValue.trim();
+    if (!trimmed || trimmed === collection.name) {
+      cancelRename();
+      return;
+    }
+    setRenameSubmitting(true);
+    try {
+      await onRename(collection.id, trimmed);
+      setIsRenaming(false);
+    } catch {
+      /* alert handled in parent */
+    } finally {
+      setRenameSubmitting(false);
+    }
+  };
+
   return (
-    <div className="group/item flex items-center justify-between px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-dpurple-900 transition-colors relative" ref={iconPickerRef}>
-      <div
-        className={`flex-1 flex items-center gap-3 text-sm font-medium truncate ${
-          pathname?.includes(collection.slug)
-            ? 'text-violet-600 dark:text-violet-400'
-            : 'text-zinc-500'
-        }`}
-      >
-        {isManaging ? (
+    <div className="group/item flex items-center justify-between px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-dpurple-900 transition-colors relative gap-1" ref={iconPickerRef}>
+      {!isManaging ? (
+        <Link
+          href={`/dashboard?view=grouped&collection=${collection.slug}`}
+          onClick={() => onNavigate?.()}
+          className={`flex-1 flex items-center gap-3 text-sm font-medium truncate min-w-0 ${activeClass}`}
+        >
+          <IconComponent size={18} className={`flex-shrink-0 ${colorClass}`} />
+          <span className="truncate">{collection.name}</span>
+        </Link>
+      ) : (
+        <div className={`flex-1 flex items-center gap-2 text-sm font-medium min-w-0 ${activeClass}`}>
           <button
             ref={iconButtonRef}
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               e.preventDefault();
@@ -143,16 +188,57 @@ function CollectionItem({
               }
               setShowIconPicker(!showIconPicker);
             }}
-            className="p-1 hover:bg-zinc-200 dark:hover:bg-dpurple-800 rounded transition-colors"
+            className="p-1 hover:bg-zinc-200 dark:hover:bg-dpurple-800 rounded transition-colors flex-shrink-0"
             title="Change icon"
           >
             <IconComponent size={18} className={colorClass} />
           </button>
-        ) : (
-          <IconComponent size={18} className={colorClass} />
-        )}
-        <span className="truncate">{collection.name}</span>
-      </div>
+          {isRenaming ? (
+            <form
+              className="flex-1 flex items-center gap-1 min-w-0"
+              onSubmit={submitRename}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <input
+                autoFocus
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    e.stopPropagation();
+                    cancelRename();
+                  }
+                }}
+                disabled={renameSubmitting}
+                className="flex-1 min-w-0 bg-transparent border-b border-zinc-300 dark:border-dpurple-600 text-sm focus:outline-none focus:border-violet-500 text-zinc-900 dark:text-white"
+                aria-label="Collection name"
+              />
+              <button
+                type="submit"
+                disabled={renameSubmitting || !renameValue.trim()}
+                className="p-1 rounded text-green-600 hover:bg-green-50 dark:hover:bg-green-950/30 disabled:opacity-40"
+                title="Save name"
+              >
+                <Check size={14} />
+              </button>
+              <button
+                type="button"
+                disabled={renameSubmitting}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  cancelRename();
+                }}
+                className="p-1 rounded text-zinc-500 hover:bg-zinc-100 dark:hover:bg-dpurple-800"
+                title="Cancel"
+              >
+                <X size={14} />
+              </button>
+            </form>
+          ) : (
+            <span className="truncate flex-1 min-w-0">{collection.name}</span>
+          )}
+        </div>
+      )}
 
       {/* Icon Picker Popup - Using fixed positioning to avoid overflow */}
       {showIconPicker && isManaging && (
@@ -202,15 +288,32 @@ function CollectionItem({
         </>
       )}
 
-      {/* DELETE BUTTON (Visible in Manage Mode) */}
+      {/* Rename + delete (manage mode) */}
+      {isManaging && !isRenaming && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            setRenameValue(collection.name);
+            setIsRenaming(true);
+          }}
+          className="text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400 p-1 rounded transition-colors flex-shrink-0"
+          aria-label={`Rename ${collection.name}`}
+          title="Rename list"
+        >
+          <Pencil size={14} />
+        </button>
+      )}
       {isManaging && (
         <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation();
             e.preventDefault();
             onDelete(collection.id);
           }}
-          className="text-zinc-400 hover:text-red-500 p-1 rounded transition-colors"
+          className="text-zinc-400 hover:text-red-500 p-1 rounded transition-colors flex-shrink-0"
           aria-label={`Delete ${collection.name}`}
           title={`Delete ${collection.name}`}
         >
@@ -225,25 +328,22 @@ function CollectionItem({
 export function MobileHeader({ onMenuClick }: { onMenuClick: () => void }) {
   const { t } = useTranslation();
   return (
-    <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-beige-50 dark:bg-dpurple-950 border-b border-beige-200 dark:border-dpurple-700 px-4 py-3 flex items-center justify-between transition-colors">
+    <header className="md:hidden fixed top-0 left-0 right-0 z-[200] bg-beige-50 dark:bg-dpurple-950 border-b border-beige-200 dark:border-dpurple-700 px-4 py-3 flex items-center justify-between transition-colors">
       <Link href="/dashboard" className="flex items-center gap-2">
         <Image 
-          src="/logo.svg" 
+          src="/logo.png" 
           alt="Wist Logo" 
           width={32} 
           height={32}
           className="w-8 h-8 dark:hidden"
         />
         <Image 
-          src="/logo-dark.svg" 
+          src="/white_logo.png" 
           alt="Wist Logo" 
           width={32} 
           height={32}
           className="w-8 h-8 hidden dark:block"
         />
-        <span className="px-1.5 py-0.5 text-[9px] font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950 rounded-full border border-violet-200 dark:border-violet-800">
-          BETA
-        </span>
       </Link>
       <div className="flex items-center gap-1">
         <NotificationCenter compact />
@@ -462,6 +562,67 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
     }
   };
 
+  const handleRenameCollection = async (id: string, newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    const col = collections.find((c) => c.id === id);
+    if (!col || col.name === trimmed) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    let baseSlug = trimmed
+      .toLowerCase()
+      .replace(/ /g, '-')
+      .replace(/[^\w-]/g, '');
+    if (!baseSlug) baseSlug = 'list';
+
+    let slug = baseSlug;
+    let n = 0;
+    for (;;) {
+      const { data: row } = await supabase
+        .from('collections')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('slug', slug)
+        .neq('id', id)
+        .maybeSingle();
+      if (!row) break;
+      n += 1;
+      slug = `${baseSlug}-${n}`;
+    }
+
+    const { error } = await supabase
+      .from('collections')
+      .update({ name: trimmed, slug })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error renaming collection:', error);
+      alert('Failed to rename collection: ' + error.message);
+      throw error;
+    }
+
+    setCollections((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, name: trimmed, slug } : c))
+    );
+    router.refresh();
+
+    const currentCollection = searchParams?.get('collection');
+    if (currentCollection === col.slug) {
+      const params = new URLSearchParams(searchParams?.toString() || '');
+      params.set('collection', slug);
+      router.push(`/dashboard?${params.toString()}`);
+    }
+
+    if (pathname?.startsWith('/dashboard/collection/')) {
+      const pathSlug = pathname.split('/dashboard/collection/')[1]?.split('/')[0];
+      if (pathSlug === col.slug) {
+        router.push(`/dashboard/collection/${slug}`);
+      }
+    }
+  };
+
   // Sidebar content - shared between desktop and mobile
   const sidebarContent = (
     <>
@@ -517,9 +678,18 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
           <EyeOff size={18} />
           {t('Hidden')}
         </Link>
+        <Link 
+          href="/dashboard/subscription" 
+          className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+            pathname === '/dashboard/subscription'
+              ? 'bg-violet-50 dark:bg-violet-950 text-violet-600 dark:text-violet-400'
+              : 'text-zinc-500 dark:text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400'
+          }`}
+        >
+          <CreditCard size={18} />
+          {t('Subscription')}
+        </Link>
       </div>
-
-      <AdSlot variant="sidebar" tier={tier} />
 
       {/* Collections Header with Manage Button */}
       <div className="flex items-center justify-between mb-2 px-4 group">
@@ -559,7 +729,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
 
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 z-50">
+        <div className="md:hidden fixed inset-0 z-[300]">
           {/* Backdrop */}
           <div 
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -572,22 +742,19 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
             <div className="flex items-center justify-between px-4 py-4 border-b border-zinc-200 dark:border-dpurple-700">
               <Link href="/dashboard" className="flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
                 <Image 
-                  src="/logo.svg" 
+                  src="/logo.png" 
                   alt="Wist Logo" 
                   width={36} 
                   height={36}
                   className="w-9 h-9 dark:hidden"
                 />
                 <Image 
-                  src="/logo-dark.svg" 
+                  src="/white_logo.png" 
                   alt="Wist Logo" 
                   width={36} 
                   height={36}
                   className="w-9 h-9 hidden dark:block"
                 />
-                <span className="px-1.5 py-0.5 text-[9px] font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950 rounded-full border border-violet-200 dark:border-violet-800">
-                  BETA
-                </span>
               </Link>
               <button 
                 onClick={() => setMobileMenuOpen(false)}
@@ -749,19 +916,16 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
                 <p className="text-xs text-zinc-400 px-3 py-2">No collections yet</p>
               )}
               {collections.map((col) => (
-                <Link
+                <CollectionItem
                   key={col.id}
-                  href={`/dashboard?view=grouped&collection=${col.slug}`}
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <CollectionItem
-                    collection={col}
-                    pathname={pathname}
-                    isManaging={isManaging}
-                    onDelete={handleDelete}
-                    onIconChange={handleIconChange}
-                  />
-                </Link>
+                  collection={col}
+                  pathname={pathname}
+                  isManaging={isManaging}
+                  onDelete={handleDelete}
+                  onIconChange={handleIconChange}
+                  onRename={handleRenameCollection}
+                  onNavigate={() => setMobileMenuOpen(false)}
+                />
               ))}
             </div>
 
@@ -774,6 +938,14 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
                 <Upload size={18} />
                 {t('Import')}
               </button>
+              <Link 
+                href="/dashboard/subscription" 
+                className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-zinc-50 dark:hover:bg-dpurple-900 transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <CreditCard size={18} />
+                {t('Subscription')}
+              </Link>
               <Link 
                 href="/settings" 
                 className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-zinc-50 dark:hover:bg-dpurple-900 transition-colors"
@@ -795,25 +967,27 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
         <Link href="/dashboard" className="flex items-center gap-2 px-4 pt-4 pb-6 hover:opacity-80 transition-opacity border-b border-zinc-200 dark:border-dpurple-700">
           <div className="relative flex items-center">
             <Image 
-              src="/logo.svg" 
+              src="/logo.png" 
               alt="Wist Logo" 
               width={40} 
               height={40}
               className="w-10 h-10 dark:hidden"
             />
             <Image 
-              src="/logo-dark.svg" 
+              src="/white_logo.png" 
               alt="Wist Logo" 
               width={40} 
               height={40}
               className="w-10 h-10 hidden dark:block"
             />
-            <span className="ml-2 px-1.5 py-0.5 text-[10px] font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950 rounded-full border border-violet-200 dark:border-violet-800">
-              BETA
-            </span>
           </div>
         </Link>
         
+        {/* Add Item Form at top of sidebar */}
+        <div className="px-4 pt-3 pb-2">
+          <AddItemForm compact />
+        </div>
+
         {sidebarContent}
 
       {/* Inline Create Form with Buttons */}
@@ -971,6 +1145,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
             isManaging={isManaging}
             onDelete={handleDelete}
             onIconChange={handleIconChange}
+            onRename={handleRenameCollection}
           />
         ))}
       </div>

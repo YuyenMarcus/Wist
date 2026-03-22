@@ -43,10 +43,8 @@ app.post('/api/fetch-product', async (req: Request, res: Response) => {
     return res.status(200).json({ ok: true, data: cached, cached: true });
   }
 
-  // Rate limiting per domain
-  const clientId = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
-  const rateLimit = checkRateLimit(domain, String(clientId));
-
+  // Per-URL sliding window (NOT per server IP — Vercel would share one bucket for everyone)
+  const rateLimit = checkRateLimit(url);
   if (!rateLimit.allowed) {
     return res.status(429).json({
       error: 'Rate limit exceeded',
@@ -174,5 +172,7 @@ app.listen(PORT, () => {
   console.log(`Wist scraper listening on ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Cache TTL: ${process.env.CACHE_TTL_MS || '6 hours (default)'}`);
-  console.log(`Rate limit interval: ${process.env.DOMAIN_MIN_INTERVAL_MS || '5 seconds (default)'}`);
+  console.log(
+    `Rate limit: ${process.env.RATE_LIMIT_MAX_PER_WINDOW || 45} requests / ${(Number(process.env.RATE_LIMIT_WINDOW_MS) || 60000) / 1000}s per URL`
+  );
 });

@@ -7,6 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import PageTransition from '@/components/ui/PageTransition';
 import { Receipt, FileText, Plus, Trash2, Shield, BarChart3, Lock, PackageX, PackageCheck } from 'lucide-react';
+import { affiliateUrl } from '@/lib/amazon-affiliate';
 
 export default function ItemDetail() {
   const params = useParams(); 
@@ -19,12 +20,29 @@ export default function ItemDetail() {
   const [showReceiptForm, setShowReceiptForm] = useState(false);
   const [receiptForm, setReceiptForm] = useState({ title: '', purchase_date: '', warranty_expiry: '', receipt_url: '', notes: '' });
   const [savingReceipt, setSavingReceipt] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [amazonTag, setAmazonTag] = useState<string | null>(null);
+  /** Last time we successfully wrote a row to price_history (may differ from last_price_check when checks fail). */
+  const [lastSuccessfulTrackAt, setLastSuccessfulTrackAt] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchData() {
       if (!params || !params.id) return;
       
       const itemId = params.id as string;
+
+      const { data: { user } } = await supabase.auth.getUser();
+      let tier = 'free';
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('subscription_tier, amazon_affiliate_id')
+          .eq('id', user.id)
+          .single();
+        tier = profile?.subscription_tier || 'free';
+        setUserTier(tier);
+        setAmazonTag(profile?.amazon_affiliate_id || null);
+      }
 
       // 1. Get Item Details - try items table first, then products table
       let itemData = null;
@@ -67,85 +85,99 @@ export default function ItemDetail() {
 
       setItem(itemData);
 
-      // 2. Get Price History (LIMITED to last 100 entries or 90 days)
-      // Note: price_history table uses 'created_at' column, not 'recorded_at'
-      const { data: historyData, error: historyError } = await supabase
-        .from('price_history')
-        .select('price, created_at')
-        .eq('item_id', itemId)
-        .gte('created_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()) // Last 90 days only
-        .order('created_at', { ascending: true })
-        .limit(100); // Limit to 100 most recent entries
+      // 2. Get Price History — tier-aware range
+      const TIER_HISTORY: Record<string, { days: number; limit: number }> = {
+        free: { days: 30, limit: 50 },
+        pro: { days: 730, limit: 500 },
+        creator: { days: 730, limit: 500 },
+        enterprise: { days: 730, limit: 500 },
+      };
+      const histCfg = TIER_HISTORY[tier] || TIER_HISTORY.free;
+
+      const since = new Date(Date.now() - histCfg.days * 24 * 60 * 60 * 1000).toISOString();
+
+      const [
+        { data: historyData, error: historyError },
+        { data: lastEverRow },
+      ] = await Promise.all([
+        supabase
+          .from('price_history')
+          .select('price, recorded_at')
+          .eq('item_id', itemId)
+          .gte('recorded_at', since)
+          .order('recorded_at', { ascending: true })
+          .limit(histCfg.limit),
+        supabase
+          .from('price_history')
+          .select('price, recorded_at')
+          .eq('item_id', itemId)
+          .order('recorded_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
 
       if (historyError) {
         console.error("History Error:", historyError);
       }
 
-      // Format data
-      if (historyData && historyData.length > 0) {
-        const formattedHistory = historyData.map(entry => {
-          const dateObj = new Date(entry.created_at);
-          return {
-            price: Number(entry.price),
-            date: `${dateObj.getMonth() + 1}/${dateObj.getDate()}`, 
-            fullDate: dateObj.toLocaleDateString()
-          };
-        });
-        
-        // If only 1 point, add the current price as a second point so recharts draws a line
-        if (formattedHistory.length === 1) {
-          const currentP = parseFloat(itemData.current_price || itemData.price) || formattedHistory[0].price;
-          const now = new Date();
-          formattedHistory.push({
-            price: currentP,
-            date: `${now.getMonth() + 1}/${now.getDate()}`,
-            fullDate: now.toLocaleDateString()
-          });
-        }
-        
-        setHistory(formattedHistory);
-      } else {
-        // No history entries — build a baseline from item's current/added price
-        const rawPrice = itemData.current_price ?? itemData.price ?? null;
-        const price = rawPrice !== null ? parseFloat(String(rawPrice)) : NaN;
-        
-        if (!isNaN(price) && price > 0) {
-          const now = new Date();
-          const addedDate = itemData.created_at ? new Date(itemData.created_at) : new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          setHistory([
-            {
-              price,
-              date: `${addedDate.getMonth() + 1}/${addedDate.getDate()}`,
-              fullDate: addedDate.toLocaleDateString()
-            },
-            {
-              price,
-              date: `${now.getMonth() + 1}/${now.getDate()}`,
-              fullDate: now.toLocaleDateString()
-            }
-          ]);
+      setLastSuccessfulTrackAt(lastEverRow?.recorded_at ?? null);
+
+      // Build chart from real history rows only when checks are failing: we must NOT inject a fake
+      // "today" point from current_price — that made the chart look freshly checked while the
+      // status line said "Could not verify".
+      const curPrice = parseFloat(String(itemData.current_price ?? itemData.price ?? 0));
+      const now = new Date();
+      const ONE_HOUR = 3_600_000;
+      const checkFailures = itemData.price_check_failures ?? 0;
+      const trustDisplayedPrice = checkFailures === 0;
+
+      const lastHistTs = historyData?.length ? new Date(historyData[historyData.length - 1].recorded_at).getTime() : null;
+
+      const chartData: { timestamp: number; price: number; fullDate: string }[] = [];
+
+      if (historyData?.length) {
+        for (const entry of historyData) {
+          const d = new Date(entry.recorded_at);
+          chartData.push({ timestamp: d.getTime(), price: Number(entry.price), fullDate: d.toISOString() });
         }
       }
+
+      // If checks are failing and the tier window hid all history, still show the last known logged point
+      if (trustDisplayedPrice === false && chartData.length === 0 && lastEverRow?.recorded_at) {
+        const d = new Date(lastEverRow.recorded_at);
+        chartData.push({
+          timestamp: d.getTime(),
+          price: Number(lastEverRow.price),
+          fullDate: new Date(lastEverRow.recorded_at).toISOString(),
+        });
+      }
+
+      if (trustDisplayedPrice && curPrice > 0 && (!lastHistTs || now.getTime() - lastHistTs > ONE_HOUR)) {
+        chartData.push({ timestamp: now.getTime(), price: curPrice, fullDate: now.toISOString() });
+      }
+
+      if (trustDisplayedPrice && chartData.length === 0 && curPrice > 0) {
+        chartData.push(
+          { timestamp: now.getTime(), price: curPrice, fullDate: now.toISOString() },
+        );
+      }
+
+      if (trustDisplayedPrice && chartData.length === 1) {
+        const only = chartData[0];
+        chartData.push({ timestamp: now.getTime(), price: only.price, fullDate: now.toISOString() });
+      }
+
+      setHistory(chartData);
       
       setLoading(false);
     }
 
     fetchData();
-  }, [params, router]);
+  }, [params, router, refreshKey]);
 
   useEffect(() => {
     async function loadReceipts() {
       if (!params?.id) return;
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('subscription_tier')
-        .eq('id', user.id)
-        .single();
-      setUserTier(profile?.subscription_tier || 'free');
-
       const res = await fetch(`/api/receipts?item_id=${params.id}`);
       if (res.ok) {
         const json = await res.json();
@@ -200,6 +232,17 @@ export default function ItemDetail() {
   const cSym = '$';
   const cDec = 2;
 
+  const rangeDays = history.length > 1
+    ? (history[history.length - 1].timestamp - history[0].timestamp) / 86_400_000
+    : 0;
+
+  const formatXTick = (ts: number) => {
+    const d = new Date(ts);
+    if (rangeDays <= 30) return `${d.getMonth() + 1}/${d.getDate()}`;
+    if (rangeDays <= 365) return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+  };
+
   return (
     <PageTransition className="min-h-screen bg-gray-50 dark:bg-dpurple-950 p-8 transition-colors">
       <div className="mx-auto max-w-6xl">
@@ -231,7 +274,7 @@ export default function ItemDetail() {
                     )}
                   </div>
                   
-                  {/* Stock Status (Wist+ and above) */}
+                  {/* Stock Status (Pro and above) */}
                   {userTier !== 'free' && (
                     <div className="pt-2 border-t border-gray-100 dark:border-dpurple-700">
                       {item.out_of_stock ? (
@@ -248,30 +291,56 @@ export default function ItemDetail() {
                     </div>
                   )}
 
-                  {/* Last Checked Time */}
-                  <div className="pt-2 border-t border-gray-100">
-                    <p className="text-sm text-gray-600">
+                  {/* Last Checked Time — last_price_check is last *attempt*; failures mean that attempt did not refresh price */}
+                  <div className="pt-2 border-t border-gray-100 dark:border-dpurple-700 space-y-1.5">
+                    <p
+                      className={`text-sm ${
+                        (item.price_check_failures ?? 0) > 0
+                          ? 'text-amber-700 dark:text-amber-400'
+                          : 'text-gray-600 dark:text-zinc-400'
+                      }`}
+                    >
                       {item.last_price_check ? (
                         <>
-                          Last checked: {(() => {
+                          {(item.price_check_failures ?? 0) > 0
+                            ? 'Last check attempt · '
+                            : 'Last verified · '}
+                          {(() => {
                             const lastChecked = new Date(item.last_price_check);
                             const now = new Date();
                             const hoursAgo = Math.floor((now.getTime() - lastChecked.getTime()) / (1000 * 60 * 60));
-                            
-                            if (hoursAgo === 0) return 'Less than an hour ago';
-                            if (hoursAgo === 1) return '1 hour ago';
-                            return `${hoursAgo} hours ago`;
+                            if (hoursAgo < 1) return '< 1h ago';
+                            if (hoursAgo < 24) return `${hoursAgo}h ago`;
+                            return `${Math.floor(hoursAgo / 24)}d ago`;
                           })()}
                         </>
                       ) : (
                         'Not checked yet'
                       )}
                     </p>
+                    {(item.price_check_failures ?? 0) > 0 && (
+                      <p className="text-xs text-amber-800/90 dark:text-amber-300/90 leading-relaxed">
+                        Automated checks couldn&apos;t read the live price (site layout, bot blocking, or temporary errors).
+                        The large price is your last saved value in Wist — open the store to confirm.
+                        {lastSuccessfulTrackAt && (
+                          <>
+                            {' '}
+                            Last successful log in history:{' '}
+                            {new Date(lastSuccessfulTrackAt).toLocaleDateString(undefined, {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                            })}
+                            .
+                          </>
+                        )}
+                      </p>
+                    )}
                   </div>
                 </div>
 
                 <a 
-                  href={item.url} 
+                  href={affiliateUrl(item.url, amazonTag)} 
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-6 block w-full rounded-lg bg-violet-600 py-3 text-center font-bold text-white shadow-sm hover:bg-violet-700 transition-colors"
@@ -301,11 +370,15 @@ export default function ItemDetail() {
                           </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                        <XAxis 
-                          dataKey="date" 
-                          axisLine={false} 
-                          tickLine={false} 
-                          tick={{fill: '#6b7280', fontSize: 12}} 
+                        <XAxis
+                          dataKey="timestamp"
+                          type="number"
+                          scale="time"
+                          domain={['dataMin', 'dataMax']}
+                          tickFormatter={formatXTick}
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fill: '#6b7280', fontSize: 12 }}
                           dy={10}
                         />
                         <YAxis 
@@ -318,23 +391,31 @@ export default function ItemDetail() {
                         <Tooltip 
                           contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                           labelStyle={{ color: '#6b7280', marginBottom: '4px' }}
+                          labelFormatter={(ts: number) => new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                           formatter={(value: number | undefined) => value !== undefined ? [`${cSym}${value.toFixed(cDec)}`, 'Price'] : ['', '']}
                         />
                         <Area 
-                          type="monotone" 
+                          type="stepAfter" 
                           dataKey="price" 
                           stroke="#7c3aed" 
                           strokeWidth={3} 
                           fill="url(#priceGradient)"
-                          dot={{ r: 5, fill: '#7c3aed', strokeWidth: 0 }} 
+                          dot={{ r: 4, fill: '#7c3aed', strokeWidth: 0 }} 
                           activeDot={{ r: 6, fill: '#7c3aed' }} 
                           isAnimationActive={true}
                         />
                       </AreaChart>
                     </ResponsiveContainer>
-                    {history.length <= 2 && history[0]?.price === history[history.length - 1]?.price && (
+                    {history.length <= 2 &&
+                      history[0]?.price === history[history.length - 1]?.price &&
+                      (item.price_check_failures ?? 0) === 0 && (
                       <p className="text-xs text-gray-400 text-center mt-2">
                         Price tracking active — the chart will update as prices change
+                      </p>
+                    )}
+                    {(item.price_check_failures ?? 0) > 0 && history.length > 0 && (
+                      <p className="text-xs text-amber-700/90 dark:text-amber-400/90 text-center mt-2 max-w-md mx-auto">
+                        Chart points are from saved checks only. There is no &quot;today&quot; point while verification is failing.
                       </p>
                     )}
                   </div>
@@ -402,7 +483,7 @@ export default function ItemDetail() {
                   <Receipt className="w-4 h-4 text-violet-500" />
                   Receipts & Warranties
                 </h3>
-                {['pro_plus', 'creator', 'enterprise'].includes(userTier) && (
+                {['pro', 'creator', 'enterprise'].includes(userTier) && (
                   <button
                     onClick={() => setShowReceiptForm(!showReceiptForm)}
                     className="flex items-center gap-1 text-xs font-medium text-violet-600 hover:text-violet-700 transition-colors"
@@ -413,7 +494,7 @@ export default function ItemDetail() {
                 )}
               </div>
 
-              {!['pro_plus', 'creator', 'enterprise'].includes(userTier) ? (
+              {!['pro', 'creator', 'enterprise'].includes(userTier) ? (
                 <div className="text-center py-6 space-y-2">
                   <Shield className="w-8 h-8 text-gray-300 mx-auto" />
                   <p className="text-sm text-gray-500">Upgrade to <span className="font-semibold text-violet-600">Wist Pro</span> to track receipts and warranties</p>
@@ -539,11 +620,11 @@ export default function ItemDetail() {
                 Compare Prices
               </h3>
 
-              {!['pro', 'pro_plus', 'creator', 'enterprise'].includes(userTier) ? (
+              {!['pro', 'creator', 'enterprise'].includes(userTier) ? (
                 <div className="text-center py-6 space-y-2">
                   <Lock className="w-8 h-8 text-gray-300 mx-auto" />
                   <p className="text-sm text-gray-500">
-                    Upgrade to <span className="font-semibold text-violet-600">Wist+</span> to compare prices across retailers
+                    Upgrade to <span className="font-semibold text-violet-600">Wist Pro</span> to compare prices across retailers
                   </p>
                 </div>
               ) : (

@@ -25,6 +25,7 @@ export interface SupabaseProduct {
   price_change_percent?: number | null;
   previous_price?: number | null;
   last_price_check?: string | null;
+  price_check_failures?: number | null;
   // Currency fields
   original_currency?: string | null;
   // Stock status

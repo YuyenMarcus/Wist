@@ -128,7 +128,10 @@ export default function ImportModal({ isOpen, onClose, onComplete }: ImportModal
       })
 
       const json = await res.json()
-      if (!res.ok) throw new Error(json.error || 'Import failed')
+      if (!res.ok) {
+        const msg = json.hint ? `${json.error}. ${json.hint}` : (json.error || 'Import failed')
+        throw new Error(msg)
+      }
 
       setResult({
         total: json.total,
@@ -321,7 +324,7 @@ export default function ImportModal({ isOpen, onClose, onComplete }: ImportModal
             <>
               <div className="space-y-3">
                 <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                  {t('Paste a Google Sheets link. The sheet must be shared as "Anyone with the link can view".')}
+                  {t('Paste a Google Sheets link (edit, htmlview, or published-to-web URLs all work).')}
                 </p>
                 <input
                   type="url"

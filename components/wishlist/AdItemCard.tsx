@@ -38,13 +38,13 @@ const AD_CREATIVES = [
   },
   {
     id: 'upgrade-pro',
-    gradient: 'from-pink-500 to-rose-600',
+    gradient: 'from-violet-600 to-purple-700',
     icon: Crown,
     headline: 'Go unlimited',
     body: 'Unlimited items, daily price checks, receipt tracking, and more.',
     cta: 'See plans',
     href: '/#pricing',
-    accent: 'pink',
+    accent: 'violet',
   },
   {
     id: 'upgrade-features',

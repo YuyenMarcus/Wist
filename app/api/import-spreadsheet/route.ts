@@ -3,8 +3,9 @@ export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
-import { checkItemLimit } from '@/lib/tier-guards'
+import { checkItemLimitForApi } from '@/lib/tier-guards'
 import * as XLSX from 'xlsx'
+import * as cheerio from 'cheerio'
 
 function corsHeaders(origin: string | null) {
   return {
@@ -166,29 +167,92 @@ async function getAuthUser(request: Request) {
   return { user, supabaseClient }
 }
 
-// --- Google Sheets URL → CSV ---
+// --- Google Sheets URL → CSV / HTML ---
 
 function extractGoogleSheetsId(url: string): string | null {
-  const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/)
-  return match?.[1] || null
+  if (!url || typeof url !== 'string') return null
+  let u = url.trim()
+  try {
+    u = decodeURIComponent(u)
+  } catch {
+    // keep original if decode fails
+  }
+  // docs.google.com/spreadsheets/d/ID (edit, htmlview, pub, etc.)
+  let m = u.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/)
+  if (m) return m[1]
+  // docs.google.com/spreadsheet/ccc?key=ID (older format)
+  m = u.match(/[?&]key=([a-zA-Z0-9_-]+)/)
+  if (m) return m[1]
+  // drive.google.com/file/d/ID (when copied from Drive)
+  m = u.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/)
+  if (m) return m[1]
+  // bare ID (44 chars is typical)
+  m = u.match(/^([a-zA-Z0-9_-]{40,50})$/)
+  if (m) return m[1]
+  return null
+}
+
+function parseHtmlViewTables(html: string): string[][] {
+  const $ = cheerio.load(html)
+  const rows: string[][] = []
+  $('table tr').each((_, tr) => {
+    const row: string[] = []
+    $(tr).find('td, th').each((__, cell) => {
+      let text = $(cell).text().trim()
+      const colspan = parseInt($(cell).attr('colspan') || '1', 10)
+      for (let i = 1; i < colspan; i++) row.push('')
+      row.push(text)
+    })
+    if (row.length > 0) rows.push(row)
+  })
+  return rows
 }
 
 async function fetchGoogleSheetAsRows(url: string): Promise<string[][]> {
   const sheetId = extractGoogleSheetsId(url)
   if (!sheetId) throw new Error('Invalid Google Sheets URL')
 
-  // Extract gid if present
   const gidMatch = url.match(/[#&?]gid=(\d+)/)
   const gid = gidMatch?.[1] || '0'
 
+  // 1. Try CSV export (works when sheet is shared as "Anyone with link")
   const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`
-  const res = await fetch(csvUrl, { redirect: 'follow' })
-  if (!res.ok) throw new Error('Could not fetch Google Sheet. Make sure it is shared as "Anyone with the link can view".')
+  const csvRes = await fetch(csvUrl, {
+    redirect: 'follow',
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; WistImport/1.0)' },
+  })
 
-  const text = await res.text()
-  const wb = XLSX.read(text, { type: 'string' })
-  const ws = wb.Sheets[wb.SheetNames[0]]
-  return XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }) as string[][]
+  const text = await csvRes.text()
+  const looksLikeCsv = text.length > 0 && !text.toLowerCase().includes('sign in') && !text.trim().startsWith('<')
+  if (csvRes.ok && looksLikeCsv) {
+    const wb = XLSX.read(text, { type: 'string' })
+    const ws = wb.Sheets[wb.SheetNames[0]]
+    return XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }) as string[][]
+  }
+
+  // 2. Fallback: fetch HTML tables (works for "Published to web" / htmlview sheets)
+  // gviz/tq returns pure <table> HTML; htmlview/pub return full pages with embedded tables
+  const htmlUrls = [
+    `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:html&tq=&gid=${gid}`,
+    `https://docs.google.com/spreadsheets/d/${sheetId}/htmlview`,
+    `https://docs.google.com/spreadsheets/d/${sheetId}/pub?output=html&gid=${gid}`,
+  ]
+
+  for (const htmlUrl of htmlUrls) {
+    const htmlRes = await fetch(htmlUrl, {
+      redirect: 'follow',
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+    })
+    const html = await htmlRes.text()
+    if (htmlRes.ok && html.length > 500 && !html.toLowerCase().includes('sign in')) {
+      const rows = parseHtmlViewTables(html)
+      if (rows.length >= 2) return rows
+    }
+  }
+
+  throw new Error(
+    'Could not fetch Google Sheet. Try: (1) Share the sheet as "Anyone with the link can view", or (2) Use File → Share → Publish to web.'
+  )
 }
 
 // --- Main handler ---
@@ -207,13 +271,37 @@ export async function POST(request: Request) {
     let sourceLabel = 'spreadsheet'
 
     if (contentType.includes('application/json')) {
-      // Google Sheets URL
-      const body = await request.json()
-      const sheetsUrl = body.url as string
-      if (!sheetsUrl || !extractGoogleSheetsId(sheetsUrl)) {
-        return NextResponse.json({ error: 'Invalid Google Sheets URL' }, { status: 400, headers: corsHeaders(origin) })
+      const body = await request.json().catch(() => ({}))
+      const sheetsUrl = String(
+        body?.url ?? body?.link ?? body?.sheetUrl ?? body?.data?.url ?? body?.data?.link ?? ''
+      ).trim()
+      let sheetId = extractGoogleSheetsId(sheetsUrl)
+      if (!sheetId && /^[a-zA-Z0-9_-]{40,}$/.test(sheetsUrl)) {
+        sheetId = sheetsUrl // bare ID pasted
       }
-      rows = await fetchGoogleSheetAsRows(sheetsUrl)
+      if (!sheetId) {
+        return NextResponse.json({
+          error: 'Invalid Google Sheets URL',
+          hint: 'Paste a full link: docs.google.com/spreadsheets/d/... or drive.google.com/file/d/...',
+        }, { status: 400, headers: corsHeaders(origin) })
+      }
+      const fetchUrl = sheetId && (sheetsUrl.includes('docs.google.com') || sheetsUrl.includes('drive.google.com'))
+        ? sheetsUrl
+        : `https://docs.google.com/spreadsheets/d/${sheetId}/htmlview`
+      rows = await fetchGoogleSheetAsRows(fetchUrl)
+      sourceLabel = 'Google Sheets'
+    } else if (contentType.includes('application/x-www-form-urlencoded')) {
+      const text = await request.text()
+      const params = new URLSearchParams(text)
+      const sheetsUrl = String(params.get('url') ?? params.get('link') ?? '').trim()
+      const sheetId = extractGoogleSheetsId(sheetsUrl)
+      if (!sheetId) {
+        return NextResponse.json({
+          error: 'Invalid Google Sheets URL',
+          hint: 'Paste a full link: docs.google.com/spreadsheets/d/...',
+        }, { status: 400, headers: corsHeaders(origin) })
+      }
+      rows = await fetchGoogleSheetAsRows(sheetsUrl || `https://docs.google.com/spreadsheets/d/${sheetId}/htmlview`)
       sourceLabel = 'Google Sheets'
     } else if (contentType.includes('multipart/form-data')) {
       // File upload (Excel or CSV)
@@ -230,7 +318,27 @@ export async function POST(request: Request) {
       rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }) as string[][]
       sourceLabel = file.name.endsWith('.csv') ? 'CSV' : 'Excel'
     } else {
-      return NextResponse.json({ error: 'Unsupported content type' }, { status: 400, headers: corsHeaders(origin) })
+      const text = await request.text()
+      const looksLikeJson = text.trim().startsWith('{')
+      if (looksLikeJson) {
+        try {
+          const body = JSON.parse(text)
+          const sheetsUrl = String(body?.url ?? body?.link ?? body?.sheetUrl ?? '').trim()
+          const sheetId = extractGoogleSheetsId(sheetsUrl) || (/^[a-zA-Z0-9_-]{40,}$/.test(sheetsUrl) ? sheetsUrl : null)
+          if (sheetId) {
+            const fetchUrl = sheetsUrl && (sheetsUrl.includes('docs.google.com') || sheetsUrl.includes('drive.google.com'))
+              ? sheetsUrl
+              : `https://docs.google.com/spreadsheets/d/${sheetId}/htmlview`
+            rows = await fetchGoogleSheetAsRows(fetchUrl)
+            sourceLabel = 'Google Sheets'
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+      if (rows.length === 0) {
+        return NextResponse.json({ error: 'Unsupported content type. Send JSON with { url: "..." }.' }, { status: 400, headers: corsHeaders(origin) })
+      }
     }
 
     if (rows.length < 2) {
@@ -288,7 +396,7 @@ export async function POST(request: Request) {
 
       try {
         // Check item limit
-        const limitCheck = await checkItemLimit(supabaseClient, user.id)
+        const limitCheck = await checkItemLimitForApi(user.id, supabaseClient)
         if (!limitCheck.allowed) {
           errors.push(`Row ${i + 2}: Item limit reached (${limitCheck.limit}). Upgrade for more.`)
           failed += dataRows.length - i - skipped

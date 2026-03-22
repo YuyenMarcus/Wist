@@ -11,6 +11,7 @@ const filesToInclude = [
   'popup.js',
   'styles.css',
   'lordicon-animation.json',
+  'vendor/',
   'icons/'
 ];
 
@@ -88,6 +89,25 @@ try {
   console.log(`\n✅ Successfully created: ${zipName}`);
   console.log(`\n📤 Ready to upload to Chrome Web Store:`);
   console.log(`   ${zipPath}\n`);
+
+  // Website download (app/extension + dashboard link to /wist-extension-download.zip)
+  const downloadFolder = path.join(__dirname, '..', 'wist-extension-download');
+  const publicZip = path.join(__dirname, '..', 'public', 'wist-extension-download.zip');
+  if (fs.existsSync(downloadFolder)) {
+    if (fs.existsSync(publicZip)) fs.unlinkSync(publicZip);
+    if (process.platform === 'win32') {
+      execSync(
+        `powershell -Command "Compress-Archive -Path '${downloadFolder}' -DestinationPath '${publicZip}' -Force"`,
+        { stdio: 'inherit' }
+      );
+    } else {
+      execSync(
+        `cd "${path.join(__dirname, '..')}" && zip -r "${publicZip}" wist-extension-download -x "*.DS_Store" -x "*__MACOSX*"`,
+        { stdio: 'inherit' }
+      );
+    }
+    console.log(`✅ Updated website download: public/wist-extension-download.zip\n`);
+  }
   
   // Clean up temp directory
   fs.rmSync(tempDir, { recursive: true, force: true });

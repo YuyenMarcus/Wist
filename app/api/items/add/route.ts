@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-import { checkItemLimit } from '@/lib/tier-guards';
+import { checkItemLimitForApi } from '@/lib/tier-guards';
 import { convertPrice } from '@/lib/currency';
 
 // HELPER: Dynamic CORS Headers
@@ -133,8 +133,8 @@ export async function POST(req: Request) {
       wishlistId = wishlists[0].id;
     }
 
-    // 7b. Check item limit
-    const limitCheck = await checkItemLimit(supabase, user.id);
+    // 7b. Check item limit (use service role so subscription_tier is read correctly)
+    const limitCheck = await checkItemLimitForApi(user.id, supabase);
     if (!limitCheck.allowed) {
       return NextResponse.json(
         { error: 'Item limit reached', limit: limitCheck.limit, current: limitCheck.current, upgrade: true },

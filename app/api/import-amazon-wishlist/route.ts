@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
-import { checkItemLimit } from '@/lib/tier-guards'
+import { checkItemLimitForApi } from '@/lib/tier-guards'
 
 function corsHeaders(origin: string | null) {
   return {
@@ -242,7 +242,7 @@ export async function POST(request: Request) {
 
     for (const item of amazonItems) {
       try {
-        const limitCheck = await checkItemLimit(supabaseClient, user.id)
+        const limitCheck = await checkItemLimitForApi(user.id, supabaseClient)
         if (!limitCheck.allowed) {
           errors.push(`Item limit reached (${limitCheck.limit}). Upgrade for more.`)
           failed += amazonItems.length - imported - failed

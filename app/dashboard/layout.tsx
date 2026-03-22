@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import Sidebar from '@/components/dashboard/Sidebar';
-import { redirect } from 'next/navigation';
+import DashboardChrome from '@/components/dashboard/DashboardChrome';
 
 // 🛑 FORCE DYNAMIC: This fixes the "Disappearing List" bug
 export const dynamic = 'force-dynamic';
@@ -59,14 +58,8 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-beige-50 dark:bg-dpurple-950 transition-colors">
-      {/* Sidebar - Includes mobile header and slide-out menu */}
-      <Sidebar initialCollections={collections} tier={userTier} />
-      
-      {/* Main Content Area - Add top padding on mobile for fixed header */}
-      <main className="flex-1 w-full pt-14 md:pt-0">
-        {children}
-      </main>
-    </div>
+    <DashboardChrome initialCollections={collections} tier={userTier}>
+      {children}
+    </DashboardChrome>
   );
 }

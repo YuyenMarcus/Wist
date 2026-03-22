@@ -1,9 +1,58 @@
-const GRAPH_API_BASE = 'https://graph.instagram.com/v21.0';
+const GRAPH_API_BASE = 'https://graph.facebook.com/v21.0';
 
 function getAccessToken(): string {
   const token = process.env.INSTAGRAM_ACCESS_TOKEN;
   if (!token) throw new Error('INSTAGRAM_ACCESS_TOKEN not configured');
   return token;
+}
+
+/** User Profile / follow check: Meta docs prefer Page access token; fall back to IG token. */
+function getTokenForUserProfile(): string | null {
+  return (
+    process.env.PAGE_ACCESS_TOKEN?.trim() ||
+    process.env.INSTAGRAM_ACCESS_TOKEN?.trim() ||
+    null
+  );
+}
+
+export type InstagramFollowStatus = 'follows' | 'not_following' | 'unknown';
+
+/**
+ * Whether this DM sender follows your Instagram business (Meta User Profile API).
+ * Requires instagram_manage_messages + related Page permissions; see Meta docs.
+ */
+export async function getInstagramDmUserFollowStatus(igsid: string): Promise<InstagramFollowStatus> {
+  const token = getTokenForUserProfile();
+  if (!token) {
+    console.warn('[Instagram] No PAGE_ACCESS_TOKEN / INSTAGRAM_ACCESS_TOKEN for follow check');
+    return 'unknown';
+  }
+  try {
+    const url = `${GRAPH_API_BASE}/${encodeURIComponent(igsid)}?fields=is_user_follow_business&access_token=${encodeURIComponent(token)}`;
+    const res = await fetch(url);
+    const raw = await res.text();
+    if (!res.ok) {
+      console.warn(`[Instagram] follow check HTTP ${res.status}:`, raw.slice(0, 280));
+      return 'unknown';
+    }
+    const data = JSON.parse(raw) as { is_user_follow_business?: boolean };
+    if (typeof data.is_user_follow_business === 'boolean') {
+      return data.is_user_follow_business ? 'follows' : 'not_following';
+    }
+    return 'unknown';
+  } catch (err) {
+    console.warn('[Instagram] follow check error:', err);
+    return 'unknown';
+  }
+}
+
+/** @ handle shown in DMs when asking users to follow (no @ prefix in env). */
+export function getInstagramBusinessHandleForCopy(): string {
+  const h =
+    process.env.INSTAGRAM_BUSINESS_USERNAME?.trim() ||
+    process.env.NEXT_PUBLIC_INSTAGRAM_USERNAME?.trim() ||
+    '';
+  return h.replace(/^@/, '');
 }
 
 /**
@@ -12,13 +61,14 @@ function getAccessToken(): string {
 export async function getUsername(igsid: string): Promise<string | null> {
   try {
     const res = await fetch(
-      `${GRAPH_API_BASE}/${igsid}?fields=username&access_token=${getAccessToken()}`
+      `${GRAPH_API_BASE}/${igsid}?fields=name,username&access_token=${getAccessToken()}`
     );
+    const raw = await res.text();
     if (!res.ok) {
-      console.error(`[Instagram] Failed to resolve IGSID ${igsid}:`, res.status);
+      console.error(`[Instagram] getUsername failed (${res.status}) for IGSID ${igsid}:`, raw);
       return null;
     }
-    const data = await res.json();
+    const data = JSON.parse(raw);
     return data.username || null;
   } catch (err) {
     console.error('[Instagram] getUsername error:', err);
@@ -28,16 +78,18 @@ export async function getUsername(igsid: string): Promise<string | null> {
 
 /**
  * Send a DM reply to an Instagram user via the Send API.
+ * Token in URL per Meta's recommended format.
  */
 export async function sendReply(recipientId: string, text: string): Promise<boolean> {
+  const token = getAccessToken();
   try {
-    const res = await fetch(`${GRAPH_API_BASE}/me/messages`, {
+    const url = `${GRAPH_API_BASE}/me/messages?access_token=${encodeURIComponent(token)}`;
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         recipient: { id: recipientId },
         message: { text },
-        access_token: getAccessToken(),
       }),
     });
     if (!res.ok) {

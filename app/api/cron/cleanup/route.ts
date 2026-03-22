@@ -42,8 +42,8 @@ export async function GET(request: Request) {
 
     // ============================================
     // 1. Tier-Aware Price History Cleanup
-    //    free/pro: keep 90 days
-    //    pro_plus/creator/enterprise: keep 730 days (2 years)
+    //    free: keep 90 days
+    //    pro/creator/enterprise: keep 730 days (2 years)
     // ============================================
     console.log('\n📊 Cleaning old price history (tier-aware retention)...');
 
@@ -51,11 +51,11 @@ export async function GET(request: Request) {
       .from('price_history')
       .select('*', { count: 'exact', head: true });
 
-    // Find item IDs owned by premium users (pro_plus+) who get 2-year retention
+    // Find item IDs owned by premium users (pro+) who get 2-year retention
     const { data: premiumItems } = await supabase
       .from('items')
       .select('id, user_id, profiles!inner(subscription_tier)')
-      .in('profiles.subscription_tier', ['pro_plus', 'creator', 'enterprise']);
+      .in('profiles.subscription_tier', ['pro', 'creator', 'enterprise']);
 
     const premiumItemIds = (premiumItems || []).map((i: any) => i.id);
 

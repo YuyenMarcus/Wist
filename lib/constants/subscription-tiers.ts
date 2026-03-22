@@ -1,16 +1,16 @@
-export type SubscriptionTier = 'free' | 'pro' | 'pro_plus' | 'creator' | 'enterprise';
+export type SubscriptionTier = 'free' | 'pro' | 'creator' | 'enterprise';
 
 export interface TierConfig {
   key: SubscriptionTier;
   name: string;
   displayName: string;
-  price: number | null; // null = custom pricing
+  price: number | null;
   priceLabel: string;
-  itemLimit: number | null; // null = unlimited
-  collectionLimit: number | null; // null = unlimited
+  itemLimit: number | null;
+  collectionLimit: number | null;
   frequency: 'weekly' | 'daily' | 'instant';
   intervalMs: number;
-  badgeColor: string; // tailwind color prefix
+  badgeColor: string;
   features: string[];
 }
 
@@ -21,77 +21,62 @@ export const TIERS: Record<SubscriptionTier, TierConfig> = {
     displayName: 'Wist Free',
     price: 0,
     priceLabel: '$0',
-    itemLimit: 20,
-    collectionLimit: 5,
+    itemLimit: 100,
+    collectionLimit: 10,
     frequency: 'weekly',
     intervalMs: 7 * 24 * 60 * 60 * 1000,
     badgeColor: 'zinc',
     features: [
-      '20 items in dashboard',
-      '5 collections',
+      '100 items in dashboard',
+      '10 collections',
       'Weekly price checks',
-      'Basic dashboard',
+      'Price drop notifications (weekly)',
+      'Browser extension',
+      'Price history graph',
+      'Share your wishlist',
     ],
   },
   pro: {
     key: 'pro',
     name: 'Pro',
-    displayName: 'Wist+',
-    price: 5,
-    priceLabel: '$5/mo',
-    itemLimit: 45,
-    collectionLimit: null,
-    frequency: 'daily',
-    intervalMs: 24 * 60 * 60 * 1000,
-    badgeColor: 'blue',
-    features: [
-      '45 items in dashboard',
-      'Daily price notifications',
-      'Back-in-stock detection & alerts',
-      'No ads',
-      'Similar products price comparison',
-    ],
-  },
-  pro_plus: {
-    key: 'pro_plus',
-    name: 'Pro+',
     displayName: 'Wist Pro',
-    price: 10,
-    priceLabel: '$10/mo',
+    price: 8,
+    priceLabel: '$8/mo',
     itemLimit: null,
     collectionLimit: null,
     frequency: 'daily',
     intervalMs: 24 * 60 * 60 * 1000,
     badgeColor: 'violet',
     features: [
-      'Unlimited items',
+      'Unlimited items & collections',
       'Daily price checks',
-      'Everything in Wist+',
-      'Receipt & warranty tracking',
-      '2-year pricing history',
+      'Back-in-stock alerts by variant',
+      'Similar product comparison',
+      'Smart auto-categorization',
+      '2-year price history',
       'Gifting service',
-      'External wishlist syncs (Amazon, spreadsheets)',
-      'Pro+ badge on profile',
+      'Amazon & spreadsheet sync',
+      'Multi-currency support',
     ],
   },
   creator: {
     key: 'creator',
     name: 'Creator',
     displayName: 'Wist Creator',
-    price: 30,
-    priceLabel: '$30/mo',
+    price: 15,
+    priceLabel: '$15/mo',
     itemLimit: null,
     collectionLimit: null,
     frequency: 'instant',
     intervalMs: 0,
     badgeColor: 'amber',
     features: [
-      'Everything in Wist Pro',
-      'Instant price notifications',
-      'Boosted audience reach',
+      'Everything in Pro',
+      '6-hour price checks',
+      'Profile customization',
       'Community analytics',
-      'Profile customization (background, typography, colors)',
       'Creator badge on profile',
+      'Priority support',
     ],
   },
   enterprise: {
@@ -106,7 +91,7 @@ export const TIERS: Record<SubscriptionTier, TierConfig> = {
     intervalMs: 0,
     badgeColor: 'emerald',
     features: [
-      'Everything in Wist Creator',
+      'Everything in Creator',
       'Dedicated support',
       'API access',
       'Team/org wishlists',
@@ -116,9 +101,8 @@ export const TIERS: Record<SubscriptionTier, TierConfig> = {
   },
 } as const;
 
-export const TIER_ORDER: SubscriptionTier[] = ['free', 'pro', 'pro_plus', 'creator', 'enterprise'];
+export const TIER_ORDER: SubscriptionTier[] = ['free', 'pro', 'creator', 'enterprise'];
 
-// Backward-compatible aliases
 export const NOTIFICATION_TIERS = TIERS;
 
 export function canSendNotification(
@@ -149,11 +133,11 @@ export function getNextNotificationTime(
 }
 
 export function getItemLimit(tier: SubscriptionTier): number | null {
-  return TIERS[tier].itemLimit;
+  return TIERS[tier]?.itemLimit ?? TIERS.free.itemLimit;
 }
 
 export function getCollectionLimit(tier: SubscriptionTier): number | null {
-  return TIERS[tier].collectionLimit;
+  return TIERS[tier]?.collectionLimit ?? TIERS.free.collectionLimit;
 }
 
 export function getTierDisplayName(tier: SubscriptionTier): string {

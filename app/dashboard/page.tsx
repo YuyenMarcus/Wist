@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState, useMemo } from 'react'
+import React, { useEffect, useState, useMemo, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import ProfileHeader from '@/components/dashboard/ProfileHeader'
@@ -12,14 +12,60 @@ import { getProfile, ensureProfile, Profile } from '@/lib/supabase/profile'
 import LavenderLoader from '@/components/ui/LavenderLoader'
 import SkeletonDashboard from '@/components/ui/SkeletonDashboard'
 import OnboardingFlow from '@/components/onboarding/OnboardingFlow'
-import AdSlot from '@/components/ui/AdSlot'
-import AdItemCard from '@/components/wishlist/AdItemCard'
-import { Layers, LayoutGrid, Sparkles, Loader2, Clock } from 'lucide-react'
+import { Layers, LayoutGrid, Sparkles, Loader2, Clock, Plus, X, Pin } from 'lucide-react'
 import Link from 'next/link'
 import QueuedItemCard from '@/components/dashboard/QueuedItemCard'
 import ImportModal from '@/components/dashboard/ImportModal'
+import AddItemForm from '@/components/dashboard/AddItemForm'
 import PageTransition from '@/components/ui/PageTransition'
 import { useTranslation } from '@/lib/i18n/context'
+import { updateProfile } from '@/lib/supabase/profile'
+
+function getColCount(w: number) {
+  if (w < 640) return 2
+  if (w < 1024) return 2
+  if (w < 1280) return 3
+  return 4
+}
+
+function RoundRobinGrid({ items, renderItem }: { items: any[]; renderItem: (item: any, index: number) => React.ReactNode }) {
+  const [colCount, setColCount] = useState(() => {
+    if (typeof window === 'undefined') return 4
+    return getColCount(window.innerWidth)
+  })
+
+  useEffect(() => {
+    const onResize = () => setColCount(getColCount(window.innerWidth))
+    onResize()
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  const columns = useMemo(() => {
+    if (!items || items.length === 0) return []
+    const cols: any[][] = Array.from({ length: colCount }, () => [])
+    items.forEach((item, i) => {
+      cols[i % colCount].push({ item, index: i })
+    })
+    return cols
+  }, [items, colCount])
+
+  if (!items || items.length === 0) return null
+
+  return (
+    <div className="flex gap-3 sm:gap-6">
+      {columns.map((col, colIdx) => (
+        <div key={colIdx} className="flex-1 space-y-3 sm:space-y-6">
+          {col.map(({ item, index }) => (
+            <div key={item.id}>
+              {renderItem(item, index)}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -34,6 +80,7 @@ export default function DashboardPage() {
   const [autoOrganizing, setAutoOrganizing] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [showImportFromGrid, setShowImportFromGrid] = useState(false)
+  const [showMobileAddForm, setShowMobileAddForm] = useState(false)
   const [autoOrganizeStats, setAutoOrganizeStats] = useState<{
     canAutoCategorize: number;
     uncategorized: number;
@@ -236,15 +283,39 @@ export default function DashboardPage() {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [user])
 
-  // Auto-scrape queued items when extension is available AND auto-activate is on
+  // On-demand price check for paid users. Fires once per session when the
+  // dashboard loads so Creator/Pro users get their tier-appropriate check
+  // frequency even though the Vercel cron only runs once daily.
+  useEffect(() => {
+    const tier = profile?.subscription_tier
+    if (!tier || tier === 'free') return
+    const key = 'wist_user_price_check_ts'
+    const last = Number(sessionStorage.getItem(key) || '0')
+    const cooldownMs = (tier === 'creator' || tier === 'enterprise') ? 6 * 3600_000 : 12 * 3600_000
+    if (Date.now() - last < cooldownMs) return
+    sessionStorage.setItem(key, String(Date.now()))
+    fetch('/api/cron/check-prices-user', { method: 'POST' }).catch(() => {})
+  }, [profile?.subscription_tier])
+
+  // Auto-scrape queued items when extension is available AND auto-activate is on.
+  // The extension injects data-wist-installed asynchronously, so we poll for it
+  // rather than doing a single synchronous check that loses the race on page load.
   const autoActivateEnabled = profile?.auto_activate_queued ?? true
+  const [extensionReady, setExtensionReady] = useState(false)
+
+  useEffect(() => {
+    if (extensionReady) return
+    const check = () => document.documentElement.getAttribute('data-wist-installed') === 'true'
+    if (check()) { setExtensionReady(true); return }
+    const iv = setInterval(() => { if (check()) { setExtensionReady(true); clearInterval(iv) } }, 400)
+    const stop = setTimeout(() => clearInterval(iv), 6000)
+    return () => { clearInterval(iv); clearTimeout(stop) }
+  }, [extensionReady])
 
   useEffect(() => {
     if (queuedItems.length === 0) return
     if (!autoActivateEnabled) return
-
-    const extensionInstalled = document.documentElement.getAttribute('data-wist-installed') === 'true'
-    if (!extensionInstalled) return
+    if (!extensionReady) return
 
     let cancelled = false
 
@@ -309,12 +380,12 @@ export default function DashboardPage() {
       }
     }
 
-    const timer = setTimeout(autoScrapeQueue, 2000)
+    const timer = setTimeout(autoScrapeQueue, 1000)
     return () => {
       cancelled = true
       clearTimeout(timer)
     }
-  }, [queuedItems.length > 0 ? 'has-items' : 'no-items', autoActivateEnabled])
+  }, [queuedItems.length > 0 ? 'has-items' : 'no-items', autoActivateEnabled, extensionReady])
 
   const handleHide = (productId: string) => {
     setProducts(prev => prev.filter(p => p.id !== productId))
@@ -504,7 +575,6 @@ export default function DashboardPage() {
   }
 
   const adultFilterEnabled = profile?.adult_content_filter ?? true
-  const showGroupedAds = !profile?.subscription_tier || profile.subscription_tier === 'free'
 
   const handleQueuedUpdate = (id: string, updatedItem: any) => {
     setQueuedItems(prev => prev.filter(q => q.id !== id))
@@ -525,6 +595,20 @@ export default function DashboardPage() {
     }
   }
 
+  const handlePinItem = async (itemId: string) => {
+    if (!user) return
+    const newPinnedId = (profile as any)?.pinned_item_id === itemId ? null : itemId
+    try {
+      const { data } = await updateProfile(user.id, { pinned_item_id: newPinnedId })
+      if (data) setProfile(data)
+    } catch (err) {
+      console.error('Error pinning item:', err)
+    }
+  }
+
+  const pinnedItemId = (profile as any)?.pinned_item_id || null
+  const pinnedItem = pinnedItemId ? products.find(p => p.id === pinnedItemId) : null
+
   return (
     <PageTransition className="min-h-screen bg-beige-50 dark:bg-dpurple-950 pb-32 transition-colors">
 
@@ -536,19 +620,52 @@ export default function DashboardPage() {
       {/* Extension Banner - High Visibility */}
       <ExtensionBanner />
 
-      {/* The Profile Header contains the Add Form */}
+      {/* Profile Header */}
       <ProfileHeader 
         user={user} 
         profile={profile}
         itemCount={products.length}
+        totalValue={products.reduce((sum, p: any) => sum + (parseFloat(p.current_price || p.price) || 0), 0)}
         onRefreshPrices={handleRefreshPrices}
         refreshing={refreshing}
       />
 
-      <AdSlot variant="banner" tier={profile?.subscription_tier} />
+
+      {/* Pinned "Most Wanted" Item */}
+      {pinnedItem && (
+        <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto mb-6">
+          <div className="flex items-center gap-2 mb-2">
+            <Pin className="w-3.5 h-3.5 text-amber-500" />
+            <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Most Wanted</span>
+          </div>
+          <Link href={`/dashboard/item/${pinnedItem.id}`} className="block">
+            <div className="flex items-center gap-4 p-3 sm:p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 border border-amber-200 dark:border-amber-800/40 rounded-xl hover:shadow-md transition-all">
+              {(pinnedItem as any).image || (pinnedItem as any).image_url ? (
+                <img
+                  src={(pinnedItem as any).image || (pinnedItem as any).image_url}
+                  alt={pinnedItem.title || ''}
+                  className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg object-cover border border-amber-200 dark:border-amber-800/40"
+                />
+              ) : (
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                  <span className="text-lg font-bold text-amber-400">{(pinnedItem.title || '?')[0]}</span>
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm sm:text-base font-semibold text-zinc-900 dark:text-zinc-100 truncate">{pinnedItem.title}</h3>
+                {(pinnedItem as any).current_price && (
+                  <p className="text-xs sm:text-sm font-bold text-amber-600 dark:text-amber-400 mt-0.5">
+                    ${parseFloat((pinnedItem as any).current_price).toFixed(2)}
+                  </p>
+                )}
+              </div>
+            </div>
+          </Link>
+        </div>
+      )}
 
       {/* The Content Grid */}
-      <main className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      <main className="relative z-0 isolate px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
         {/* Queued Items Banner */}
         {queuedItems.length > 0 && (
           <div className="mb-8">
@@ -570,6 +687,7 @@ export default function DashboardPage() {
                   item={item}
                   onUpdate={handleQueuedUpdate}
                   onDelete={handleQueuedDelete}
+                  amazonTag={profile?.amazon_affiliate_id}
                 />
               ))}
             </div>
@@ -584,9 +702,12 @@ export default function DashboardPage() {
             onDelete={handleDelete}
             onUpdate={handleUpdate}
             onHide={handleHide}
+            onPinItem={handlePinItem}
+            pinnedItemId={pinnedItemId}
             userCollections={collections}
             adultFilterEnabled={adultFilterEnabled}
             tier={profile?.subscription_tier}
+            amazonTag={profile?.amazon_affiliate_id}
             onImport={() => setShowImportFromGrid(true)}
           />
         )}
@@ -639,25 +760,20 @@ export default function DashboardPage() {
                     {products.length}
                   </span>
                 </h2>
-                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
-                  {showGroupedAds && <AdItemCard index={0} slotIndex={0} />}
-                  {products.map((item: any, i: number) => (
-                    <React.Fragment key={item.id}>
-                      <ProductCard 
-                        item={item}
-                        index={i}
-                        userCollections={collections} 
-                        onDelete={handleDelete}
-                        onHide={handleHide}
-                        adultFilterEnabled={adultFilterEnabled}
-                        tier={profile?.subscription_tier}
-                      />
-                      {showGroupedAds && (i + 1) % 5 === 0 && (
-                        <AdItemCard index={i} slotIndex={Math.floor(i / 5) + 1} />
-                      )}
-                    </React.Fragment>
-                  ))}
-                </div>
+                <RoundRobinGrid items={products} renderItem={(item: any, i: number) => (
+                  <ProductCard 
+                    item={item}
+                    index={i}
+                    userCollections={collections} 
+                    onDelete={handleDelete}
+                    onHide={handleHide}
+                    onPinItem={handlePinItem}
+                    pinnedItemId={pinnedItemId}
+                    adultFilterEnabled={adultFilterEnabled}
+                    tier={profile?.subscription_tier}
+                    amazonTag={profile?.amazon_affiliate_id}
+                  />
+                )} />
               </section>
             )}
 
@@ -668,25 +784,20 @@ export default function DashboardPage() {
                   <span className="w-2 h-2 rounded-full bg-zinc-300 dark:bg-dpurple-500"></span>
                   {t('Uncategorized')}
                 </h2>
-                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
-                  {showGroupedAds && <AdItemCard index={0} slotIndex={10} />}
-                  {uncategorizedItems.map((item: any, i: number) => (
-                    <React.Fragment key={item.id}>
-                      <ProductCard 
-                        item={item}
-                        index={i}
-                        userCollections={collections} 
-                        onDelete={handleDelete}
-                        onHide={handleHide}
-                        adultFilterEnabled={adultFilterEnabled}
-                        tier={profile?.subscription_tier}
-                      />
-                      {showGroupedAds && (i + 1) % 5 === 0 && (
-                        <AdItemCard index={i} slotIndex={Math.floor(i / 5) + 11} />
-                      )}
-                    </React.Fragment>
-                  ))}
-                </div>
+                <RoundRobinGrid items={uncategorizedItems} renderItem={(item: any, i: number) => (
+                  <ProductCard 
+                    item={item}
+                    index={i}
+                    userCollections={collections} 
+                    onDelete={handleDelete}
+                    onHide={handleHide}
+                    onPinItem={handlePinItem}
+                    pinnedItemId={pinnedItemId}
+                    adultFilterEnabled={adultFilterEnabled}
+                    tier={profile?.subscription_tier}
+                    amazonTag={profile?.amazon_affiliate_id}
+                  />
+                )} />
               </section>
             )}
 
@@ -709,25 +820,20 @@ export default function DashboardPage() {
                     </Link>
                   </div>
                   
-                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
-                    {showGroupedAds && <AdItemCard index={0} slotIndex={20} />}
-                    {group.items.map((item: any, i: number) => (
-                      <React.Fragment key={item.id}>
-                        <ProductCard 
-                          item={item}
-                          index={i}
-                          userCollections={collections} 
-                          onDelete={handleDelete}
-                          onHide={handleHide}
-                          adultFilterEnabled={adultFilterEnabled}
-                          tier={profile?.subscription_tier}
-                        />
-                        {showGroupedAds && (i + 1) % 5 === 0 && (
-                          <AdItemCard index={i} slotIndex={Math.floor(i / 5) + 21} />
-                        )}
-                      </React.Fragment>
-                    ))}
-                  </div>
+                  <RoundRobinGrid items={group.items} renderItem={(item: any, i: number) => (
+                    <ProductCard 
+                      item={item}
+                      index={i}
+                      userCollections={collections} 
+                      onDelete={handleDelete}
+                      onHide={handleHide}
+                      onPinItem={handlePinItem}
+                      pinnedItemId={pinnedItemId}
+                      adultFilterEnabled={adultFilterEnabled}
+                      tier={profile?.subscription_tier}
+                      amazonTag={profile?.amazon_affiliate_id}
+                    />
+                  )} />
                 </section>
               )
             ))}
@@ -735,11 +841,6 @@ export default function DashboardPage() {
             {/* Empty State for Grouped View */}
             {products.length === 0 && (
               <>
-                {showGroupedAds && (
-                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6 mb-6">
-                    <AdItemCard index={0} slotIndex={0} />
-                  </div>
-                )}
                 <div className="text-center py-20 text-zinc-500 dark:text-zinc-400">
                   {t('No items found. Add some items to see them here!')}
                 </div>
@@ -771,6 +872,31 @@ export default function DashboardPage() {
           window.location.reload()
         }}
       />
+
+      {/* Mobile Floating Add Button */}
+      <button
+        onClick={() => setShowMobileAddForm(true)}
+        className="md:hidden fixed bottom-24 right-5 z-[60] w-14 h-14 bg-violet-600 hover:bg-violet-700 text-white rounded-full shadow-xl flex items-center justify-center transition-all active:scale-95"
+        aria-label="Add item"
+      >
+        <Plus className="w-6 h-6" />
+      </button>
+
+      {/* Mobile Add Form Modal */}
+      {showMobileAddForm && (
+        <div className="md:hidden fixed inset-0 z-[70] flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowMobileAddForm(false)} />
+          <div className="relative w-full max-w-lg bg-beige-50 dark:bg-dpurple-950 rounded-t-2xl p-4 pb-8 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Add Item</h3>
+              <button onClick={() => setShowMobileAddForm(false)} className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded-lg">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <AddItemForm />
+          </div>
+        </div>
+      )}
     </PageTransition>
   )
 }

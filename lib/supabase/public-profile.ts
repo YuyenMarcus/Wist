@@ -24,6 +24,7 @@ export interface PublicProfileData {
   profile_theme: string | null;
   gifting_enabled: boolean;
   gifting_message: string | null;
+  amazon_affiliate_id: string | null;
 }
 
 export interface PublicItem {
@@ -46,17 +47,35 @@ async function resolveUsernameToUserId(username: string): Promise<{
   profile: PublicProfileData | null;
   error: any;
 }> {
-  // Use admin client to bypass RLS for public profile lookup
   const supabase = getSupabaseAdmin();
-
-  // URL decode the username (handles %20, etc.)
   const decodedUsername = decodeURIComponent(username).toLowerCase().trim();
 
-  const { data, error } = await supabase
+  // Try full query first, fall back to core columns if gifting columns don't exist yet
+  let data: any = null;
+  let error: any = null;
+
+  const fullSelect = 'id, username, full_name, avatar_url, bio, instagram_handle, tiktok_handle, website, subscription_tier, profile_theme, gifting_enabled, gifting_message, amazon_affiliate_id';
+  const coreSelect = 'id, username, full_name, avatar_url, bio, instagram_handle, tiktok_handle, website, subscription_tier, profile_theme';
+
+  const result = await supabase
     .from('profiles')
-    .select('id, username, full_name, avatar_url, bio, instagram_handle, tiktok_handle, website, subscription_tier, profile_theme, gifting_enabled, gifting_message')
+    .select(fullSelect)
     .eq('username', decodedUsername)
     .maybeSingle();
+
+  if (result.error && result.error.message?.includes('not found')) {
+    console.warn('Some profile columns missing, retrying with core columns...');
+    const fallback = await supabase
+      .from('profiles')
+      .select(coreSelect)
+      .eq('username', decodedUsername)
+      .maybeSingle();
+    data = fallback.data;
+    error = fallback.error;
+  } else {
+    data = result.data;
+    error = result.error;
+  }
 
   if (error) {
     console.error('Error resolving username:', error);
@@ -80,8 +99,9 @@ async function resolveUsernameToUserId(username: string): Promise<{
       website: data.website || null,
       subscription_tier: data.subscription_tier || null,
       profile_theme: data.profile_theme || null,
-      gifting_enabled: data.gifting_enabled || false,
-      gifting_message: data.gifting_message || null,
+      gifting_enabled: data.gifting_enabled ?? false,
+      gifting_message: data.gifting_message ?? null,
+      amazon_affiliate_id: data.amazon_affiliate_id ?? null,
     },
     error: null,
   };

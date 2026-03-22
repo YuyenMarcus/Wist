@@ -26,7 +26,7 @@ export default function ReceiptsPage() {
       const tier = profile?.subscription_tier || 'free';
       setUserTier(tier);
 
-      if (['pro_plus', 'creator', 'enterprise'].includes(tier)) {
+      if (['pro', 'creator', 'enterprise'].includes(tier)) {
         const res = await fetch('/api/receipts');
         if (res.ok) {
           const json = await res.json();
@@ -51,7 +51,7 @@ export default function ReceiptsPage() {
     );
   }
 
-  const isPremium = ['pro_plus', 'creator', 'enterprise'].includes(userTier);
+  const isPremium = ['pro', 'creator', 'enterprise'].includes(userTier);
 
   const now = new Date();
   const expiringSoon = receipts.filter(r => {

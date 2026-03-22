@@ -7,6 +7,7 @@ const previewDiv = document.getElementById('preview');
 const successDiv = document.getElementById('success');
 const errorDiv = document.getElementById('error');
 const errorMsg = document.getElementById('error-msg');
+const upgradeLink = document.getElementById('upgrade-link');
 const saveBtn = document.getElementById('save-btn');
 const privacyBtn = document.getElementById('privacy-btn');
 const privacySwitch = document.getElementById('privacy-switch');
@@ -15,6 +16,54 @@ const privacyText = document.getElementById('privacy-text');
 // State
 let currentProduct = null;
 let isPrivate = true; // Default to Private
+let uiMode = 'popup'; // 'popup' or 'floating'
+
+// Floating panel toggle (same pattern as privacy switch)
+(async function initModeToggle() {
+  console.log('[Wist Popup] v0.2.0 loaded');
+  const header = document.getElementById('floating-mode-header');
+  const modeSwitch = document.getElementById('mode-switch');
+  if (!header || !modeSwitch) return;
+
+  const stored = await chrome.storage.local.get('wist_ui_mode');
+  uiMode = stored.wist_ui_mode || 'popup';
+  updateModeUI();
+
+  async function toggleMode() {
+    uiMode = uiMode === 'popup' ? 'floating' : 'popup';
+    console.log('[Wist Popup] UI mode:', uiMode);
+    await chrome.storage.local.set({ wist_ui_mode: uiMode });
+    updateModeUI();
+  }
+
+  header.addEventListener('click', () => {
+    toggleMode();
+  });
+
+  header.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggleMode();
+    }
+  });
+
+  function updateModeUI() {
+    const on = uiMode === 'floating';
+    modeSwitch.classList.toggle('active', on);
+    header.setAttribute('aria-checked', on ? 'true' : 'false');
+  }
+})();
+
+const errorUpgradeCard = document.getElementById('error-upgrade-card');
+const errorGenericWrap = document.getElementById('error-generic-wrap');
+const errorUpgradeSubtitle = document.getElementById('error-upgrade-subtitle');
+const upgradeCta = document.getElementById('upgrade-cta');
+const errorBackBtn = document.getElementById('error-back-btn');
+
+function resetErrorPanels() {
+  if (errorUpgradeCard) errorUpgradeCard.classList.add('hidden');
+  if (errorGenericWrap) errorGenericWrap.classList.remove('hidden');
+}
 
 // Helper to show states
 function showState(state) {
@@ -22,11 +71,19 @@ function showState(state) {
   previewDiv.classList.add('hidden');
   successDiv.style.display = 'none';
   errorDiv.classList.add('hidden');
-  
+  if (state !== 'error') resetErrorPanels();
+
   if (state === 'loading') loadingDiv.classList.remove('hidden');
   if (state === 'preview') previewDiv.classList.remove('hidden');
   if (state === 'success') successDiv.style.display = 'flex';
   if (state === 'error') errorDiv.classList.remove('hidden');
+}
+
+if (errorBackBtn) {
+  errorBackBtn.addEventListener('click', () => {
+    resetErrorPanels();
+    showState('preview');
+  });
 }
 
 // Success Animation Function
@@ -158,15 +215,39 @@ function renderPreview(data) {
   const storeName = data.retailer || 'Unknown';
   document.getElementById('retailer-badge').textContent = storeName;
   
-  // Image
+  // Primary image
   const img = document.getElementById('product-img');
   if (data.image_url) {
     img.src = data.image_url;
-    img.onerror = function() {
-      this.style.display = 'none';
-    };
+    img.onerror = function() { this.style.display = 'none'; };
   } else {
     img.style.display = 'none';
+  }
+
+  // Image gallery
+  const images = data.images || [];
+  const gallerySection = document.getElementById('gallery-section');
+  const gallery = document.getElementById('image-gallery');
+
+  if (images.length > 1) {
+    gallerySection.classList.remove('hidden');
+    gallery.innerHTML = '';
+
+    images.forEach((src, i) => {
+      const thumb = document.createElement('img');
+      thumb.className = 'gallery-thumb' + (i === 0 ? ' selected' : '');
+      thumb.src = src;
+      thumb.alt = `Image ${i + 1}`;
+      thumb.onerror = function() { this.remove(); };
+      thumb.addEventListener('click', () => {
+        gallery.querySelectorAll('.gallery-thumb').forEach(t => t.classList.remove('selected'));
+        thumb.classList.add('selected');
+        img.src = src;
+        img.style.display = '';
+        currentProduct.image_url = src;
+      });
+      gallery.appendChild(thumb);
+    });
   }
 }
 
@@ -233,14 +314,39 @@ async function handleSave(item) {
           window.close();
         }, 2000);
       } else {
-        saveBtn.textContent = "Error - Try Login";
         saveBtn.style.backgroundColor = "#EF4444";
         console.error("Save Error:", response?.error);
-        
-        if (response?.error && (response.error.includes("logged in") || response.error.includes("Unauthorized") || response.error.includes("Token"))) {
+
+        if (upgradeLink) upgradeLink.classList.add('hidden');
+
+        const loginErr =
+          response?.error &&
+          (response.error.includes("logged in") ||
+            response.error.includes("Unauthorized") ||
+            response.error.includes("Token"));
+
+        if (loginErr) {
+          saveBtn.textContent = "Error - Try Login";
+          resetErrorPanels();
           errorMsg.textContent = "Please visit wishlist.nuvio.cloud and make sure you're logged in, then try again.";
           showState('error');
+        } else if (response?.upgrade && response?.upgradeUrl) {
+          saveBtn.textContent = "Limit reached";
+          const lim = response.limit != null ? Number(response.limit) : 100;
+          const cur = response.current != null ? Number(response.current) : lim;
+          if (errorUpgradeCard && errorGenericWrap) {
+            errorUpgradeCard.classList.remove('hidden');
+            errorGenericWrap.classList.add('hidden');
+          }
+          if (errorUpgradeSubtitle) {
+            errorUpgradeSubtitle.textContent =
+              `You're using ${cur} of ${lim} items on your current plan. Upgrade for unlimited saves, daily price checks, and more.`;
+          }
+          if (upgradeCta) upgradeCta.href = response.upgradeUrl;
+          showState('error');
         } else {
+          saveBtn.textContent = "Couldn't save";
+          resetErrorPanels();
           errorMsg.textContent = response?.error || "Failed to save item.";
           showState('error');
         }
@@ -555,10 +661,10 @@ function scrapeProductData() {
     }
   }
   
-  // Strategy 5: Regex search in page text
-  if (!priceString) {
+  // Strategy 6: Regex search in page text (require currency symbol to avoid false positives)
+  if (!price && !priceString) {
     const bodyText = document.body?.innerText || '';
-    const priceMatch = bodyText.match(/\$?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/);
+    const priceMatch = bodyText.match(/\$\s*(\d{1,3}(?:,\d{3})*\.\d{2})/);
     if (priceMatch) {
       priceString = priceMatch[0].trim();
     }
@@ -918,6 +1024,124 @@ function scrapeProductData() {
   }
   // --- ETSY PATCH END ---
 
+  // ============================================
+  // 4. MULTI-IMAGE COLLECTION
+  // ============================================
+  const allImages = [];
+  const seenUrls = new Set();
+  const REVIEW_SELS = '#customer-reviews, #reviews-section, [data-hook="review"], [class*="review"], [class*="Review"], [id*="review"], [id*="Review"], .cr-widget, #cr-media-gallery, [class*="feedback"], [class*="Feedback"], [class*="comment"], [class*="Comment"], [class*="rating"], [class*="Rating"], [class*="testimonial"]';
+
+  function isInReview(el) {
+    return el && el.closest && el.closest(REVIEW_SELS);
+  }
+
+  function addCandidate(url, el) {
+    if (!url || typeof url !== 'string') return;
+    if (el && isInReview(el)) return;
+    let clean = url.trim();
+    if (clean.startsWith('//')) clean = 'https:' + clean;
+    if (!clean.startsWith('http')) {
+      try { clean = new URL(clean, window.location.href).href; } catch { return; }
+    }
+    const base = clean.split('?')[0].split('#')[0];
+    if (seenUrls.has(base)) return;
+    if (/placeholder|loading|spinner|logo|icon|avatar|badge|pixel|spacer|1x1|profile|user|review|customer/i.test(base)) return;
+    if (/\.svg$/i.test(base)) return;
+    seenUrls.add(base);
+    allImages.push(clean);
+  }
+
+  // Source A: JSON-LD Product.image arrays
+  try {
+    const scripts = document.querySelectorAll('script[type="application/ld+json"]');
+    for (const s of scripts) {
+      try {
+        const d = JSON.parse(s.textContent);
+        const items = Array.isArray(d) ? d : [d];
+        for (const item of items) {
+          const product = item['@type'] === 'Product' ? item :
+            (item['@graph'] ? item['@graph'].find(g => g['@type'] === 'Product') : null);
+          if (!product) continue;
+          const imgs = product.image;
+          if (Array.isArray(imgs)) {
+            imgs.forEach(u => addCandidate(typeof u === 'string' ? u : u?.url));
+          } else if (typeof imgs === 'string') {
+            addCandidate(imgs);
+          } else if (imgs?.url) {
+            addCandidate(imgs.url);
+          }
+        }
+      } catch {}
+    }
+  } catch {}
+
+  // Source B: og:image
+  const ogImg = document.querySelector('meta[property="og:image"]')?.getAttribute('content');
+  if (ogImg) addCandidate(ogImg);
+
+  // Source C: Site-specific gallery images
+  const domain = window.location.hostname.toLowerCase();
+  if (domain.includes('amazon.')) {
+    document.querySelectorAll('#altImages img, #imageBlock img, .imgTagWrapper img, #landingImage, #imgBlkFront').forEach(el => {
+      if (isInReview(el)) return;
+      const src = el.getAttribute('data-old-hires') || el.src;
+      if (src) addCandidate(src.replace(/\._[A-Z]+\d+_\./, '.'), el);
+    });
+  } else if (domain.includes('etsy.')) {
+    document.querySelectorAll('img[src*="etsystatic.com"], img[data-src*="etsystatic.com"]').forEach(el => {
+      if (isInReview(el)) return;
+      const src = el.getAttribute('data-src') || el.src;
+      if (src && src.includes('/il/')) addCandidate(src, el);
+    });
+  } else if (domain.includes('target.')) {
+    document.querySelectorAll('[data-test="product-image"] img, picture img[src*="scene7"], [class*="slide"] img').forEach(el => {
+      if (isInReview(el)) return;
+      if (el.src) addCandidate(el.src, el);
+    });
+  } else if (domain.includes('walmart.')) {
+    document.querySelectorAll('[data-testid="hero-image"] img, .hover-zoom-hero-image img').forEach(el => {
+      if (isInReview(el)) return;
+      if (el.src) addCandidate(el.src, el);
+    });
+  } else if (domain.includes('bestbuy.')) {
+    document.querySelectorAll('img.primary-image, .thumbnail-list img').forEach(el => {
+      if (isInReview(el)) return;
+      if (el.src) addCandidate(el.src, el);
+    });
+  }
+
+  // Source D: Generic product gallery images (skip review sections)
+  document.querySelectorAll('.product-gallery img, .product-images img, [class*="carousel"] img, [class*="slider"] img, img[itemprop="image"]').forEach(el => {
+    if (isInReview(el)) return;
+    const src = el.getAttribute('data-src') || el.src;
+    if (src) addCandidate(src, el);
+  });
+
+  // Source E: Any large visible images (filtered for reviews)
+  document.querySelectorAll('img').forEach(el => {
+    if (isInReview(el)) return;
+    const w = el.naturalWidth || el.width || 0;
+    const h = el.naturalHeight || el.height || 0;
+    if (w >= 150 && h >= 150) {
+      const src = el.getAttribute('data-src') || el.src;
+      if (src) addCandidate(src, el);
+    }
+  });
+
+  // Ensure the primary selected image is first
+  if (image && allImages.length > 0) {
+    const primaryBase = image.split('?')[0].split('#')[0];
+    const idx = allImages.findIndex(u => u.split('?')[0].split('#')[0] === primaryBase);
+    if (idx > 0) {
+      allImages.splice(idx, 1);
+      allImages.unshift(image);
+    } else if (idx === -1) {
+      allImages.unshift(image);
+    }
+  } else if (image) {
+    allImages.unshift(image);
+  }
+
   // Extract retailer from URL
   const urlObj = new URL(window.location.href);
   const hostname = urlObj.hostname.toLowerCase();
@@ -995,6 +1219,7 @@ function scrapeProductData() {
     price: price || 0,
     price_string: displayPriceString,
     image_url: image || '',
+    images: allImages.slice(0, 20),
     url: window.location.href,
     retailer: retailer.charAt(0).toUpperCase() + retailer.slice(1),
     currency: currency,

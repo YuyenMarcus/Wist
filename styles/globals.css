@@ -11,9 +11,8 @@
     --color-text-secondary: #475569;
     --color-text-muted: #64748b;
     --color-border: #e2e8f0;
-    --color-brand-blue: #8b5cf6; /* Purple/Violet - luxury, aspiration */
-    --color-brand-light: #c4b5fd; /* Lavender - dreamy, magical */
-    --color-accent-pink: #fb7185; /* Peach/Coral accent - warmth */
+    --color-brand-blue: #8b5cf6; /* Primary brand violet */
+    --color-brand-light: #c4b5fd; /* Secondary lavender (gradients, highlights) */
   }
 
   .dark {
@@ -24,9 +23,8 @@
     --color-text-secondary: #cbd5e1;
     --color-text-muted: #94a3b8;
     --color-border: #475569;
-    --color-brand-blue: #a78bfa; /* Lighter purple for dark mode */
-    --color-brand-light: #ddd6fe; /* Soft lavender for dark mode */
-    --color-accent-pink: #fb7185; /* Peach/Coral accent */
+    --color-brand-blue: #a78bfa; /* Primary brand violet (dark mode) */
+    --color-brand-light: #ddd6fe; /* Secondary lavender (dark mode) */
   }
 
   html,
@@ -221,12 +219,14 @@ body.user-logged-in.has-extension .ExtensionBanner {
   display: flex;
   align-items: center;
   gap: 12px;
+  background: transparent;
 }
 
 .logo-image {
   height: 40px;
   width: auto;
   object-fit: contain;
+  background: transparent;
 }
 
 .nav-actions {

@@ -1,14 +1,12 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { Chrome, Upload } from 'lucide-react'
+import { Chrome, Upload, Sparkles, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
+import { useMemo, useState, useEffect } from 'react'
 import ItemCard from './ItemCard'
-import AdItemCard from './AdItemCard'
 import { SupabaseProduct } from '@/lib/supabase/products'
 import { useTranslation } from '@/lib/i18n/context'
-
-const AD_INTERVAL = 5
 
 interface Collection {
   id: string;
@@ -23,42 +21,52 @@ interface WishlistGridProps {
   onReserve?: (id: string) => void
   onUpdate?: (id: string, updatedItem: SupabaseProduct) => void
   onHide?: (id: string) => void
+  onPinItem?: (id: string) => void
+  pinnedItemId?: string | null
   userCollections?: Collection[]
   adultFilterEnabled?: boolean
   tier?: string | null
+  amazonTag?: string | null
   onImport?: () => void
 }
 
-export default function WishlistGrid({ items, isOwner = true, onDelete, onReserve, onUpdate, onHide, userCollections = [], adultFilterEnabled = false, tier, onImport }: WishlistGridProps) {
+function getColCount(w: number) {
+  if (w < 640) return 2
+  if (w < 1024) return 2
+  if (w < 1280) return 3
+  return 4
+}
+
+function useColumnCount() {
+  const [colCount, setColCount] = useState(() => {
+    if (typeof window === 'undefined') return 4
+    return getColCount(window.innerWidth)
+  })
+
+  useEffect(() => {
+    const onResize = () => setColCount(getColCount(window.innerWidth))
+    onResize()
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  return colCount
+}
+
+export default function WishlistGrid({ items, isOwner = true, onDelete, onReserve, onUpdate, onHide, onPinItem, pinnedItemId, userCollections = [], adultFilterEnabled = false, tier, amazonTag, onImport }: WishlistGridProps) {
   const { t } = useTranslation()
-  const showAds = !tier || tier === 'free'
+  const colCount = useColumnCount()
 
   const isEmpty = !items || items.length === 0
 
-  // Build interleaved list of items and ads
-  type GridEntry =
-    | { type: 'item'; item: SupabaseProduct; index: number }
-    | { type: 'ad'; slotIndex: number; index: number }
-
-  const entries: GridEntry[] = []
-  let adSlotCount = 0
-
-  // Always lead with one ad for free tier (even with 0 items)
-  if (showAds) {
-    entries.push({ type: 'ad', slotIndex: adSlotCount, index: entries.length })
-    adSlotCount++
-  }
-
-  if (!isEmpty) {
+  const columns = useMemo(() => {
+    if (!items || items.length === 0) return []
+    const cols: SupabaseProduct[][] = Array.from({ length: colCount }, () => [])
     items.forEach((item, i) => {
-      entries.push({ type: 'item', item, index: entries.length })
-
-      if (showAds && (i + 1) % AD_INTERVAL === 0) {
-        entries.push({ type: 'ad', slotIndex: adSlotCount, index: entries.length })
-        adSlotCount++
-      }
+      cols[i % colCount].push(item)
     })
-  }
+    return cols
+  }, [items, colCount])
 
   return (
     <div className="w-full px-2 sm:px-4 md:px-0 mx-auto max-w-7xl pb-32">
@@ -66,63 +74,90 @@ export default function WishlistGrid({ items, isOwner = true, onDelete, onReserv
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="py-20 text-center bg-beige-100 dark:bg-dpurple-900 border-2 border-dashed border-beige-200 dark:border-dpurple-700 rounded-3xl mb-6"
+          className="py-16 sm:py-24 text-center bg-beige-100 dark:bg-dpurple-900 border-2 border-dashed border-beige-200 dark:border-dpurple-700 rounded-3xl mb-6"
         >
-          <div className="mx-auto h-16 w-16 bg-violet-50 dark:bg-violet-950/50 text-violet-600 dark:text-violet-400 rounded-full flex items-center justify-center mb-6">
-            <Chrome size={32} />
+          <div className="max-w-md mx-auto px-4">
+            <div className="mx-auto h-20 w-20 bg-violet-50 dark:bg-violet-950/50 text-violet-600 dark:text-violet-400 rounded-2xl flex items-center justify-center mb-6 shadow-sm">
+              <Sparkles size={36} />
+            </div>
+            <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-3">{t('Welcome to your Wishlist')}</h3>
+            <p className="text-zinc-500 dark:text-zinc-400 text-sm leading-relaxed mb-8">
+              {t('Start tracking prices and never miss a deal. Here\'s how to get started:')}
+            </p>
+
+            <div className="space-y-4 text-left mb-8">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 w-7 h-7 rounded-full bg-violet-100 dark:bg-violet-950 text-violet-600 dark:text-violet-400 flex items-center justify-center text-xs font-bold">1</div>
+                <div>
+                  <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{t('Install the browser extension')}</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{t('Save items from any store with one click')}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 w-7 h-7 rounded-full bg-violet-100 dark:bg-violet-950 text-violet-600 dark:text-violet-400 flex items-center justify-center text-xs font-bold">2</div>
+                <div>
+                  <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{t('Browse your favorite stores')}</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{t('Amazon, Target, Nike, and thousands more')}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 w-7 h-7 rounded-full bg-violet-100 dark:bg-violet-950 text-violet-600 dark:text-violet-400 flex items-center justify-center text-xs font-bold">3</div>
+                <div>
+                  <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{t('Get notified when prices drop')}</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{t('We\'ll track every item and alert you automatically')}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Link 
+                href="/extension" 
+                className="inline-flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl transition-colors shadow-sm"
+              >
+                <Chrome size={18} />
+                {t('Install Extension')}
+              </Link>
+              {onImport && (
+                <button
+                  onClick={onImport}
+                  className="inline-flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 hover:text-violet-500 dark:hover:text-violet-400 transition-colors"
+                >
+                  <Upload size={12} />
+                  {t('Import from spreadsheet')}
+                  <ArrowRight size={10} />
+                </button>
+              )}
+            </div>
           </div>
-          <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-2">{t('Your wishlist is looking empty')}</h3>
-          <p className="text-zinc-500 dark:text-zinc-400 max-w-md mx-auto mb-8 text-sm leading-relaxed">
-            {t('The easiest way to add items is with our browser button. Go to Amazon or Target and save items in one click.')}
-          </p>
-          <Link 
-            href="/extension" 
-            className="inline-flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl transition-colors shadow-sm"
-          >
-            <Chrome size={18} />
-            {t('Install Browser Button')}
-          </Link>
-          {onImport && (
-            <button
-              onClick={onImport}
-              className="mt-3 inline-flex items-center gap-1.5 text-xs text-zinc-400 dark:text-zinc-500 hover:text-violet-500 dark:hover:text-violet-400 transition-colors"
-            >
-              <Upload size={12} />
-              {t('or import from a spreadsheet or Amazon')}
-            </button>
-          )}
         </motion.div>
       )}
 
-      {entries.length > 0 && (
-        <div className="columns-2 sm:columns-2 lg:columns-3 xl:columns-4 gap-3 sm:gap-6 space-y-3 sm:space-y-6">
+      {!isEmpty && (
+        <div className="flex gap-3 sm:gap-6">
           <AnimatePresence mode="popLayout">
-            {entries.map((entry) => {
-              if (entry.type === 'ad') {
-                return (
-                  <span key={`ad-${entry.slotIndex}`}>
-                    <AdItemCard index={entry.index} slotIndex={entry.slotIndex} />
+            {columns.map((col, colIdx) => (
+              <div key={colIdx} className="flex-1 space-y-3 sm:space-y-6">
+                {col.map((item, rowIdx) => (
+                  <span key={item.id}>
+                    <ItemCard
+                      item={item}
+                      index={colIdx + rowIdx * colCount}
+                      isOwner={isOwner}
+                      onDelete={onDelete}
+                      onReserve={onReserve}
+                      onUpdate={onUpdate}
+                      onHide={onHide}
+                      onPinItem={onPinItem}
+                      pinnedItemId={pinnedItemId}
+                      userCollections={userCollections}
+                      adultFilterEnabled={adultFilterEnabled}
+                      tier={tier}
+                      amazonTag={amazonTag}
+                    />
                   </span>
-                )
-              }
-
-              return (
-                <span key={entry.item.id}>
-                  <ItemCard 
-                    item={entry.item}
-                    index={entry.index}
-                    isOwner={isOwner}
-                    onDelete={onDelete}
-                    onReserve={onReserve}
-                    onUpdate={onUpdate}
-                    onHide={onHide}
-                    userCollections={userCollections}
-                    adultFilterEnabled={adultFilterEnabled}
-                    tier={tier}
-                  />
-                </span>
-              )
-            })}
+                ))}
+              </div>
+            ))}
           </AnimatePresence>
         </div>
       )}

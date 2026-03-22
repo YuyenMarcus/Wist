@@ -1,45 +1,56 @@
-interface RateLimitEntry {
-  count: number;
-  resetAt: number;
+/**
+ * Sliding-window limiter per scrape URL.
+ *
+ * IMPORTANT: Do NOT key only by client IP. When Next.js/Vercel calls this service,
+ * every request shares the same outbound IP — that made one global bucket per domain
+ * and caused false "Rate limit exceeded" for all users.
+ */
+interface WindowState {
+  hits: number[];
 }
 
-const rateLimitStore = new Map<string, RateLimitEntry>();
+const store = new Map<string, WindowState>();
 
-const DOMAIN_MIN_INTERVAL = Number(process.env.DOMAIN_MIN_INTERVAL_MS) || 5000; // 5 seconds default
+const WINDOW_MS = Number(process.env.RATE_LIMIT_WINDOW_MS) || 60_000;
+const MAX_REQUESTS = Number(process.env.RATE_LIMIT_MAX_PER_WINDOW) || 45;
 
-export function checkRateLimit(
-  domain: string,
-  identifier: string = 'default'
-): { allowed: boolean; retryAfter?: number } {
-  const key = `${domain}:${identifier}`;
+function prune(key: string, now: number) {
+  const state = store.get(key);
+  if (!state) return;
+  state.hits = state.hits.filter((t) => now - t < WINDOW_MS);
+  if (state.hits.length === 0) store.delete(key);
+}
+
+export function checkRateLimit(url: string): { allowed: boolean; retryAfter?: number } {
+  const key = url.trim();
   const now = Date.now();
+  prune(key, now);
 
-  const entry = rateLimitStore.get(key);
-
-  if (!entry || entry.resetAt < now) {
-    rateLimitStore.set(key, {
-      count: 1,
-      resetAt: now + DOMAIN_MIN_INTERVAL,
-    });
-    return { allowed: true };
+  let state = store.get(key);
+  if (!state) {
+    state = { hits: [] };
+    store.set(key, state);
   }
 
-  // Only allow 1 request per interval window
-  const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
-  return { allowed: false, retryAfter };
+  state.hits = state.hits.filter((t) => now - t < WINDOW_MS);
+
+  if (state.hits.length >= MAX_REQUESTS) {
+    const oldest = state.hits[0];
+    const retryAfter = Math.max(1, Math.ceil((WINDOW_MS - (now - oldest)) / 1000));
+    return { allowed: false, retryAfter };
+  }
+
+  state.hits.push(now);
+  return { allowed: true };
 }
 
-export function clearRateLimit(domain: string, identifier: string = 'default'): void {
-  const key = `${domain}:${identifier}`;
-  rateLimitStore.delete(key);
+export function clearRateLimit(url: string): void {
+  store.delete(url.trim());
 }
 
-// Clean up expired entries periodically
 setInterval(() => {
   const now = Date.now();
-  for (const [key, entry] of rateLimitStore.entries()) {
-    if (entry.resetAt < now) {
-      rateLimitStore.delete(key);
-    }
+  for (const key of [...store.keys()]) {
+    prune(key, now);
   }
-}, 60000); // Every minute
+}, 120_000);

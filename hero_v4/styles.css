@@ -106,6 +106,11 @@ body {
     display: flex;
     align-items: center;
     gap: 12px;
+    background: transparent;
+}
+
+.nav-logo .logo-image {
+    background: transparent;
 }
 
 .logo-mark {

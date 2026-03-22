@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <title>Add to Wist</title>
-  <!-- Lottie Web for smooth animations -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  <!-- Lottie Web (bundled locally — MV3 CSP only allows script-src 'self') -->
+  <script src="vendor/lottie.min.js"></script>
   <style>
     body { width: 340px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; padding: 0; margin: 0; background-color: #fafafa; letter-spacing: -0.01em; }
     
@@ -15,15 +15,31 @@
 
     /* Main Content */
     .header { background: white; padding: 12px 16px; border-bottom: 1px solid #e4e4e7; display: flex; justify-content: space-between; align-items: center; }
+    .header-right { display: flex; align-items: center; gap: 8px; }
     .brand { color: #7c3aed; font-weight: 700; font-size: 16px; letter-spacing: -0.5px; }
+
+    /* Floating panel toggle (header) */
+    .floating-mode-header { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 4px 8px; margin: -4px -4px -4px 0; border-radius: 8px; transition: background 0.2s; user-select: none; }
+    .floating-mode-header:hover { background: #f4f4f5; }
+    .floating-mode-label { font-size: 11px; font-weight: 600; color: #52525b; max-width: 72px; line-height: 1.2; }
     
     .product-card { background: white; margin: 16px; border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); overflow: hidden; border: 1px solid #e4e4e7; }
     .product-content { padding: 12px; display: flex; gap: 12px; }
-    .product-image { width: 72px; height: 72px; object-fit: contain; border-radius: 8px; border: 1px solid #f4f4f5; background: #fafafa; }
+    .product-image { width: 72px; height: 72px; object-fit: contain; border-radius: 8px; border: 1px solid #f4f4f5; background: #fafafa; flex-shrink: 0; }
     .product-info { flex: 1; min-width: 0; }
     .retailer-badge { display: inline-block; background: #f4f4f5; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; color: #71717a; margin-bottom: 4px; }
     .product-title { font-size: 13px; font-weight: 500; color: #18181b; margin: 0 0 4px 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4; }
     .product-price { font-size: 16px; font-weight: 700; color: #18181b; }
+
+    /* Image Gallery */
+    .image-gallery { display: flex; gap: 6px; padding: 8px 12px; overflow-x: auto; border-top: 1px solid #f4f4f5; scrollbar-width: thin; scrollbar-color: #d4d4d8 transparent; }
+    .image-gallery::-webkit-scrollbar { height: 4px; }
+    .image-gallery::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 4px; }
+    .image-gallery::-webkit-scrollbar-track { background: transparent; }
+    .gallery-thumb { width: 48px; height: 48px; flex-shrink: 0; border-radius: 6px; border: 2px solid #e4e4e7; object-fit: contain; background: #fafafa; cursor: pointer; transition: border-color 0.15s, transform 0.15s; }
+    .gallery-thumb:hover { border-color: #a78bfa; transform: scale(1.05); }
+    .gallery-thumb.selected { border-color: #7c3aed; box-shadow: 0 0 0 1px #7c3aed; }
+    .gallery-label { padding: 4px 12px 0; font-size: 10px; color: #a1a1aa; font-weight: 500; }
 
     /* Price Insight */
     .insight-bar { background: #f5f3ff; padding: 8px 12px; display: flex; align-items: center; gap: 8px; border-top: 1px solid #e9d5ff; }
@@ -56,8 +72,72 @@
     .hidden { display: none !important; }
     
     /* Error State */
-    .error-container { padding: 16px; text-align: center; }
-    .error-msg { color: #ef4444; font-size: 13px; }
+    .error-container { padding: 20px 16px 24px; text-align: center; }
+    .error-generic-wrap { text-align: center; }
+    .error-msg { color: #b91c1c; font-size: 13px; line-height: 1.5; max-width: 280px; margin: 0 auto; }
+    .upgrade-link { display: inline-block; margin-top: 12px; color: #7c3aed; font-weight: 600; font-size: 13px; text-decoration: none; }
+    .upgrade-link:hover { text-decoration: underline; }
+
+    /* Plan limit — professional card */
+    .error-upgrade-card {
+      text-align: center;
+      max-width: 300px;
+      margin: 0 auto;
+      padding: 22px 18px 20px;
+      background: linear-gradient(180deg, #faf5ff 0%, #ffffff 45%);
+      border: 1px solid #e9d5ff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(124, 58, 237, 0.08);
+    }
+    .error-upgrade-icon-wrap {
+      width: 52px; height: 52px; margin: 0 auto 14px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #ede9fe, #f5f3ff);
+      border: 1px solid #ddd6fe;
+      display: flex; align-items: center; justify-content: center;
+      color: #7c3aed;
+    }
+    .error-upgrade-title {
+      margin: 0 0 10px 0;
+      font-size: 17px;
+      font-weight: 700;
+      color: #18181b;
+      letter-spacing: -0.02em;
+    }
+    .error-upgrade-subtitle {
+      margin: 0 0 18px 0;
+      font-size: 13px;
+      line-height: 1.55;
+      color: #52525b;
+    }
+    .error-upgrade-cta {
+      display: block;
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: #18181b;
+      color: #ffffff !important;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      text-align: center;
+      transition: background 0.2s, transform 0.15s;
+      box-sizing: border-box;
+    }
+    .error-upgrade-cta:hover { background: #27272a; }
+    .error-upgrade-cta:active { transform: scale(0.98); }
+    .error-back-btn {
+      margin-top: 14px;
+      background: none;
+      border: none;
+      color: #71717a;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      padding: 6px 12px;
+      border-radius: 8px;
+    }
+    .error-back-btn:hover { color: #52525b; background: #f4f4f5; }
   </style>
 </head>
 <body>
@@ -70,7 +150,15 @@
   <div id="preview" class="hidden">
     <div class="header">
       <span class="brand">Wist</span>
-      <div id="user-avatar" style="width: 24px; height: 24px; background: #e4e4e7; border-radius: 50%;"></div>
+      <div class="header-right">
+        <div id="floating-mode-header" class="floating-mode-header" role="switch" aria-checked="false" tabindex="0" title="Show a floating Wist button on shopping sites">
+          <span class="floating-mode-label">Floating panel</span>
+          <div class="toggle-switch" id="mode-switch">
+            <div class="toggle-knob"></div>
+          </div>
+        </div>
+        <div id="user-avatar" style="width: 24px; height: 24px; background: #e4e4e7; border-radius: 50%;"></div>
+      </div>
     </div>
 
     <div class="product-card">
@@ -88,6 +176,10 @@
           <polyline points="17 18 23 18 23 12"></polyline>
         </svg>
         <span class="insight-text">Tracking price history</span>
+      </div>
+      <div id="gallery-section" class="hidden">
+        <div class="gallery-label">Choose image</div>
+        <div id="image-gallery" class="image-gallery"></div>
       </div>
     </div>
 
@@ -118,7 +210,23 @@
   </div>
 
   <div id="error" class="hidden error-container">
-    <p id="error-msg" class="error-msg"></p>
+    <div id="error-upgrade-card" class="hidden error-upgrade-card">
+      <div class="error-upgrade-icon-wrap" aria-hidden="true">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+          <line x1="12" y1="22.08" x2="12" y2="12"/>
+        </svg>
+      </div>
+      <h3 class="error-upgrade-title">Plan limit reached</h3>
+      <p id="error-upgrade-subtitle" class="error-upgrade-subtitle"></p>
+      <a id="upgrade-cta" href="#" target="_blank" rel="noopener noreferrer" class="error-upgrade-cta">View plans &amp; upgrade</a>
+      <button type="button" id="error-back-btn" class="error-back-btn">Back to product</button>
+    </div>
+    <div id="error-generic-wrap" class="error-generic-wrap">
+      <p id="error-msg" class="error-msg"></p>
+      <a id="upgrade-link" href="#" target="_blank" rel="noopener noreferrer" class="hidden upgrade-link">View plans &amp; upgrade</a>
+    </div>
   </div>
 
   <script src="popup.js"></script>

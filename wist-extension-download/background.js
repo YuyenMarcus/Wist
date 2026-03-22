@@ -7,6 +7,47 @@ const API_BASE_URL = "https://wishlist.nuvio.cloud";
 console.log("🔒🔒🔒 WIST v2.0 - PRODUCTION MODE - NO PORTS 🔒🔒🔒");
 console.log("🟢 [Background] Service Worker started");
 
+/**
+ * Turn /api/items error JSON into a string safe for `new Error()` and the popup
+ * (avoids "[object Object]" when `error` is an object).
+ */
+function formatItemsApiError(result, httpStatus) {
+  if (result == null || typeof result !== 'object') {
+    return `Server error (${httpStatus})`;
+  }
+  const e = result.error;
+  if (typeof e === 'string' && e.trim()) {
+    if (result.upgrade === true && result.limit != null && result.current != null) {
+      return e.trim();
+    }
+    return e;
+  }
+  if (e && typeof e === 'object' && typeof e.message === 'string') return e.message;
+  if (typeof result.message === 'string' && result.message.trim()) return result.message;
+  if (result.limit != null && result.current != null) {
+    return `Request failed (${result.current}/${result.limit} items). HTTP ${httpStatus}`;
+  }
+  try {
+    return JSON.stringify(result);
+  } catch {
+    return `Server error (${httpStatus})`;
+  }
+}
+
+async function parseFetchJsonSafe(response) {
+  const ct = (response.headers.get('content-type') || '').toLowerCase();
+  try {
+    if (ct.includes('application/json')) {
+      return await response.json();
+    }
+    const text = await response.text();
+    const snippet = (text || '').trim().slice(0, 240);
+    return { error: snippet || `Non-JSON response (${response.status})` };
+  } catch {
+    return { error: `Failed to read response (${response.status})` };
+  }
+}
+
 // ============================================================================
 // TOKEN MANAGEMENT
 // ============================================================================
@@ -839,6 +880,7 @@ function scrapePageData() {
 
   // ===== AGENT SITES (Kakobuy, Superbuy, Wegobuy, Pandabuy, CSSBuy) =====
   else if (domain.includes('kakobuy.') || domain.includes('superbuy.') || domain.includes('wegobuy.') || domain.includes('pandabuy.') || domain.includes('cssbuy.')) {
+    // Title: try many selector patterns since these SPAs use varied class names
     const titleSelectors = [
       '[class*="goodsName"]', '[class*="goods-name"]', '[class*="GoodsName"]',
       '[class*="goodsTitle"]', '[class*="goods-title"]', '[class*="GoodsTitle"]',
@@ -865,6 +907,7 @@ function scrapePageData() {
         if (title) break;
       } catch (e) {}
     }
+    // Scan visible elements for longest product-like text
     if (!title) {
       let best = null; let bestLen = 0;
       const cands = document.querySelectorAll('h1, h2, h3, [class*="title"], [class*="name"], [class*="Title"], [class*="Name"]');
@@ -877,6 +920,7 @@ function scrapePageData() {
       }
       if (best) title = best;
     }
+    // Page title fallback
     if (!title) {
       const cleaned = (document.title || '').replace(/[-|–]\s*(Kakobuy|Superbuy|Wegobuy|Pandabuy|CSSBuy).*/i, '').trim();
       if (cleaned.length > 5) title = cleaned;
@@ -885,6 +929,7 @@ function scrapePageData() {
       const ogT = document.querySelector('meta[property="og:title"]');
       if (ogT) title = ogT.getAttribute('content');
     }
+    // Extract from embedded JSON
     if (!title) {
       try {
         const html = document.documentElement.innerHTML;
@@ -931,6 +976,7 @@ function scrapePageData() {
       const ogI = document.querySelector('meta[property="og:image"]');
       if (ogI) image = ogI.getAttribute('content');
     }
+    // Largest image fallback
     if (!image) {
       const allImgs = document.querySelectorAll('img');
       let bestImg = null; let bestSize = 0;
@@ -1035,6 +1081,95 @@ function scrapePageData() {
     description = ogDesc?.getAttribute('content') || null;
   }
 
+  // ===== MULTI-IMAGE COLLECTION =====
+  const allImages = [];
+  const seenUrls = new Set();
+  const REVIEW_SELS = '#customer-reviews, #reviews-section, [data-hook="review"], [class*="review"], [class*="Review"], [id*="review"], [id*="Review"], .cr-widget, #cr-media-gallery, [class*="feedback"], [class*="Feedback"], [class*="comment"], [class*="Comment"], [class*="rating"], [class*="Rating"], [class*="testimonial"]';
+  function isInReview(el) { return el && el.closest && el.closest(REVIEW_SELS); }
+
+  function addCandidate(u, el) {
+    if (!u || typeof u !== 'string') return;
+    if (el && isInReview(el)) return;
+    let clean = u.trim();
+    if (clean.startsWith('//')) clean = 'https:' + clean;
+    if (!clean.startsWith('http')) {
+      try { clean = new URL(clean, url).href; } catch { return; }
+    }
+    const base = clean.split('?')[0].split('#')[0];
+    if (seenUrls.has(base)) return;
+    if (/placeholder|loading|spinner|logo|icon|avatar|badge|pixel|spacer|1x1|profile|user|review|customer/i.test(base)) return;
+    if (/\.svg$/i.test(base)) return;
+    seenUrls.add(base);
+    allImages.push(clean);
+  }
+
+  try {
+    const scripts = document.querySelectorAll('script[type="application/ld+json"]');
+    for (const s of scripts) {
+      try {
+        const d = JSON.parse(s.textContent);
+        const items = Array.isArray(d) ? d : [d];
+        for (const item of items) {
+          const product = item['@type'] === 'Product' ? item :
+            (item['@graph'] ? item['@graph'].find(g => g['@type'] === 'Product') : null);
+          if (!product) continue;
+          const imgs = product.image;
+          if (Array.isArray(imgs)) imgs.forEach(x => addCandidate(typeof x === 'string' ? x : x?.url));
+          else if (typeof imgs === 'string') addCandidate(imgs);
+          else if (imgs?.url) addCandidate(imgs.url);
+        }
+      } catch {}
+    }
+  } catch {}
+
+  const ogI = document.querySelector('meta[property="og:image"]')?.getAttribute('content');
+  if (ogI) addCandidate(ogI);
+
+  if (domain.includes('amazon.')) {
+    document.querySelectorAll('#altImages img, #imageBlock img, .imgTagWrapper img, #landingImage, #imgBlkFront').forEach(el => {
+      if (isInReview(el)) return;
+      const src = el.getAttribute('data-old-hires') || el.src;
+      if (src) addCandidate(src.replace(/\._[A-Z]+\d+_\./, '.'), el);
+    });
+  } else if (domain.includes('etsy.')) {
+    document.querySelectorAll('img[src*="etsystatic.com"], img[data-src*="etsystatic.com"]').forEach(el => {
+      if (isInReview(el)) return;
+      const src = el.getAttribute('data-src') || el.src;
+      if (src && src.includes('/il/')) addCandidate(src, el);
+    });
+  } else if (domain.includes('target.')) {
+    document.querySelectorAll('[data-test="product-image"] img, picture img[src*="scene7"], [class*="slide"] img').forEach(el => {
+      if (isInReview(el)) return;
+      if (el.src) addCandidate(el.src, el);
+    });
+  }
+
+  document.querySelectorAll('.product-gallery img, .product-images img, [class*="carousel"] img, [class*="slider"] img, img[itemprop="image"]').forEach(el => {
+    if (isInReview(el)) return;
+    const src = el.getAttribute('data-src') || el.src;
+    if (src) addCandidate(src, el);
+  });
+
+  // Large visible images (filtered for reviews)
+  document.querySelectorAll('img').forEach(el => {
+    if (isInReview(el)) return;
+    const w = el.naturalWidth || el.width || 0;
+    const h = el.naturalHeight || el.height || 0;
+    if (w >= 150 && h >= 150) {
+      const src = el.getAttribute('data-src') || el.src;
+      if (src) addCandidate(src, el);
+    }
+  });
+
+  if (image && allImages.length > 0) {
+    const primaryBase = image.split('?')[0].split('#')[0];
+    const idx = allImages.findIndex(x => x.split('?')[0].split('#')[0] === primaryBase);
+    if (idx > 0) { allImages.splice(idx, 1); allImages.unshift(image); }
+    else if (idx === -1) { allImages.unshift(image); }
+  } else if (image) {
+    allImages.unshift(image);
+  }
+
   // Detect currency from raw price and domain
   let currencyCode = 'USD';
   const priceStr = (price || '').toString();
@@ -1094,6 +1229,7 @@ function scrapePageData() {
     title: title || document.title || 'Unknown Item',
     price: priceValue,
     image: image || null,
+    images: allImages.slice(0, 20),
     description: description || null,
     url: url,
     retailer: domain.replace('www.', '').replace('m.', '').split('.')[0],
@@ -1174,18 +1310,24 @@ async function handleSaveItem(payload, sendResponse) {
 
     console.log("📡 [Extension] Response status:", response.status);
 
-    // Handle response
-    const result = await response.json();
-    
+    const result = await parseFetchJsonSafe(response);
+    const errMsg = formatItemsApiError(result, response.status);
+
     if (!response.ok) {
-      console.error("❌ [Extension] API Error:", result);
-      
-      // If token expired, give helpful message
-      if (response.status === 401 && result.error?.includes('expired')) {
+      console.error("❌ [Extension] API Error:", errMsg, result);
+
+      if (response.status === 401 && errMsg.toLowerCase().includes('expired')) {
         throw new Error("Token expired. Please open wishlist.nuvio.cloud in a new tab to refresh.");
       }
-      
-      throw new Error(result.error || `Server error: ${response.status}`);
+
+      const saveErr = new Error(errMsg);
+      if (result.upgrade === true) {
+        saveErr.upgrade = true;
+        saveErr.upgradeUrl = `${API_BASE_URL}/dashboard/subscription`;
+        if (result.limit != null) saveErr.limit = result.limit;
+        if (result.current != null) saveErr.current = result.current;
+      }
+      throw saveErr;
     }
 
     console.log("✅ [Background] Item saved successfully");
@@ -1199,11 +1341,21 @@ async function handleSaveItem(payload, sendResponse) {
   } catch (error) {
     console.error("❌ [Background] Save failed:", error.message);
     console.error("❌ [Extension] Failed:", error.message);
+    if (error && error.upgrade === true && error.upgradeUrl) {
+      console.error("💡 [Extension] Free plan allows 100 active items. Upgrade:", error.upgradeUrl);
+    }
     console.error("❌ [Extension] Full error:", error);
     
     // Ensure sendResponse is always called, even on unexpected errors
     if (sendResponse) {
-      sendResponse({ success: false, error: error.message || 'Unknown error' });
+      const fail = { success: false, error: error?.message || 'Unknown error' };
+      if (error && typeof error === 'object' && error.upgrade === true && error.upgradeUrl) {
+        fail.upgrade = true;
+        fail.upgradeUrl = error.upgradeUrl;
+        if (error.limit != null) fail.limit = error.limit;
+        if (error.current != null) fail.current = error.current;
+      }
+      sendResponse(fail);
     }
     
     // Re-throw so outer catch can handle it if needed
@@ -1239,18 +1391,23 @@ async function handlePriceDropNotifications(notifications) {
 }
 
 async function showPriceDropNotification(notification) {
-  const { itemTitle, itemImage, itemUrl, oldPrice, newPrice, priceChange } = notification;
-  
-  const priceChangeText = priceChange 
+  const { itemTitle, itemImage, itemUrl, oldPrice, newPrice, priceChange, type } = notification;
+  const notifType = type || 'price_drop';
+
+  const priceChangeText = priceChange
     ? `${Math.abs(priceChange).toFixed(1)}% ${priceChange < 0 ? 'drop' : 'increase'}`
     : 'price change';
-  
-  const notificationId = `price-drop-${Date.now()}`;
-  
+
+  let title = '💰 Price Drop Alert!';
+  if (notifType === 'price_increase') title = '📈 Price went up';
+  if (notifType === 'back_in_stock') title = '📦 Back in stock';
+
+  const notificationId = `wist-${notifType}-${Date.now()}`;
+
   const options = {
     type: 'basic',
     iconUrl: itemImage || chrome.runtime.getURL('icons/icon128.png'),
-    title: '💰 Price Drop Alert!',
+    title,
     message: `${itemTitle}\n$${oldPrice?.toFixed(2)} → $${newPrice?.toFixed(2)} (${priceChangeText})`,
     buttons: [
       { title: 'View Item' }
@@ -1284,20 +1441,29 @@ async function showPriceDropNotification(notification) {
 
 async function showBundledNotification(notifications) {
   const count = notifications.length;
+  const allDrops = notifications.every((n) => (n.type || 'price_drop') === 'price_drop');
   const totalSavings = notifications.reduce((sum, n) => {
     const savings = (n.oldPrice || 0) - (n.newPrice || 0);
     return sum + (savings > 0 ? savings : 0);
   }, 0);
-  
-  const notificationId = `price-drop-bundle-${Date.now()}`;
-  
+
+  const notificationId = `wist-alert-bundle-${Date.now()}`;
+
+  const title = allDrops
+    ? `💰 ${count} Price Drop${count > 1 ? 's' : ''}!`
+    : `🔔 ${count} price alert${count > 1 ? 's' : ''}`;
+
+  const message = allDrops
+    ? totalSavings > 0
+      ? `You could save $${totalSavings.toFixed(2)} on ${count} item${count > 1 ? 's' : ''}`
+      : `${count} item${count > 1 ? 's' : ''} have price changes`
+    : `${count} item${count > 1 ? 's' : ''} have updates — open your wishlist`;
+
   const options = {
     type: 'basic',
     iconUrl: chrome.runtime.getURL('icons/icon128.png'),
-    title: `💰 ${count} Price Drop${count > 1 ? 's' : ''}!`,
-    message: totalSavings > 0 
-      ? `You could save $${totalSavings.toFixed(2)} on ${count} item${count > 1 ? 's' : ''}`
-      : `${count} item${count > 1 ? 's' : ''} have price changes`,
+    title,
+    message,
     buttons: [
       { title: 'View Wishlist' }
     ],

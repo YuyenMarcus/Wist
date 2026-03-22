@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ExternalLink, Trash2, MoreHorizontal, Check, FolderInput, TrendingDown, TrendingUp, Minus, ShoppingBag, EyeOff, PackageX } from 'lucide-react';
+import { ExternalLink, Trash2, MoreHorizontal, Check, FolderInput, TrendingDown, TrendingUp, Minus, ShoppingBag, EyeOff, PackageX, ImageIcon, X, Clock, AlertTriangle, Pin } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '@/lib/supabase/client';
@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { BarChart3 } from 'lucide-react';
 import { isAdultContent } from '@/lib/content-filter';
+import { affiliateUrl } from '@/lib/amazon-affiliate';
 
 interface ProductItem {
   id: string;
@@ -23,6 +24,7 @@ interface ProductItem {
   price_change_percent?: number | null;
   previous_price?: number | null;
   last_price_check?: string | null;
+  price_check_failures?: number | null;
   out_of_stock?: boolean;
 }
 
@@ -37,17 +39,25 @@ interface Props {
   userCollections?: Collection[];
   onDelete?: (id: string) => void;
   onHide?: (id: string) => void;
+  onPinItem?: (id: string) => void;
   adultFilterEnabled?: boolean;
   index?: number;
   tier?: string | null;
+  pinnedItemId?: string | null;
+  amazonTag?: string | null;
 }
 
-export default function ProductCard({ item, userCollections = [], onDelete, onHide, adultFilterEnabled = false, index = 0, tier }: Props) {
+export default function ProductCard({ item, userCollections = [], onDelete, onHide, onPinItem, adultFilterEnabled = false, index = 0, tier, pinnedItemId, amazonTag }: Props) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
+  const [isEditingImage, setIsEditingImage] = useState(false);
+  const [editedImageUrl, setEditedImageUrl] = useState('');
+  const [localImageUrl, setLocalImageUrl] = useState<string | null>(null);
+  const [isSavingImage, setIsSavingImage] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const router = useRouter();
+  const buyUrl = affiliateUrl(item.url, amazonTag);
   
   const formatPrice = (price: number | null | undefined): string => {
     if (!price || price === 0) return 'Price not available';
@@ -63,7 +73,7 @@ export default function ProductCard({ item, userCollections = [], onDelete, onHi
   };
 
   const price = item.current_price || item.price;
-  const imageUrl = item.image_url || item.image;
+  const imageUrl = localImageUrl ?? item.image_url ?? item.image;
   const title = item.title || 'Untitled Item';
   const domain = getDomain(item.url);
   const isNsfw = adultFilterEnabled && isAdultContent(item.title);
@@ -261,6 +271,35 @@ export default function ProductCard({ item, userCollections = [], onDelete, onHi
     }
   };
 
+  const handleChangeImage = () => {
+    setEditedImageUrl(imageUrl || '');
+    setIsEditingImage(true);
+    setIsMenuOpen(false);
+  };
+
+  const handleSaveImage = async () => {
+    const trimmedUrl = editedImageUrl.trim();
+    if (!trimmedUrl) { setIsEditingImage(false); return; }
+    setIsSavingImage(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+      const { error } = await supabase
+        .from('items')
+        .update({ image_url: trimmedUrl })
+        .eq('id', item.id)
+        .eq('user_id', user.id);
+      if (error) throw error;
+      setLocalImageUrl(trimmedUrl);
+      setIsEditingImage(false);
+    } catch (err: any) {
+      console.error('Error updating image:', err);
+      alert('Failed to update image: ' + (err.message || 'Unknown error'));
+    } finally {
+      setIsSavingImage(false);
+    }
+  };
+
   const handleHide = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -322,15 +361,19 @@ export default function ProductCard({ item, userCollections = [], onDelete, onHi
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }}
       transition={{ duration: 0.35, delay: Math.min(index * 0.04, 0.4), ease: [0.25, 0.1, 0.25, 1] }}
-      className="group relative bg-beige-100 dark:bg-dpurple-900 rounded-xl overflow-hidden border border-beige-200 dark:border-dpurple-700 hover:border-violet-500 hover:shadow-lg transition-all duration-300"
+      className={`group relative rounded-xl overflow-hidden border transition-all duration-300 ${
+        item.out_of_stock
+          ? 'border-red-200 dark:border-red-900/40 hover:border-red-300 hover:shadow-lg'
+          : 'border-beige-200 dark:border-dpurple-700 hover:border-violet-500 hover:shadow-lg'
+      }`}
     >
-      {/* Image Container */}
-      <div className="relative aspect-[2/3] overflow-hidden bg-beige-50">
+      {/* Image Container + Title Overlay — isolate keeps badges/title layers inside the card (no bleed over header/modals) */}
+      <div className="relative isolate aspect-[2/3] overflow-hidden bg-beige-50">
         {imageUrl ? (
           <img
             src={imageUrl}
             alt={title}
-            className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 ${isNsfw ? 'blur-xl scale-110' : ''}`}
+            className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 ${isNsfw ? 'blur-xl scale-110' : ''} ${item.out_of_stock ? 'grayscale opacity-60' : ''}`}
             loading="lazy"
           />
         ) : (
@@ -343,37 +386,61 @@ export default function ProductCard({ item, userCollections = [], onDelete, onHi
 
         {/* NSFW Overlay */}
         {isNsfw && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-zinc-900/40">
+          <div className="absolute inset-0 z-[1] flex flex-col items-center justify-center bg-zinc-900/40">
             <EyeOff className="w-6 h-6 sm:w-8 sm:h-8 text-white/80 mb-1" />
             <span className="text-white/90 text-xs sm:text-sm font-bold tracking-wider">18+</span>
           </div>
         )}
         
-        {/* Price Drop Badge - Shows when price dropped significantly (>5%) */}
-        {item.price_change != null && item.price_change < 0 && (item.price_change_percent || 0) <= -5 && !item.out_of_stock && (
-          <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10">
+        {/* Badges - Top Left: stacked vertically */}
+        <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-[2] flex flex-col gap-1">
+          {/* Site Favicon Badge */}
+          {domain && (
+            <div title={domain}>
+              <div className="flex items-center gap-1 bg-white/90 backdrop-blur-sm rounded-full pl-1 pr-1.5 sm:pl-1.5 sm:pr-2 py-0.5 sm:py-1 shadow-sm">
+                <img
+                  src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
+                  alt={domain}
+                  className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-sm"
+                  loading="lazy"
+                />
+                <span className="text-[8px] sm:text-[10px] font-medium text-zinc-600 max-w-[50px] sm:max-w-[70px] truncate capitalize">
+                  {domain.split('.')[0]}
+                </span>
+              </div>
+            </div>
+          )}
+          {/* Price Drop Badge */}
+          {item.price_change != null && item.price_change < 0 && (item.price_change_percent || 0) <= -5 && !item.out_of_stock && (
             <span className="inline-flex items-center gap-0.5 sm:gap-1 bg-green-500 text-white text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full shadow-lg animate-pulse">
               <TrendingDown className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
               <span className="hidden sm:inline">Price Drop!</span>
               <span className="sm:hidden">Drop!</span>
             </span>
-          </div>
-        )}
-
-        {/* Out of Stock Badge (Wist+ and above) */}
-        {tier && tier !== 'free' && item.out_of_stock && (
-          <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10">
-            <span className="inline-flex items-center gap-0.5 sm:gap-1 bg-red-500/90 text-white text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full shadow-lg">
+          )}
+          {/* Out of Stock Badge */}
+          {item.out_of_stock && (
+            <span className="inline-flex items-center gap-0.5 sm:gap-1 bg-red-600 text-white text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full shadow-lg">
               <PackageX className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
               <span className="hidden sm:inline">Out of Stock</span>
               <span className="sm:hidden">OOS</span>
+            </span>
+          )}
+        </div>
+
+        {/* Out-of-Stock Overlay Bar */}
+        {item.out_of_stock && (
+          <div className="absolute inset-x-0 top-1/2 z-[2] -translate-y-1/2 bg-red-600/90 backdrop-blur-sm py-1.5 sm:py-2 text-center">
+            <span className="text-white text-[10px] sm:text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1">
+              <PackageX className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              Out of Stock
             </span>
           </div>
         )}
 
         {/* Loading Overlay */}
         {isMoving && (
-          <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-20 backdrop-blur-sm">
+          <div className="absolute inset-0 z-[4] flex items-center justify-center bg-white/80 backdrop-blur-sm">
             <div className="flex flex-col items-center gap-2">
               <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"/>
               <span className="text-xs font-medium text-zinc-600">Moving...</span>
@@ -382,7 +449,7 @@ export default function ProductCard({ item, userCollections = [], onDelete, onHi
         )}
 
         {/* Menu Button - Top Right Corner - Always visible on mobile */}
-        <div className="absolute top-2 right-2 sm:top-3 sm:right-3 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200 z-10">
+        <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-[3] opacity-100 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100">
           <button 
             ref={menuButtonRef}
             onClick={() => {
@@ -456,6 +523,16 @@ export default function ProductCard({ item, userCollections = [], onDelete, onHi
 
               <div className="h-px bg-zinc-100 my-1" />
               <button
+                onClick={handleChangeImage}
+                className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 dark:hover:bg-dpurple-800 text-zinc-600 dark:text-zinc-300 transition-colors"
+              >
+                <ImageIcon size={14} />
+                <span>Change Image</span>
+              </button>
+
+              <div className="h-px bg-zinc-100 my-1" />
+
+              <button
                 onClick={handleMarkAsPurchased}
                 className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-green-50 text-green-600 transition-colors"
               >
@@ -470,6 +547,23 @@ export default function ProductCard({ item, userCollections = [], onDelete, onHi
                 <EyeOff size={14} />
                 <span>Hide</span>
               </button>
+
+              {onPinItem && (
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    onPinItem(item.id);
+                  }}
+                  className={`w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded transition-colors ${
+                    pinnedItemId === item.id
+                      ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400'
+                      : 'hover:bg-amber-50 dark:hover:bg-amber-950/30 text-zinc-600 dark:text-zinc-300'
+                  }`}
+                >
+                  <Pin size={14} />
+                  <span>{pinnedItemId === item.id ? 'Unpin from Profile' : 'Pin to Profile'}</span>
+                </button>
+              )}
 
               {onDelete && (
                 <>
@@ -488,43 +582,56 @@ export default function ProductCard({ item, userCollections = [], onDelete, onHi
           document.body
         )}
 
-        {/* Site Favicon Badge - Bottom Left */}
-        {domain && (
-          <div className="absolute bottom-2 left-2 sm:bottom-3 sm:left-3 z-10" title={domain}>
-            <div className="flex items-center gap-1 bg-white/90 backdrop-blur-sm rounded-full pl-1 pr-1.5 sm:pl-1.5 sm:pr-2 py-0.5 sm:py-1 shadow-sm">
-              <img
-                src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
-                alt={domain}
-                className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-sm"
-                loading="lazy"
-              />
-              <span className="text-[8px] sm:text-[10px] font-medium text-zinc-600 max-w-[50px] sm:max-w-[70px] truncate capitalize">
-                {domain.split('.')[0]}
-              </span>
-            </div>
-          </div>
-        )}
+        {/* (favicon badge is in the stacked badges section above) */}
 
         {/* Visit Link Button - Bottom Right */}
         <a
-          href={item.url}
+          href={buyUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1.5 sm:p-2 bg-white/90 dark:bg-black/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white dark:hover:bg-dpurple-800 text-zinc-600 dark:text-zinc-300"
+          className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 z-[3] opacity-0 transition-opacity duration-200 group-hover:opacity-100 p-1.5 sm:p-2 bg-white/90 dark:bg-black/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white dark:hover:bg-dpurple-800 text-zinc-600 dark:text-zinc-300"
           onClick={(e) => e.stopPropagation()}
           title="Visit product page"
         >
           <ExternalLink size={14} className="sm:hidden" />
           <ExternalLink size={16} className="hidden sm:block" />
         </a>
+
+        {/* Title - Seamless overlay at bottom of image */}
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-[2] bg-gradient-to-t from-black/70 via-black/40 to-transparent pt-8 pb-2 px-2 sm:px-3">
+          <h3 className="font-medium text-white text-xs sm:text-sm line-clamp-2 drop-shadow-sm">
+            {title}
+          </h3>
+        </div>
       </div>
 
-      {/* Content Section */}
-      <div className="p-2.5 sm:p-4">
-        <h3 className="font-medium text-zinc-900 dark:text-zinc-100 text-xs sm:text-sm mb-1 sm:mb-2 line-clamp-2">
-          {title}
-        </h3>
-        
+      {/* Image Edit UI */}
+      {isEditingImage && (
+        <div className="bg-white dark:bg-dpurple-900 p-3 sm:p-4 border-t border-beige-200 dark:border-dpurple-700">
+          <label className="block text-[10px] sm:text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Image URL</label>
+          <input
+            type="url"
+            value={editedImageUrl}
+            onChange={(e) => setEditedImageUrl(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleSaveImage(); if (e.key === 'Escape') setIsEditingImage(false); }}
+            placeholder="https://..."
+            autoFocus
+            className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-zinc-900 dark:text-zinc-100 bg-beige-50 dark:bg-dpurple-800 border border-violet-300 dark:border-violet-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-200 dark:focus:ring-violet-800"
+            disabled={isSavingImage}
+          />
+          <div className="flex items-center gap-1.5 mt-2">
+            <button onClick={handleSaveImage} disabled={isSavingImage} className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 bg-violet-500 text-white text-[10px] sm:text-xs font-medium rounded-md sm:rounded-lg hover:bg-violet-600 transition-colors disabled:opacity-50">
+              <Check size={12} /> Save
+            </button>
+            <button onClick={() => setIsEditingImage(false)} disabled={isSavingImage} className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 bg-zinc-100 text-zinc-600 text-[10px] sm:text-xs font-medium rounded-md sm:rounded-lg hover:bg-zinc-200 transition-colors disabled:opacity-50">
+              <X size={12} /> Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Info Section - Price, History, Buy */}
+      <div className="bg-white dark:bg-dpurple-900 px-2.5 py-2 sm:px-3 sm:py-2.5 rounded-b-xl">
         {/* Price with change indicator */}
         <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
           {price && price > 0 && (
@@ -560,9 +667,54 @@ export default function ProductCard({ item, userCollections = [], onDelete, onHi
           </p>
         )}
 
-        {/* Action Buttons */}
-        <div className="mt-2 sm:mt-3 flex items-center gap-1.5 sm:gap-2">
-          {/* View History Link */}
+        {/* In Stock / Out of Stock (Pro and above) */}
+        {tier && tier !== 'free' && (
+          <p className={`text-[10px] sm:text-xs font-medium mt-1 sm:mt-1.5 ${item.out_of_stock ? 'text-red-500' : 'text-emerald-500'}`}>
+            {item.out_of_stock ? 'Out of Stock' : 'In Stock'}
+          </p>
+        )}
+
+        {/* Tracking Status */}
+        <div className="flex items-center gap-1 mt-1 sm:mt-1.5">
+          {(item.price_check_failures ?? 0) >= 3 ? (
+            <>
+              <AlertTriangle className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-amber-500" />
+              <span className="text-[9px] sm:text-[10px] text-amber-500 font-medium">Check failed</span>
+            </>
+          ) : item.last_price_check ? (
+            <>
+              <Clock
+                className={`w-2.5 h-2.5 sm:w-3 sm:h-3 ${
+                  (item.price_check_failures ?? 0) > 0 ? 'text-amber-500' : 'text-gray-400'
+                }`}
+              />
+              <span
+                className={`text-[9px] sm:text-[10px] ${
+                  (item.price_check_failures ?? 0) > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400'
+                }`}
+              >
+                {(() => {
+                  const h = Math.floor((Date.now() - new Date(item.last_price_check).getTime()) / 3_600_000);
+                  const agoShort =
+                    h < 1 ? '< 1h ago' : h < 24 ? `${h}h ago` : `${Math.floor(h / 24)}d ago`;
+                  if ((item.price_check_failures ?? 0) > 0) {
+                    return `Could not verify · ${agoShort} — price may be outdated`;
+                  }
+                  if (h < 1) return 'Checked < 1h ago';
+                  return `Checked ${agoShort}`;
+                })()}
+              </span>
+            </>
+          ) : (
+            <>
+              <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-gray-300" />
+              <span className="text-[9px] sm:text-[10px] text-gray-300">Pending first check</span>
+            </>
+          )}
+        </div>
+
+        {/* Action Buttons - hidden until hover on desktop, always visible on mobile */}
+        <div className="mt-2 sm:mt-3 flex items-center gap-1.5 sm:gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
           <Link 
             href={`/dashboard/item/${item.id}`}
             className="flex-1 inline-flex items-center justify-center gap-0.5 sm:gap-1 text-[10px] sm:text-xs text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white bg-zinc-100 dark:bg-dpurple-800 hover:bg-zinc-200 dark:hover:bg-dpurple-700 px-2 sm:px-3 py-1.5 sm:py-2 rounded-md sm:rounded-lg transition-colors"
@@ -572,9 +724,8 @@ export default function ProductCard({ item, userCollections = [], onDelete, onHi
             History
           </Link>
           
-          {/* Buy Button */}
           <a
-            href={item.url}
+            href={buyUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="flex-1 inline-flex items-center justify-center gap-0.5 sm:gap-1 text-[10px] sm:text-xs font-medium text-white bg-violet-600 hover:bg-violet-700 px-2 sm:px-3 py-1.5 sm:py-2 rounded-md sm:rounded-lg transition-colors"

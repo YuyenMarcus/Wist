@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
-import { Search } from 'lucide-react'
 
 const navItems = [
   {
@@ -59,13 +58,10 @@ export default function FloatingNav() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // Don't show on login/signup/auth pages
-  if (pathname?.startsWith('/login') || pathname?.startsWith('/signup') || pathname?.startsWith('/auth')) {
-    return null
-  }
-
-  // Only show if user is logged in
-  if (!user) {
+  // Only show on app pages (dashboard, account, etc.) — hide on landing, login, public pages
+  const appRoutes = ['/dashboard', '/account', '/extension']
+  const isAppRoute = appRoutes.some((r) => pathname?.startsWith(r))
+  if (!isAppRoute || !user) {
     return null
   }
 
@@ -74,14 +70,14 @@ export default function FloatingNav() {
       initial={{ y: 100, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.5, ease: 'easeOut' }}
-      className="fixed bottom-8 left-0 right-0 z-50 flex justify-center items-center"
+      className="fixed bottom-8 left-0 right-0 z-50 flex justify-center items-center pointer-events-none"
     >
       <motion.div
         animate={{
           scale: isScrolled ? 0.95 : 1,
         }}
         transition={{ duration: 0.2 }}
-        className="flex items-center justify-center gap-2 px-4 py-3 bg-white/80 backdrop-blur-xl border border-zinc-200/50 rounded-full shadow-lg"
+        className="flex items-center justify-center gap-2 px-4 py-3 bg-white/80 backdrop-blur-xl border border-zinc-200/50 rounded-full shadow-lg pointer-events-auto"
       >
         {navItems.map((item) => {
           const isActive = pathname === item.href
@@ -108,17 +104,6 @@ export default function FloatingNav() {
             </Link>
           )
         })}
-        
-        {/* Search Icon */}
-        <Link href="/dashboard" title="Search">
-          <motion.div
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.95 }}
-            className="px-3 py-2 rounded-full text-zinc-600 hover:text-zinc-900 transition-colors"
-          >
-            <Search className="w-5 h-5" />
-          </motion.div>
-        </Link>
       </motion.div>
     </motion.nav>
   )

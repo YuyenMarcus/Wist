@@ -21,8 +21,10 @@ const PLANS: {
     accent: 'text-zinc-900',
     checkColor: 'text-zinc-400',
     featureOverrides: [
-      'Up to 20 tracked items',
+      'Up to 100 tracked items',
+      '10 collections',
       'Weekly price checks',
+      'Weekly price drop alerts',
       'Browser extension',
       'Price history graph',
       'Share your wishlist',
@@ -30,48 +32,36 @@ const PLANS: {
   },
   {
     key: 'pro',
-    tagline: 'For serious deal hunters who hate missing drops.',
-    ctaLabel: 'Start Free Trial',
-    accent: 'text-blue-600',
-    checkColor: 'text-blue-500',
-    featureOverrides: [
-      'Up to 45 tracked items',
-      'Weekly price checks',
-      'Back-in-stock alerts',
-      'Ad-free experience',
-      'Similar product comparison',
-    ],
-  },
-  {
-    key: 'pro_plus',
-    tagline: 'The full toolkit. Unlimited tracking, daily checks, and gifting.',
+    tagline: 'Unlimited tracking, daily checks, gifting, and full sync.',
     highlight: true,
     ctaLabel: 'Start Free Trial',
     accent: 'text-violet-600',
     checkColor: 'text-violet-500',
     featureOverrides: [
-      'Unlimited items',
+      'Unlimited items & collections',
       'Daily price checks',
-      'Receipt & warranty tracking',
-      '2-year pricing history',
+      'Back-in-stock alerts by variant',
+      'Similar product comparison',
+      'Smart auto-categorization',
+      '2-year price history',
       'Gifting service',
       'Amazon & spreadsheet sync',
-      'Pro badge on profile',
+      'Multi-currency support',
     ],
   },
   {
     key: 'creator',
-    tagline: 'Built for influencers and content creators.',
-    ctaLabel: 'Start Free Trial',
+    tagline: 'Built for influencers and content creators. Application only.',
+    ctaLabel: 'Apply Now',
     accent: 'text-amber-600',
     checkColor: 'text-amber-500',
     featureOverrides: [
-      'Everything in Wist Pro',
-      'Instant price notifications',
-      'Priority support',
-      'Community analytics',
+      'Everything in Pro',
+      '6-hour price checks',
       'Profile customization',
+      'Community analytics',
       'Creator badge on profile',
+      'Priority support',
     ],
   },
 ]
@@ -81,12 +71,10 @@ export default function PricingSection() {
 
   return (
     <section id="pricing" className="relative py-28 sm:py-32 px-4 sm:px-6 overflow-hidden" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-      {/* Background */}
       <div className="absolute inset-0 bg-gradient-to-b from-white via-violet-50/30 to-white pointer-events-none" />
       <div className="absolute inset-0 opacity-[0.015] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, #8b5cf6 1px, transparent 0)', backgroundSize: '40px 40px' }} />
 
-      <div className="relative max-w-6xl mx-auto">
-        {/* Header */}
+      <div className="relative max-w-5xl mx-auto">
         <div className="text-center mb-16 sm:mb-20">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-100/80 border border-violet-200/60 mb-5">
             <Sparkles className="w-3.5 h-3.5 text-violet-600" />
@@ -96,12 +84,11 @@ export default function PricingSection() {
             {t('Pick the plan that')}<br className="hidden sm:block" /> {t('fits your lifestyle')}
           </h2>
           <p className="mt-5 text-base sm:text-lg text-zinc-500 max-w-xl mx-auto leading-relaxed">
-            {t('Start free, upgrade anytime. Every plan includes a 14-day trial on paid features.')}
+            {t('Start free, upgrade anytime. No credit card required.')}
           </p>
         </div>
 
-        {/* Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 lg:gap-6">
           {PLANS.map((plan) => {
             const tier = TIERS[plan.key]
             const isPopular = plan.highlight
@@ -123,7 +110,6 @@ export default function PricingSection() {
                   </div>
                 )}
 
-                {/* Plan name */}
                 <div className="mb-5 pt-1">
                   <h3 className={`text-sm font-bold tracking-wide uppercase ${isPopular ? 'text-violet-400' : plan.accent}`}>
                     {tier.displayName}
@@ -133,37 +119,36 @@ export default function PricingSection() {
                   </p>
                 </div>
 
-                {/* Price */}
                 <div className="mb-6">
                   {tier.price === 0 ? (
                     <div className="flex items-baseline gap-1">
                       <span className={`text-5xl font-extrabold tracking-tight ${isPopular ? 'text-white' : 'text-zinc-900'}`}>$0</span>
                       <span className={`text-sm font-medium ${isPopular ? 'text-zinc-500' : 'text-zinc-400'}`}>{t('/mo')}</span>
                     </div>
-                  ) : (
+                  ) : tier.price !== null ? (
                     <div className="flex items-baseline gap-1">
                       <span className={`text-5xl font-extrabold tracking-tight ${isPopular ? 'text-white' : 'text-zinc-900'}`}>${tier.price}</span>
                       <span className={`text-sm font-medium ${isPopular ? 'text-zinc-500' : 'text-zinc-400'}`}>{t('/mo')}</span>
                     </div>
+                  ) : (
+                    <div className="flex items-baseline gap-1">
+                      <span className={`text-3xl font-extrabold tracking-tight ${isPopular ? 'text-white' : 'text-zinc-900'}`}>{t('Custom')}</span>
+                    </div>
                   )}
                 </div>
 
-                {/* CTA */}
                 <Link
-                  href="/signup"
+                  href={plan.key === 'creator' ? 'mailto:julien@nitron.digital?subject=Wist Creator Program' : '/signup'}
                   className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold transition-all duration-200 ${
                     isPopular
                       ? 'bg-white text-zinc-900 hover:bg-zinc-100 shadow-sm'
-                      : plan.key === 'free'
-                        ? 'bg-zinc-900 text-white hover:bg-zinc-800'
-                        : 'bg-zinc-900 text-white hover:bg-zinc-800'
+                      : 'bg-zinc-900 text-white hover:bg-zinc-800'
                   }`}
                 >
                   {t(plan.ctaLabel)}
                   <ArrowRight className="w-4 h-4" />
                 </Link>
 
-                {/* Features */}
                 <div className={`mt-6 pt-6 border-t ${isPopular ? 'border-zinc-800' : 'border-zinc-100'} flex-1`}>
                   <ul className="space-y-3">
                     {plan.featureOverrides.map((feature, i) => (
@@ -183,7 +168,6 @@ export default function PricingSection() {
           })}
         </div>
 
-        {/* Enterprise bar */}
         <div className="mt-14 rounded-2xl bg-zinc-900 p-8 sm:p-10 flex flex-col sm:flex-row items-center gap-6 sm:gap-8">
           <div className="flex-1 text-center sm:text-left">
             <h3 className="text-lg font-bold text-white mb-1">{t('Need something bigger?')}</h3>
@@ -199,7 +183,6 @@ export default function PricingSection() {
           </Link>
         </div>
 
-        {/* Reassurance */}
         <div className="mt-10 flex flex-wrap justify-center gap-x-8 gap-y-2 text-xs text-zinc-400">
           <span>{t('No credit card required')}</span>
           <span className="hidden sm:inline">·</span>

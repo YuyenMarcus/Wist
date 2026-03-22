@@ -10,8 +10,9 @@ interface RateLimitEntry {
 
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
-const RATE_LIMIT_WINDOW = 10000; // 10 seconds
-const RATE_LIMIT_MAX = 1; // 1 request per window per domain
+/** Kept permissive — if wired to an API route, avoid “one global IP” false positives from server-side calls. */
+const RATE_LIMIT_WINDOW = 60_000; // 1 minute
+const RATE_LIMIT_MAX = 30; // per domain+identifier window
 
 export function checkRateLimit(
   domain: string,

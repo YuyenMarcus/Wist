@@ -2,7 +2,6 @@ import React from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { redirect, notFound } from 'next/navigation';
 import ProductCard from '@/components/dashboard/ProductCard';
-import AdItemCard from '@/components/wishlist/AdItemCard';
 import CollectionSettings from '@/components/dashboard/CollectionSettings';
 import CollectionShareButton from '@/components/dashboard/CollectionShareButton';
 import { getServerTranslation } from '@/lib/i18n/server';
@@ -33,8 +32,6 @@ export default async function CollectionPage({ params }: { params: { slug: strin
     .single();
   const adultFilterEnabled = profile?.adult_content_filter ?? true;
   const tier = profile?.subscription_tier || 'free';
-  const showAds = tier === 'free';
-
   // 3. Fetch Items (SAFE: If empty, it returns [])
   const { data: items } = await supabase
     .from('items')
@@ -91,12 +88,6 @@ export default async function CollectionPage({ params }: { params: { slug: strin
       <main className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
         {/* EMPTY STATE HANDLING */}
         {(!items || items.length === 0) ? (
-            <>
-                {showAds && (
-                    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6 mb-6">
-                        <AdItemCard index={0} slotIndex={0} />
-                    </div>
-                )}
                 <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed border-zinc-200 dark:border-dpurple-700 rounded-2xl">
                     <div className="text-4xl mb-4">📂</div>
                     <h3 className="text-lg font-medium text-zinc-900 dark:text-white">{t('This collection is empty')}</h3>
@@ -104,12 +95,10 @@ export default async function CollectionPage({ params }: { params: { slug: strin
                         {t('Move items here using the options menu on your main dashboard.')}
                     </p>
                 </div>
-            </>
         ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
-                {showAds && <AdItemCard index={0} slotIndex={0} />}
+            <div className="columns-2 sm:columns-2 lg:columns-3 xl:columns-4 gap-3 sm:gap-6 space-y-3 sm:space-y-6">
                 {items.map((item: any, i: number) => (
-                    <React.Fragment key={item.id}>
+                    <span className="block break-inside-avoid" key={item.id}>
                         <ProductCard 
                             item={item} 
                             index={i}
@@ -117,10 +106,7 @@ export default async function CollectionPage({ params }: { params: { slug: strin
                             adultFilterEnabled={adultFilterEnabled}
                             tier={tier}
                         />
-                        {showAds && (i + 1) % 5 === 0 && (
-                            <AdItemCard index={i} slotIndex={Math.floor(i / 5) + 1} />
-                        )}
-                    </React.Fragment>
+                    </span>
                 ))}
             </div>
         )}

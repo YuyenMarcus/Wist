@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { Bell, TrendingDown, TrendingUp, PackageCheck, Check, CheckCheck, ExternalLink } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import Link from 'next/link'
@@ -31,10 +32,29 @@ export default function NotificationCenter({ compact = false }: NotificationCent
   const [isOpen, setIsOpen] = useState(false)
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
-  const [loading, setLoading] = useState(false)
   const [tier, setTier] = useState('free')
-  const dropdownRef = useRef<HTMLDivElement>(null)
+  const [mounted, setMounted] = useState(false)
+  /** Fixed viewport position so the panel escapes transformed ancestors (PageTransition / card motion). */
+  const [panelPos, setPanelPos] = useState({ top: 0, right: 0 })
+  const bellRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
   const { t } = useTranslation()
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const updatePanelPosition = useCallback(() => {
+    const el = bellRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const vw = typeof window !== 'undefined' ? window.innerWidth : 400
+    const isMobile = vw < 640
+    setPanelPos({
+      top: isMobile ? rect.bottom + 4 : rect.bottom + 8,
+      right: isMobile ? Math.max(8, (vw - Math.min(380, vw - 16)) / 2) : Math.max(8, vw - rect.right),
+    })
+  }, [])
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -53,11 +73,23 @@ export default function NotificationCenter({ compact = false }: NotificationCent
     return () => clearInterval(interval)
   }, [fetchNotifications])
 
+  useLayoutEffect(() => {
+    if (!isOpen) return
+    updatePanelPosition()
+    window.addEventListener('resize', updatePanelPosition)
+    window.addEventListener('scroll', updatePanelPosition, true)
+    return () => {
+      window.removeEventListener('resize', updatePanelPosition)
+      window.removeEventListener('scroll', updatePanelPosition, true)
+    }
+  }, [isOpen, updatePanelPosition])
+
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setIsOpen(false)
-      }
+      const node = e.target as Node
+      if (bellRef.current?.contains(node)) return
+      if (panelRef.current?.contains(node)) return
+      setIsOpen(false)
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
@@ -161,10 +193,17 @@ export default function NotificationCenter({ compact = false }: NotificationCent
   }
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative">
       {/* Bell Button */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        ref={bellRef}
+        onClick={() => {
+          setIsOpen((prev) => {
+            const next = !prev
+            if (next) queueMicrotask(() => updatePanelPosition())
+            return next
+          })
+        }}
         className={`relative rounded-full p-2.5 sm:p-3 shadow-sm border transition-all ${
           unreadCount > 0
             ? 'bg-beige-100 dark:bg-dpurple-900 text-violet-600 dark:text-violet-400 border-violet-200 dark:border-violet-800 hover:bg-violet-50 dark:hover:bg-violet-950'
@@ -182,15 +221,26 @@ export default function NotificationCenter({ compact = false }: NotificationCent
         )}
       </button>
 
-      {/* Dropdown */}
-      <AnimatePresence>
-        {isOpen && (
+      {/* Dropdown — portaled to body + fixed so it always stacks above transformed layers (dashboard cards, transitions). */}
+      {mounted &&
+        createPortal(
+          <AnimatePresence>
+            {isOpen && (
           <motion.div
+            key="notification-dropdown"
+            ref={panelRef}
             initial={{ opacity: 0, y: -8, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.96 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 mt-2 w-[340px] sm:w-[380px] bg-beige-50 dark:bg-dpurple-900 border border-beige-200 dark:border-dpurple-700 rounded-2xl shadow-2xl overflow-hidden z-50"
+            style={{
+              position: 'fixed',
+              top: panelPos.top,
+              right: panelPos.right,
+              zIndex: 10050,
+              width: 'min(380px, calc(100vw - 16px))',
+            }}
+            className="bg-beige-50 dark:bg-dpurple-900 border border-beige-200 dark:border-dpurple-700 rounded-2xl shadow-2xl overflow-hidden"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100 dark:border-dpurple-700">
@@ -292,13 +342,15 @@ export default function NotificationCenter({ compact = false }: NotificationCent
                   className="text-[11px] text-center block text-violet-600 dark:text-violet-400 font-medium hover:underline"
                   onClick={() => setIsOpen(false)}
                 >
-                  {t('Upgrade to Wist+ for back-in-stock alerts →')}
+                  {t('Upgrade to Wist Pro for back-in-stock alerts →')}
                 </Link>
               </div>
             )}
           </motion.div>
+            )}
+          </AnimatePresence>,
+          document.body
         )}
-      </AnimatePresence>
     </div>
   )
 }

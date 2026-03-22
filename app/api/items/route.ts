@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { checkItemLimit } from '@/lib/tier-guards';
+import { checkItemLimitForApi } from '@/lib/tier-guards';
 import { convertPrice } from '@/lib/currency';
 // Dynamic import to avoid webpack analyzing scraper dependencies during build
 
@@ -332,7 +332,7 @@ export async function POST(request: Request) {
     // 6b. Check item limit for active items
     const effectiveStatus = status || 'active';
     if (effectiveStatus === 'active') {
-      const limitCheck = await checkItemLimit(supabaseClient, user.id);
+      const limitCheck = await checkItemLimitForApi(user.id, supabaseClient);
       if (!limitCheck.allowed) {
         return NextResponse.json(
           { error: 'Item limit reached', limit: limitCheck.limit, current: limitCheck.current, upgrade: true },
@@ -581,7 +581,7 @@ export async function PATCH(request: Request) {
     }
 
     if (newStatus === 'active') {
-      const limitCheck = await checkItemLimit(supabaseClient, user.id);
+      const limitCheck = await checkItemLimitForApi(user.id, supabaseClient);
       if (!limitCheck.allowed) {
         return NextResponse.json(
           { error: 'Item limit reached', limit: limitCheck.limit, current: limitCheck.current, upgrade: true },

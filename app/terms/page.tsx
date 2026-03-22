@@ -271,7 +271,20 @@ export default function TermsPage() {
               revised policy.
             </p>
 
-            <h2>11. Contact Us</h2>
+            <h2 id="data-deletion">11. Data Deletion Instructions</h2>
+            <p>
+              If you want to delete your Wist account and all associated data (including any data we received from Facebook or Instagram if you connected those accounts), you may:
+            </p>
+            <ul>
+              <li><strong>Email us:</strong> Send a request to <strong>support@wist.app</strong> (or support@nuvio.cloud) with the email address of your Wist account and the subject line &quot;Data deletion request.&quot;</li>
+              <li>We will confirm receipt and remove your account and personal data within 30 days (typically within 48 hours).</li>
+              <li>After deletion, we will not retain your personal data except where required by law.</li>
+            </ul>
+            <p>
+              This satisfies requests for data deletion from users who signed in with Google, or who connected their Facebook or Instagram account to Wist.
+            </p>
+
+            <h2>12. Contact Us</h2>
             <p>
               If you have questions or concerns about these Terms or this Privacy Policy, please contact us at:
             </p>

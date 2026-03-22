@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Clock, Edit2, Trash2, Check, X, ExternalLink, CircleCheck, Loader2, Smartphone } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
+import { affiliateUrl } from '@/lib/amazon-affiliate'
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false)
@@ -33,9 +34,10 @@ interface Props {
   item: QueuedItem
   onUpdate: (id: string, data: any) => void
   onDelete: (id: string) => void
+  amazonTag?: string | null
 }
 
-export default function QueuedItemCard({ item, onUpdate, onDelete }: Props) {
+export default function QueuedItemCard({ item, onUpdate, onDelete, amazonTag }: Props) {
   const isMobile = useIsMobile()
   const [isEditing, setIsEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(item.title || '')
@@ -242,7 +244,7 @@ export default function QueuedItemCard({ item, onUpdate, onDelete }: Props) {
 
         {/* External link */}
         <a
-          href={item.url}
+          href={affiliateUrl(item.url, amazonTag)}
           target="_blank"
           rel="noopener noreferrer"
           className="flex-shrink-0 p-1.5 text-zinc-400 hover:text-violet-600 transition-colors"

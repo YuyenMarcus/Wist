@@ -23,7 +23,7 @@ export interface Profile {
   adult_content_filter: boolean;
   onboarding_completed: boolean;
   auto_activate_queued: boolean;
-  subscription_tier: 'free' | 'pro' | 'pro_plus' | 'creator' | 'enterprise';
+  subscription_tier: 'free' | 'pro' | 'creator' | 'enterprise';
   is_admin: boolean;
   is_banned: boolean;
   ban_reason: string | null;
@@ -31,6 +31,20 @@ export interface Profile {
   gifting_enabled: boolean;
   gifting_message: string | null;
   preferred_currency: string;
+  banner_url: string | null;
+  /** 0–100: horizontal focal point for banner `object-position` (default 50). */
+  banner_position_x: number | null;
+  /** 0–100: vertical focal point for banner `object-position` (default 50). */
+  banner_position_y: number | null;
+  pinned_item_id: string | null;
+  /** Facebook Messenger Page-Scoped ID; set by webhook after user sends `connect <code>` in Messenger */
+  messenger_psid: string | null;
+  /** One-time code generated in Settings to link Messenger */
+  messenger_link_token: string | null;
+  /** Stripe Customer id — set by checkout / webhooks */
+  stripe_customer_id: string | null;
+  /** Active subscription id — set by checkout / webhooks */
+  stripe_subscription_id: string | null;
 }
 
 /**
@@ -154,6 +168,12 @@ export async function updateProfile(
     gifting_enabled?: boolean;
     gifting_message?: string | null;
     preferred_currency?: string;
+    banner_url?: string | null;
+    banner_position_x?: number | null;
+    banner_position_y?: number | null;
+    pinned_item_id?: string | null;
+    messenger_psid?: string | null;
+    messenger_link_token?: string | null;
   }
 ): Promise<{
   data: Profile | null;
@@ -163,6 +183,21 @@ export async function updateProfile(
     ...updates,
     updated_at: new Date().toISOString(),
   };
+
+  // Remove fields that may not exist in the DB schema yet to avoid errors
+  const safeFields = [
+    'full_name', 'avatar_url', 'username', 'bio', 'website',
+    'instagram_handle', 'tiktok_handle', 'amazon_affiliate_id',
+    'age', 'adult_content_filter', 'onboarding_completed',
+    'auto_activate_queued', 'profile_theme', 'gifting_enabled',
+    'gifting_message', 'preferred_currency', 'updated_at',
+    'username_set_at', 'username_changed_at',
+    'banner_url', 'banner_position_x', 'banner_position_y', 'pinned_item_id',
+    'messenger_psid', 'messenger_link_token',
+  ];
+  for (const key of Object.keys(updateData)) {
+    if (!safeFields.includes(key)) delete updateData[key];
+  }
 
   // If setting username for first time, also set username_set_at
   if (updates.username && !updates.username.match(/^[a-zA-Z0-9_-]+$/)) {
@@ -216,12 +251,29 @@ export async function updateProfile(
     }
   }
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('profiles')
     .update(updateData)
     .eq('id', userId)
     .select()
     .single();
+
+  // If a column doesn't exist in the schema, retry without it
+  if (error && error.code === 'PGRST204') {
+    const match = error.message?.match(/column ['"]?(\w+)['"]?/i)
+      || error.message?.match(/'(\w+)'/);
+    if (match?.[1]) {
+      delete updateData[match[1]];
+      const retry = await supabase
+        .from('profiles')
+        .update(updateData)
+        .eq('id', userId)
+        .select()
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
+  }
 
   return { data, error };
 }

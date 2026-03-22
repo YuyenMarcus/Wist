@@ -128,13 +128,12 @@ export default function ExtensionLandingPage() {
           className="flex flex-col items-center gap-4"
         >
           <a
-            href="https://chrome.google.com/webstore"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/wist-extension-download.zip"
+            download
             className="download-extension-btn group flex h-14 items-center gap-3 rounded-full bg-zinc-900 px-8 text-base font-semibold text-white transition-all hover:bg-zinc-800 hover:shadow-xl hover:-translate-y-1"
           >
             <Download className="h-5 w-5" />
-            Add to Chrome - It's Free
+            Download Extension - It's Free
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
           </a>
           
@@ -225,13 +224,12 @@ export default function ExtensionLandingPage() {
         >
           <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to stop overpaying?</h2>
           <a
-            href="https://chrome.google.com/webstore"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/wist-extension-download.zip"
+            download
             className="inline-flex items-center gap-2 px-8 py-4 bg-violet-600 text-white rounded-xl font-bold text-lg hover:bg-violet-500 transition shadow-lg"
           >
             <Download size={20} />
-            Add Wist to Chrome
+            Download Wist Extension
           </a>
         </motion.div>
       </section>

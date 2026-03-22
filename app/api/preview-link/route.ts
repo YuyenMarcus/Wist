@@ -34,10 +34,12 @@ export async function POST(request: Request) {
     if (needsPlaywright && scraperServiceUrl) {
       console.log(`🔍 [Preview] Trying Python scraper for dynamic site: ${domain}`);
       try {
+        const fwd = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || '';
         const response = await fetch(`${scraperServiceUrl}/api/scrape/sync`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            ...(fwd ? { 'X-Forwarded-For': fwd } : {}),
           },
           body: JSON.stringify({ url }),
           signal: AbortSignal.timeout(30000), // 30s timeout
