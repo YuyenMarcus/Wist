@@ -67,11 +67,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: linkError?.message ?? "Link failed" }, { status: 500 });
     }
 
-    const actionLink = linkData.properties?.action_link ?? "";
-    const url = new URL(actionLink);
-    const token = url.searchParams.get("token") ?? "";
+    const otp = linkData.properties?.email_otp ?? "";
 
-    return NextResponse.json({ email: claims.email, otp: token });
+    if (!otp) {
+      return NextResponse.json({ error: "No OTP generated" }, { status: 500 });
+    }
+
+    return NextResponse.json({ email: claims.email, otp });
   } catch (e: any) {
     console.error("[google-native]", e);
     return NextResponse.json({ error: e.message ?? "Internal error" }, { status: 500 });
