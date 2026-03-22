@@ -1,6 +1,7 @@
 export interface ProfileTheme {
   key: string;
   name: string;
+  isDark: boolean;
   bg: string;
   text: string;
   textSecondary: string;
@@ -14,6 +15,7 @@ export const PROFILE_THEMES: Record<string, ProfileTheme> = {
   default: {
     key: 'default',
     name: 'Classic',
+    isDark: false,
     bg: 'bg-zinc-50',
     text: 'text-zinc-900',
     textSecondary: 'text-zinc-500',
@@ -25,6 +27,7 @@ export const PROFILE_THEMES: Record<string, ProfileTheme> = {
   midnight: {
     key: 'midnight',
     name: 'Midnight',
+    isDark: true,
     bg: 'bg-zinc-950',
     text: 'text-white',
     textSecondary: 'text-zinc-400',
@@ -36,6 +39,7 @@ export const PROFILE_THEMES: Record<string, ProfileTheme> = {
   ocean: {
     key: 'ocean',
     name: 'Ocean',
+    isDark: false,
     bg: 'bg-slate-50',
     text: 'text-slate-900',
     textSecondary: 'text-slate-500',
@@ -47,6 +51,7 @@ export const PROFILE_THEMES: Record<string, ProfileTheme> = {
   sunset: {
     key: 'sunset',
     name: 'Sunset',
+    isDark: false,
     bg: 'bg-amber-50',
     text: 'text-amber-950',
     textSecondary: 'text-amber-700',
@@ -58,6 +63,7 @@ export const PROFILE_THEMES: Record<string, ProfileTheme> = {
   rose: {
     key: 'rose',
     name: 'Rose',
+    isDark: false,
     bg: 'bg-pink-50',
     text: 'text-pink-950',
     textSecondary: 'text-pink-600',
@@ -69,6 +75,7 @@ export const PROFILE_THEMES: Record<string, ProfileTheme> = {
   forest: {
     key: 'forest',
     name: 'Forest',
+    isDark: false,
     bg: 'bg-emerald-50',
     text: 'text-emerald-950',
     textSecondary: 'text-emerald-600',
@@ -76,6 +83,42 @@ export const PROFILE_THEMES: Record<string, ProfileTheme> = {
     avatarGradient: 'from-emerald-500 to-green-600',
     cardBg: 'bg-white',
     borderColor: 'border-emerald-200',
+  },
+  abyss: {
+    key: 'abyss',
+    name: 'Abyss',
+    isDark: true,
+    bg: 'bg-slate-950',
+    text: 'text-slate-50',
+    textSecondary: 'text-slate-400',
+    accent: 'text-cyan-400',
+    avatarGradient: 'from-cyan-500 to-blue-600',
+    cardBg: 'bg-slate-900',
+    borderColor: 'border-slate-800',
+  },
+  ember: {
+    key: 'ember',
+    name: 'Ember',
+    isDark: true,
+    bg: 'bg-neutral-950',
+    text: 'text-orange-50',
+    textSecondary: 'text-orange-300/70',
+    accent: 'text-orange-400',
+    avatarGradient: 'from-orange-500 to-red-600',
+    cardBg: 'bg-neutral-900',
+    borderColor: 'border-neutral-800',
+  },
+  lavender: {
+    key: 'lavender',
+    name: 'Lavender',
+    isDark: false,
+    bg: 'bg-violet-50',
+    text: 'text-violet-950',
+    textSecondary: 'text-violet-500',
+    accent: 'text-violet-600',
+    avatarGradient: 'from-violet-400 to-fuchsia-500',
+    cardBg: 'bg-white',
+    borderColor: 'border-violet-200',
   },
 };
 

@@ -837,27 +837,48 @@ export default function SettingsPage() {
                 <p className="text-sm text-zinc-500">Upgrade to <span className="font-semibold text-violet-600">Wist Creator</span> to customize your profile theme</p>
               </div>
             ) : (
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {THEME_KEYS.map(key => {
-                  const theme = PROFILE_THEMES[key]
+                  const t = PROFILE_THEMES[key]
                   const selected = formData.profileTheme === key
                   return (
                     <button
                       key={key}
                       type="button"
                       onClick={() => setFormData(prev => ({ ...prev, profileTheme: key }))}
-                      className={`relative rounded-xl p-3 text-center transition-all border-2 ${
-                        selected ? 'border-violet-500 ring-2 ring-violet-200' : 'border-zinc-200 hover:border-zinc-300'
+                      className={`relative rounded-xl overflow-hidden text-left transition-all border-2 ${
+                        selected ? 'border-violet-500 ring-2 ring-violet-200 dark:ring-violet-800' : 'border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600'
                       }`}
                     >
-                      <div className={`w-full h-8 rounded-lg ${theme.bg} mb-2 border border-zinc-100`} />
-                      <div className={`w-full h-1 rounded bg-gradient-to-r ${theme.avatarGradient} mb-2`} />
-                      <span className="text-xs font-medium text-zinc-700">{theme.name}</span>
-                      {selected && (
-                        <div className="absolute top-1 right-1 w-4 h-4 bg-violet-500 rounded-full flex items-center justify-center">
-                          <Check size={10} className="text-white" />
+                      <div className={`${t.bg} p-3 pb-4`}>
+                        <div className="flex items-center gap-2 mb-2.5">
+                          <div className={`w-6 h-6 rounded-full bg-gradient-to-br ${t.avatarGradient} flex-shrink-0`} />
+                          <div className="flex-1 min-w-0">
+                            <div className={`h-2 w-12 rounded ${t.isDark ? 'bg-white/30' : 'bg-zinc-900/15'}`} />
+                            <div className={`h-1.5 w-8 rounded mt-1 ${t.isDark ? 'bg-white/15' : 'bg-zinc-900/8'}`} />
+                          </div>
                         </div>
-                      )}
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <div className={`${t.cardBg} rounded-md border ${t.borderColor} p-1.5`}>
+                            <div className={`w-full aspect-square rounded bg-gradient-to-br ${t.avatarGradient} opacity-20 mb-1`} />
+                            <div className={`h-1.5 w-10 rounded ${t.isDark ? 'bg-white/20' : 'bg-zinc-900/10'}`} />
+                            <div className={`h-1.5 w-6 rounded mt-0.5 ${t.accent.replace('text-', 'bg-')} opacity-30`} />
+                          </div>
+                          <div className={`${t.cardBg} rounded-md border ${t.borderColor} p-1.5`}>
+                            <div className={`w-full aspect-square rounded bg-gradient-to-br ${t.avatarGradient} opacity-20 mb-1`} />
+                            <div className={`h-1.5 w-8 rounded ${t.isDark ? 'bg-white/20' : 'bg-zinc-900/10'}`} />
+                            <div className={`h-1.5 w-5 rounded mt-0.5 ${t.accent.replace('text-', 'bg-')} opacity-30`} />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between px-3 py-2 bg-white dark:bg-dpurple-800">
+                        <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{t.name}</span>
+                        {selected && (
+                          <div className="w-4 h-4 bg-violet-500 rounded-full flex items-center justify-center">
+                            <Check size={10} className="text-white" />
+                          </div>
+                        )}
+                      </div>
                     </button>
                   )
                 })}

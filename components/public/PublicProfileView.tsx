@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { PublicProfileData, PublicItem } from '@/lib/supabase/public-profile';
+import { getProfileTheme, type ProfileTheme } from '@/lib/constants/profile-themes';
 import TierBadge from '@/components/ui/TierBadge';
 import { Globe, Sparkles, Plus, Check, Loader2 } from 'lucide-react';
 import Link from 'next/link';
@@ -28,7 +29,7 @@ function TikTokIcon({ className }: { className?: string }) {
   );
 }
 
-function AddToMyListButton({ item }: { item: PublicItem }) {
+function AddToMyListButton({ item, theme }: { item: PublicItem; theme: ProfileTheme }) {
   const [state, setState] = useState<'idle' | 'loading' | 'done'>('idle');
 
   async function handleAdd() {
@@ -77,7 +78,7 @@ function AddToMyListButton({ item }: { item: PublicItem }) {
     <button
       onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleAdd(); }}
       disabled={state === 'loading'}
-      className="absolute top-2 right-2 z-10 flex items-center gap-1 px-2 py-1 rounded-full bg-violet-600 text-white shadow-lg text-[10px] font-semibold hover:bg-violet-700 active:scale-95 transition-all"
+      className={`absolute top-2 right-2 z-10 flex items-center gap-1 px-2 py-1 rounded-full text-white shadow-lg text-[10px] font-semibold active:scale-95 transition-all bg-gradient-to-r ${theme.avatarGradient} hover:opacity-90`}
       title="Add to my wishlist"
     >
       {state === 'loading' ? (
@@ -95,9 +96,11 @@ function AddToMyListButton({ item }: { item: PublicItem }) {
 function PublicItemCard({
   item,
   amazonTag,
+  theme,
 }: {
   item: PublicItem;
   amazonTag?: string | null;
+  theme: ProfileTheme;
 }) {
   let href = item.url;
   if (amazonTag && href && /amazon\./i.test(href)) {
@@ -113,11 +116,11 @@ function PublicItemCard({
       href={href || '#'}
       target="_blank"
       rel="noopener noreferrer"
-      className="relative block rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-700/60 bg-white dark:bg-zinc-900 shadow-sm hover:shadow-md transition-shadow group"
+      className={`relative block rounded-xl overflow-hidden border ${theme.borderColor} ${theme.cardBg} shadow-sm hover:shadow-md transition-shadow group`}
     >
-      <AddToMyListButton item={item} />
+      <AddToMyListButton item={item} theme={theme} />
       {item.image && (
-        <div className="aspect-square overflow-hidden bg-zinc-100 dark:bg-zinc-800">
+        <div className="aspect-square overflow-hidden bg-zinc-100">
           <img
             src={item.image}
             alt={item.title || ''}
@@ -128,12 +131,12 @@ function PublicItemCard({
       )}
       <div className="p-3">
         {item.title && (
-          <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 line-clamp-2 leading-snug">
+          <h3 className={`text-sm font-medium ${theme.text} line-clamp-2 leading-snug`}>
             {item.title}
           </h3>
         )}
         {item.price != null && item.price > 0 && (
-          <p className="mt-1.5 text-sm font-bold text-zinc-900 dark:text-zinc-100">
+          <p className={`mt-1.5 text-sm font-bold ${theme.accent}`}>
             ${Number(item.price).toFixed(2)}
           </p>
         )}
@@ -144,26 +147,20 @@ function PublicItemCard({
 
 export default function PublicProfileView({ profile, items }: PublicProfileViewProps) {
   const hasSocials = profile.instagram_handle || profile.tiktok_handle || profile.website;
-  const [isDark, setIsDark] = useState(false);
+  const theme = getProfileTheme(profile.profile_theme);
+  const isDarkTheme = theme.isDark;
 
   useEffect(() => {
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    setIsDark(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setIsDark(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
-
-  useEffect(() => {
-    if (isDark) {
+    if (isDarkTheme) {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
-  }, [isDark]);
+    return () => { document.documentElement.classList.remove('dark'); };
+  }, [isDarkTheme]);
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 transition-colors">
+    <div className={`min-h-screen ${theme.bg} transition-colors`}>
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 sm:pt-20 pb-32">
         {/* Header */}
         <header className="flex flex-col items-center text-center mb-10 sm:mb-16 px-2">
@@ -171,25 +168,25 @@ export default function PublicProfileView({ profile, items }: PublicProfileViewP
             <img
               src={profile.avatar_url}
               alt={profile.full_name || profile.username}
-              className="w-20 h-20 sm:w-28 sm:h-28 rounded-full object-cover border-4 border-white dark:border-zinc-800 shadow-lg"
+              className={`w-20 h-20 sm:w-28 sm:h-28 rounded-full object-cover border-4 shadow-lg ${isDarkTheme ? 'border-zinc-800' : 'border-white'}`}
             />
           ) : (
-            <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center border-4 border-white dark:border-zinc-800 shadow-lg">
+            <div className={`w-20 h-20 sm:w-28 sm:h-28 rounded-full bg-gradient-to-br ${theme.avatarGradient} flex items-center justify-center border-4 shadow-lg ${isDarkTheme ? 'border-zinc-800' : 'border-white'}`}>
               <span className="text-2xl sm:text-3xl font-medium text-white">
                 {profile.full_name?.[0]?.toUpperCase() || profile.username[0]?.toUpperCase() || '?'}
               </span>
             </div>
           )}
 
-          <h1 className="mt-4 text-xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight flex items-center justify-center gap-2 flex-wrap">
+          <h1 className={`mt-4 text-xl sm:text-3xl font-bold ${theme.text} tracking-tight flex items-center justify-center gap-2 flex-wrap`}>
             {profile.full_name || `${profile.username}'s Wishlist`}
             <TierBadge tier={profile.subscription_tier} size="md" />
           </h1>
 
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400 font-medium">@{profile.username}</p>
+          <p className={`mt-1 text-sm ${theme.textSecondary} font-medium`}>@{profile.username}</p>
 
           {profile.bio && (
-            <p className="mt-3 text-sm sm:text-base text-zinc-600 dark:text-zinc-400 max-w-md leading-relaxed">
+            <p className={`mt-3 text-sm sm:text-base ${theme.textSecondary} max-w-md leading-relaxed`}>
               {profile.bio}
             </p>
           )}
@@ -201,7 +198,7 @@ export default function PublicProfileView({ profile, items }: PublicProfileViewP
                   href={`https://instagram.com/${profile.instagram_handle}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-2 rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:text-pink-600 dark:hover:text-pink-400 hover:border-pink-300 dark:hover:border-pink-700 transition-colors shadow-sm"
+                  className={`p-2 rounded-full ${theme.cardBg} border ${theme.borderColor} ${theme.textSecondary} hover:text-pink-600 hover:border-pink-300 transition-colors shadow-sm`}
                   title={`@${profile.instagram_handle} on Instagram`}
                 >
                   <InstagramIcon className="w-[18px] h-[18px]" />
@@ -212,7 +209,7 @@ export default function PublicProfileView({ profile, items }: PublicProfileViewP
                   href={`https://tiktok.com/@${profile.tiktok_handle}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-2 rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:border-zinc-400 dark:hover:border-zinc-500 transition-colors shadow-sm"
+                  className={`p-2 rounded-full ${theme.cardBg} border ${theme.borderColor} ${theme.textSecondary} hover:opacity-70 transition-all shadow-sm`}
                   title={`@${profile.tiktok_handle} on TikTok`}
                 >
                   <TikTokIcon className="w-[18px] h-[18px]" />
@@ -223,7 +220,7 @@ export default function PublicProfileView({ profile, items }: PublicProfileViewP
                   href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-2 rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-300 dark:hover:border-violet-700 transition-colors shadow-sm"
+                  className={`p-2 rounded-full ${theme.cardBg} border ${theme.borderColor} ${theme.textSecondary} hover:opacity-70 transition-all shadow-sm`}
                   title={profile.website}
                 >
                   <Globe className="w-[18px] h-[18px]" />
@@ -232,7 +229,7 @@ export default function PublicProfileView({ profile, items }: PublicProfileViewP
             </div>
           )}
 
-          <p className="mt-3 text-sm text-zinc-400 dark:text-zinc-500">
+          <p className={`mt-3 text-sm ${theme.textSecondary}`}>
             {items.length} {items.length === 1 ? 'item' : 'items'}
           </p>
         </header>
@@ -245,12 +242,13 @@ export default function PublicProfileView({ profile, items }: PublicProfileViewP
                 key={item.id}
                 item={item}
                 amazonTag={profile.amazon_affiliate_id}
+                theme={theme}
               />
             ))}
           </div>
         ) : (
           <div className="text-center py-20">
-            <p className="text-zinc-500 dark:text-zinc-400">This wishlist is empty.</p>
+            <p className={theme.textSecondary}>This wishlist is empty.</p>
           </div>
         )}
       </div>
@@ -258,18 +256,18 @@ export default function PublicProfileView({ profile, items }: PublicProfileViewP
       {/* Sticky bottom CTA */}
       <div className="fixed bottom-0 inset-x-0 z-50 pointer-events-none">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-5">
-          <div className="pointer-events-auto flex items-center justify-between gap-4 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-zinc-200 dark:border-zinc-700/60 shadow-lg px-5 py-3.5">
+          <div className={`pointer-events-auto flex items-center justify-between gap-4 rounded-2xl ${isDarkTheme ? 'bg-zinc-900/80 border-zinc-700/60' : 'bg-white/80 border-zinc-200'} backdrop-blur-xl border shadow-lg px-5 py-3.5`}>
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
+              <div className={`flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br ${theme.avatarGradient} flex items-center justify-center`}>
                 <Sparkles className="w-4 h-4 text-white" />
               </div>
-              <p className="text-sm font-medium text-zinc-700 dark:text-zinc-200 truncate">
+              <p className={`text-sm font-medium ${theme.text} truncate`}>
                 Track prices & build your own wishlist
               </p>
             </div>
             <Link
               href="/signup"
-              className="flex-shrink-0 inline-flex items-center gap-1.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors shadow-sm"
+              className={`flex-shrink-0 inline-flex items-center gap-1.5 bg-gradient-to-r ${theme.avatarGradient} text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-opacity hover:opacity-90 shadow-sm`}
             >
               Get your Wist
             </Link>
