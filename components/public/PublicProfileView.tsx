@@ -66,12 +66,10 @@ function AddToMyListButton({ item }: { item: PublicItem }) {
 
   if (state === 'done') {
     return (
-      <button
-        disabled
-        className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-emerald-500 text-white shadow-lg sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
-      >
-        <Check className="w-3.5 h-3.5" />
-      </button>
+      <div className="absolute top-2 right-2 z-10 flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-500 text-white shadow-lg text-[10px] font-semibold">
+        <Check className="w-3 h-3" />
+        Added
+      </div>
     );
   }
 
@@ -79,13 +77,16 @@ function AddToMyListButton({ item }: { item: PublicItem }) {
     <button
       onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleAdd(); }}
       disabled={state === 'loading'}
-      className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-white/90 dark:bg-zinc-800/90 text-violet-600 dark:text-violet-400 shadow-lg backdrop-blur-sm border border-zinc-200/60 dark:border-zinc-700/60 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-violet-600 hover:text-white dark:hover:bg-violet-600 dark:hover:text-white transition-all"
+      className="absolute top-2 right-2 z-10 flex items-center gap-1 px-2 py-1 rounded-full bg-violet-600 text-white shadow-lg text-[10px] font-semibold hover:bg-violet-700 active:scale-95 transition-all"
       title="Add to my wishlist"
     >
       {state === 'loading' ? (
-        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+        <Loader2 className="w-3 h-3 animate-spin" />
       ) : (
-        <Plus className="w-3.5 h-3.5" />
+        <>
+          <Plus className="w-3 h-3" />
+          Add
+        </>
       )}
     </button>
   );
@@ -94,13 +95,9 @@ function AddToMyListButton({ item }: { item: PublicItem }) {
 function PublicItemCard({
   item,
   amazonTag,
-  isSignedIn,
-  isOwnProfile,
 }: {
   item: PublicItem;
   amazonTag?: string | null;
-  isSignedIn: boolean;
-  isOwnProfile: boolean;
 }) {
   let href = item.url;
   if (amazonTag && href && /amazon\./i.test(href)) {
@@ -118,7 +115,7 @@ function PublicItemCard({
       rel="noopener noreferrer"
       className="relative block rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-700/60 bg-white dark:bg-zinc-900 shadow-sm hover:shadow-md transition-shadow group"
     >
-      {isSignedIn && !isOwnProfile && <AddToMyListButton item={item} />}
+      <AddToMyListButton item={item} />
       {item.image && (
         <div className="aspect-square overflow-hidden bg-zinc-100 dark:bg-zinc-800">
           <img
@@ -147,7 +144,6 @@ function PublicItemCard({
 
 export default function PublicProfileView({ profile, items }: PublicProfileViewProps) {
   const hasSocials = profile.instagram_handle || profile.tiktok_handle || profile.website;
-  const [userId, setUserId] = useState<string | null>(null);
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
@@ -165,15 +161,6 @@ export default function PublicProfileView({ profile, items }: PublicProfileViewP
       document.documentElement.classList.remove('dark');
     }
   }, [isDark]);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUserId(session?.user?.id || null);
-    });
-  }, []);
-
-  const isSignedIn = !!userId;
-  const isOwnProfile = userId === profile.id;
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 transition-colors">
@@ -258,8 +245,6 @@ export default function PublicProfileView({ profile, items }: PublicProfileViewP
                 key={item.id}
                 item={item}
                 amazonTag={profile.amazon_affiliate_id}
-                isSignedIn={isSignedIn}
-                isOwnProfile={isOwnProfile}
               />
             ))}
           </div>
@@ -270,29 +255,27 @@ export default function PublicProfileView({ profile, items }: PublicProfileViewP
         )}
       </div>
 
-      {/* Sticky bottom CTA — only show if not signed in */}
-      {!isSignedIn && (
-        <div className="fixed bottom-0 inset-x-0 z-50 pointer-events-none">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-5">
-            <div className="pointer-events-auto flex items-center justify-between gap-4 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-zinc-200 dark:border-zinc-700/60 shadow-lg px-5 py-3.5">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
-                  <Sparkles className="w-4 h-4 text-white" />
-                </div>
-                <p className="text-sm font-medium text-zinc-700 dark:text-zinc-200 truncate">
-                  Track prices & build your own wishlist
-                </p>
+      {/* Sticky bottom CTA */}
+      <div className="fixed bottom-0 inset-x-0 z-50 pointer-events-none">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-5">
+          <div className="pointer-events-auto flex items-center justify-between gap-4 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-zinc-200 dark:border-zinc-700/60 shadow-lg px-5 py-3.5">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-white" />
               </div>
-              <Link
-                href="/signup"
-                className="flex-shrink-0 inline-flex items-center gap-1.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors shadow-sm"
-              >
-                Get your Wist
-              </Link>
+              <p className="text-sm font-medium text-zinc-700 dark:text-zinc-200 truncate">
+                Track prices & build your own wishlist
+              </p>
             </div>
+            <Link
+              href="/signup"
+              className="flex-shrink-0 inline-flex items-center gap-1.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors shadow-sm"
+            >
+              Get your Wist
+            </Link>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
