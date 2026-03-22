@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, AlertCircle, Check, Instagram, Facebook, Link as LinkIcon, ShoppingCart, Video, Shield, Lock, ArrowLeft, Zap, Gift, DollarSign, Moon, Sun, Camera, X as XIcon } from 'lucide-react'
+import { Loader2, AlertCircle, Check, Instagram, Facebook, Link as LinkIcon, ShoppingCart, Video, Shield, Lock, ArrowLeft, Zap, Palette, Gift, DollarSign, Moon, Sun, Camera, X as XIcon } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { getProfile, updateProfile } from '@/lib/supabase/profile'
-// Profile themes removed from settings UI
+import { PROFILE_THEMES, THEME_KEYS } from '@/lib/constants/profile-themes'
 import { isTierAtLeast } from '@/lib/tier-guards'
 import { CURRENCY_INFO, SUPPORTED_CURRENCIES } from '@/lib/currency'
 import LavenderLoader from '@/components/ui/LavenderLoader'
@@ -778,6 +778,46 @@ export default function SettingsPage() {
                 })}
               </select>
             </div>
+          </div>
+
+          {/* --- SECTION 4: PROFILE THEME (Creator+) --- */}
+          <div id="theme" className="bg-beige-100 dark:bg-dpurple-900 p-8 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm space-y-6 scroll-mt-20">
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-dpurple-700 pb-2 flex items-center gap-2">
+              <Palette size={16} /> Profile Theme
+            </h2>
+
+            {!isTierAtLeast(profile?.subscription_tier, 'creator') ? (
+              <div className="text-center py-4 space-y-2">
+                <Lock size={24} className="text-zinc-300 mx-auto" />
+                <p className="text-sm text-zinc-500">Upgrade to <span className="font-semibold text-violet-600">Wist Creator</span> to customize your profile theme</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                {THEME_KEYS.map(key => {
+                  const theme = PROFILE_THEMES[key]
+                  const selected = formData.profileTheme === key
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, profileTheme: key }))}
+                      className={`relative rounded-xl p-3 text-center transition-all border-2 ${
+                        selected ? 'border-violet-500 ring-2 ring-violet-200' : 'border-zinc-200 hover:border-zinc-300'
+                      }`}
+                    >
+                      <div className={`w-full h-8 rounded-lg ${theme.bg} mb-2 border border-zinc-100`} />
+                      <div className={`w-full h-1 rounded bg-gradient-to-r ${theme.avatarGradient} mb-2`} />
+                      <span className="text-xs font-medium text-zinc-700">{theme.name}</span>
+                      {selected && (
+                        <div className="absolute top-1 right-1 w-4 h-4 bg-violet-500 rounded-full flex items-center justify-center">
+                          <Check size={10} className="text-white" />
+                        </div>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
 
           {/* --- SECTION 5: GIFTING (Pro+) --- */}

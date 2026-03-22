@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
+import { Search } from 'lucide-react'
 
 const navItems = [
   {
@@ -58,10 +59,13 @@ export default function FloatingNav() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // Only show on app pages (dashboard, account, etc.) — hide on landing, login, public pages
-  const appRoutes = ['/dashboard', '/account', '/extension']
-  const isAppRoute = appRoutes.some((r) => pathname?.startsWith(r))
-  if (!isAppRoute || !user) {
+  // Don't show on login/signup/auth/settings pages
+  if (pathname?.startsWith('/login') || pathname?.startsWith('/signup') || pathname?.startsWith('/auth') || pathname?.startsWith('/settings')) {
+    return null
+  }
+
+  // Only show if user is logged in
+  if (!user) {
     return null
   }
 
@@ -104,6 +108,17 @@ export default function FloatingNav() {
             </Link>
           )
         })}
+        
+        {/* Search Icon */}
+        <Link href="/dashboard" title="Search">
+          <motion.div
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
+            className="px-3 py-2 rounded-full text-zinc-600 hover:text-zinc-900 transition-colors"
+          >
+            <Search className="w-5 h-5" />
+          </motion.div>
+        </Link>
       </motion.div>
     </motion.nav>
   )

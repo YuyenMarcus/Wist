@@ -38,11 +38,13 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowLeft,
+  ArrowRightLeft,
   Check,
   CreditCard,
   Loader2,
   Sparkles,
   Shield,
+  Zap,
   Diamond,
   Crown,
   HelpCircle,
@@ -333,40 +335,73 @@ export default function SubscriptionPage() {
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 md:pt-8">
 
-        {/* Hero — compact with plan info inline */}
+        {/* Hero */}
         <div className="relative overflow-hidden rounded-2xl md:rounded-3xl border border-violet-200/80 dark:border-violet-900/40 bg-gradient-to-br from-violet-50 via-beige-100 to-purple-50/90 dark:from-violet-950/50 dark:via-dpurple-900 dark:to-purple-950/30 shadow-sm mb-8 md:mb-10">
           <div
             className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-violet-400/20 dark:bg-violet-500/10 blur-3xl"
             aria-hidden
           />
-          <div className="relative p-6 md:p-10">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="min-w-0 flex-1">
-                <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">
-                  {t('Subscription & billing')}
-                </h1>
-                <div className="mt-3 flex items-center gap-3 flex-wrap">
-                  <TierBadge tier={tier} size="md" />
-                  <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                    {current.priceLabel}
-                    {current.itemLimit == null
-                      ? ` · ${t('Unlimited items')}`
-                      : ` · ${t('Up to {n} items').replace('{n}', String(current.itemLimit))}`}
-                  </span>
-                </div>
+          <div
+            className="pointer-events-none absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-purple-400/15 dark:bg-purple-500/10 blur-3xl"
+            aria-hidden
+          />
+          <div className="relative p-6 md:p-10 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
+            <div className="min-w-0 flex-1">
+              <div className="inline-flex items-center gap-2 rounded-full border border-violet-200/70 dark:border-violet-800/60 bg-white/60 dark:bg-dpurple-950/60 px-3 py-1 text-xs font-semibold text-violet-700 dark:text-violet-300 mb-4">
+                <Zap className="w-3.5 h-3.5" aria-hidden />
+                {t('Wist membership')}
               </div>
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">
+                {t('Subscription & billing')}
+              </h1>
+              <p className="mt-2 text-sm md:text-base text-zinc-600 dark:text-zinc-400 max-w-xl leading-relaxed">
+                {t('Upgrade for unlimited items, faster price checks, and more.')}
+              </p>
+            </div>
 
-              {!isEnterprise && hasStripeCustomer && (
-                <button
-                  type="button"
-                  onClick={openPortal}
-                  disabled={portalLoading}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-300 dark:border-dpurple-600 bg-white/90 dark:bg-dpurple-800/80 backdrop-blur-sm text-zinc-800 dark:text-zinc-100 text-sm font-semibold py-2.5 px-5 hover:bg-white dark:hover:bg-dpurple-700 disabled:opacity-60 transition-colors shrink-0 shadow-sm"
-                >
-                  {portalLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
-                  {t('Manage billing')}
-                </button>
-              )}
+            <div className="flex flex-col sm:flex-row lg:flex-col items-stretch sm:items-end gap-4 lg:min-w-[260px]">
+              <div className="rounded-2xl border border-zinc-200/80 dark:border-dpurple-600 bg-white/90 dark:bg-dpurple-900/80 backdrop-blur-sm px-5 py-4 shadow-sm">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-2">
+                  {t('Current plan')}
+                </p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                    {current.displayName}
+                  </span>
+                  <TierBadge tier={tier} size="md" />
+                </div>
+                <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                  {current.priceLabel}
+                  {current.itemLimit == null
+                    ? ` · ${t('Unlimited item cap')}`
+                    : ` · ${t('Up to {n} items').replace('{n}', String(current.itemLimit))}`}
+                </p>
+
+                {!isEnterprise && hasStripeCustomer && (
+                  <button
+                    type="button"
+                    onClick={openPortal}
+                    disabled={portalLoading}
+                    className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold py-2.5 px-4 shadow-sm transition-colors disabled:opacity-60"
+                  >
+                    {portalLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <ArrowRightLeft className="w-4 h-4" />
+                    )}
+                    {t('Change subscription')}
+                  </button>
+                )}
+
+                {!isEnterprise && !hasStripeCustomer && (
+                  <a
+                    href="#compare-plans"
+                    className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-violet-200 dark:border-violet-800 bg-white/80 dark:bg-dpurple-900/60 text-violet-700 dark:text-violet-300 text-sm font-semibold py-2.5 px-4 hover:bg-violet-50 dark:hover:bg-violet-950/40 transition-colors"
+                  >
+                    {t('View plans')}
+                  </a>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -408,18 +443,23 @@ export default function SubscriptionPage() {
           </div>
         )}
 
-        {/* Payment method (only for paying subscribers) */}
         {!isEnterprise && hasStripeCustomer && (
-          <div className="mb-8 rounded-2xl border border-beige-200 dark:border-dpurple-700 bg-beige-100 dark:bg-dpurple-900/50 p-5 md:p-6 shadow-sm">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400">
-                  <CreditCard className="w-4.5 h-4.5" />
+          <div className="mb-10 rounded-2xl border border-beige-200 dark:border-dpurple-700 bg-beige-100 dark:bg-dpurple-900/50 p-6 md:p-7 shadow-sm">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+              <div className="flex items-start gap-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400">
+                  <CreditCard className="w-5 h-5" />
                 </div>
-                <div className="min-w-0">
+                <div>
+                  <h2 className="font-semibold text-zinc-900 dark:text-zinc-100 text-base">
+                    {t('Billing & payment method')}
+                  </h2>
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 max-w-lg leading-relaxed">
+                    {t('Use the Stripe customer portal for invoices, payment details, and cancellation.')}
+                  </p>
                   {pmSummary === 'loading' && (
-                    <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
-                      <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" aria-hidden />
+                    <div className="mt-3 flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+                      <Loader2 className="w-4 h-4 animate-spin shrink-0" aria-hidden />
                       <span>{t('Loading card…')}</span>
                     </div>
                   )}
@@ -427,7 +467,7 @@ export default function SubscriptionPage() {
                     pmSummary !== 'loading' &&
                     pmSummary !== 'none' &&
                     pmSummary.last4 && (
-                      <p className="text-sm font-medium text-zinc-800 dark:text-zinc-100">
+                      <p className="mt-3 text-sm font-medium text-zinc-800 dark:text-zinc-100">
                         {(() => {
                           const raw = (pmSummary.brand || 'card').toLowerCase();
                           const brandLabel = raw.charAt(0).toUpperCase() + raw.slice(1);
@@ -443,10 +483,7 @@ export default function SubscriptionPage() {
                       </p>
                     )}
                   {pmSummary === 'none' && (
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">{t('No saved card on file.')}</p>
-                  )}
-                  {!pmSummary && (
-                    <p className="text-sm font-medium text-zinc-700 dark:text-zinc-200">{t('Payment method')}</p>
+                    <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">{t('No saved card on file.')}</p>
                   )}
                 </div>
               </div>
@@ -454,21 +491,22 @@ export default function SubscriptionPage() {
                 type="button"
                 onClick={openPortal}
                 disabled={portalLoading}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/40 transition-colors shrink-0"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl border border-zinc-300 dark:border-dpurple-600 bg-white dark:bg-dpurple-800 text-zinc-800 dark:text-zinc-100 text-sm font-semibold hover:bg-zinc-50 dark:hover:bg-dpurple-700 disabled:opacity-60 transition-colors shrink-0"
               >
-                {portalLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                {t('Invoices & portal')}
+                {portalLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
+                {t('Invoices & payment method')}
               </button>
             </div>
           </div>
         )}
 
-        {/* Plans heading */}
-        <div className="mb-5">
-          <h2 className="text-lg md:text-xl font-bold text-zinc-900 dark:text-zinc-100">
-            {tier === 'free' ? t('Choose a plan') : t('Plans')}
-          </h2>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">{t('Monthly billing · Cancel anytime')}</p>
+        <div id="compare-plans" className="mb-4 flex items-end justify-between gap-4 scroll-mt-24">
+          <div>
+            <h2 className="text-lg md:text-xl font-bold text-zinc-900 dark:text-zinc-100">
+              {t('Compare plans')}
+            </h2>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">{t('Monthly billing · Cancel anytime')}</p>
+          </div>
         </div>
 
         <div className="grid gap-5 lg:gap-6 lg:grid-cols-3">

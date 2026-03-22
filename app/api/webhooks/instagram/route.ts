@@ -233,29 +233,15 @@ async function handleMessage(event: any) {
     return;
   }
 
-  // Log the full attachment structure so we can debug what Meta actually sends
-  if (Array.isArray(event.message?.attachments)) {
-    for (const att of event.message.attachments) {
-      console.log(`[Instagram Webhook] Attachment type="${att.type}" payload=${JSON.stringify(att.payload || {}).slice(0, 500)}`);
-    }
-  }
-
   const urls = await extractResolvedWishlistUrls(event.message, { source: 'instagram' });
 
   if (urls.length === 0) {
-    const rawText = (event.message?.text || '').trim();
-    const hasAttachments = Array.isArray(event.message?.attachments) && event.message.attachments.length > 0;
-    console.warn(`[Instagram Webhook] No URLs extracted. text="${rawText.slice(0, 80)}" hasAttachments=${hasAttachments}`);
     await sendReply(
       senderId,
-      hasAttachments
-        ? "I couldn't extract a product link from that share. Try copying the product URL and pasting it here instead!"
-        : "I couldn't find a link in that message. Try sharing an ad or product link!"
+      "I couldn't find a link in that message. Try sharing an ad or product link!"
     );
     return;
   }
-
-  console.log(`[Instagram Webhook] Resolved ${urls.length} URL(s): ${urls.map(u => u.slice(0, 80)).join(', ')}`);
 
   // Queue each URL as an item
   let savedCount = 0;

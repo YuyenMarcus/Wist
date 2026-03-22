@@ -48,11 +48,9 @@ export default function NotificationCenter({ compact = false }: NotificationCent
     const el = bellRef.current
     if (!el) return
     const rect = el.getBoundingClientRect()
-    const vw = typeof window !== 'undefined' ? window.innerWidth : 400
-    const isMobile = vw < 640
     setPanelPos({
-      top: isMobile ? rect.bottom + 4 : rect.bottom + 8,
-      right: isMobile ? Math.max(8, (vw - Math.min(380, vw - 16)) / 2) : Math.max(8, vw - rect.right),
+      top: rect.bottom + 8,
+      right: typeof window !== 'undefined' ? Math.max(8, window.innerWidth - rect.right) : 8,
     })
   }, [])
 

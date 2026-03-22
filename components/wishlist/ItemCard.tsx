@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Trash2, Edit2, Check, X, MoreHorizontal, FolderInput, TrendingDown, TrendingUp, EyeOff, ShoppingBag, PackageX, PackageCheck, Pencil, ImageIcon, AlertTriangle, Pin } from 'lucide-react'
+import { Trash2, Edit2, Check, X, MoreHorizontal, FolderInput, TrendingDown, TrendingUp, EyeOff, ShoppingBag, PackageX, PackageCheck, Pencil, ImageIcon, Clock, AlertTriangle, Pin } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
@@ -743,30 +743,48 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                       ${typeof previousPrice === 'number' ? previousPrice.toFixed(2) : previousPrice}
                     </span>
                   )}
-                  {(item.price_check_failures ?? 0) >= 3 ? (
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <AlertTriangle className="w-2.5 h-2.5 text-amber-500" />
-                      <span className="text-[9px] sm:text-[10px] text-amber-500 font-medium">{t('Check failed')}</span>
-                    </div>
-                  ) : priceChange != null && priceChange !== 0 ? (
-                    <div className="flex items-center gap-1 mt-0.5">
-                      {priceChange < 0 ? (
-                        <>
-                          <TrendingDown className="w-3 h-3 text-green-500" />
-                          <span className="text-[9px] sm:text-[10px] font-semibold text-green-600 dark:text-green-400">
-                            {Math.abs(priceChangePercent ?? 0).toFixed(0)}% {t('down')}
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <TrendingUp className="w-3 h-3 text-red-400" />
-                          <span className="text-[9px] sm:text-[10px] font-semibold text-red-500 dark:text-red-400">
-                            {Math.abs(priceChangePercent ?? 0).toFixed(0)}% {t('up')}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  ) : null}
+                  {/* Tracking Status — failures > 0 means last scrape(s) failed; timestamp is last attempt */}
+                  <div className="flex items-center gap-1 mt-0.5">
+                    {(item.price_check_failures ?? 0) >= 3 ? (
+                      <>
+                        <AlertTriangle className="w-2.5 h-2.5 text-amber-500" />
+                        <span className="text-[9px] sm:text-[10px] text-amber-500 font-medium">{t('Check failed')}</span>
+                      </>
+                    ) : item.last_price_check ? (
+                      <>
+                        <Clock
+                          className={`w-2.5 h-2.5 ${
+                            (item.price_check_failures ?? 0) > 0 ? 'text-amber-500/90' : 'text-zinc-400'
+                          }`}
+                        />
+                        <span
+                          className={`text-[9px] sm:text-[10px] ${
+                            (item.price_check_failures ?? 0) > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-400'
+                          }`}
+                        >
+                          {(() => {
+                            const h = Math.floor((Date.now() - new Date(item.last_price_check!).getTime()) / 3_600_000);
+                            const agoShort =
+                              h < 1
+                                ? t('< 1h ago')
+                                : h < 24
+                                  ? `${h}${t('h ago')}`
+                                  : `${Math.floor(h / 24)}${t('d ago')}`;
+                            if ((item.price_check_failures ?? 0) > 0) {
+                              return `${t('Could not verify price')} · ${agoShort} — ${t('Price may be outdated')}`;
+                            }
+                            if (h < 1) return t('Checked < 1h ago');
+                            return `${t('Checked')} ${agoShort}`;
+                          })()}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <Clock className="w-2.5 h-2.5 text-zinc-300 dark:text-zinc-600" />
+                        <span className="text-[9px] sm:text-[10px] text-zinc-300 dark:text-zinc-600">{t('Pending first check')}</span>
+                      </>
+                    )}
+                  </div>
                 </div>
                 
                 <div className={`flex gap-1 sm:gap-2 transition-opacity duration-200 ${isHovered ? 'opacity-100' : 'sm:opacity-0'}`}>

@@ -165,15 +165,14 @@ export async function GET(req: Request) {
 
     console.log("✅ Service role:", process.env.SUPABASE_SERVICE_ROLE_KEY ? 'yes' : 'no (using anon)');
 
-    // Runs every 6 hours (vercel.json). Process as many items as possible
-    // within the serverless timeout. Increase these if you upgrade to a
-    // longer maxDuration on Vercel Pro/Enterprise.
-    const BATCH_SIZE = 50;
-    const MAX_ITEMS = 200;
+    // Stay within serverless time limits; cron runs multiple times per day (vercel.json)
+    const BATCH_SIZE = 28;
+    const MAX_ITEMS = 56;
     
     let totalChecked = 0;
     let updateCount = 0;
     let notificationCount = 0;
+    let hasMore = true;
 
     console.log(`📊 Processing up to ${MAX_ITEMS} items`);
 
@@ -188,26 +187,21 @@ export async function GET(req: Request) {
       }
     }
 
-    type ItemType = {
-      id: string;
-      user_id: string;
-      title: string;
-      url: string;
-      current_price: number | null;
-      status?: string;
-      updated_at?: string;
-      last_price_check?: string;
-      price_check_failures?: number;
-      out_of_stock?: boolean;
-      user_tier?: string;
-    };
-
-    // Keep fetching batches until we hit MAX_ITEMS or run out of eligible items.
-    // Each iteration re-queries because processItem() updates last_price_check,
-    // pushing checked items to the back of the queue automatically.
-    while (totalChecked < MAX_ITEMS) {
-      const fetchLimit = Math.min(BATCH_SIZE * 4, (MAX_ITEMS - totalChecked) * 3);
-
+    while (hasMore && totalChecked < MAX_ITEMS) {
+      type ItemType = {
+        id: string;
+        user_id: string;
+        title: string;
+        url: string;
+        current_price: number | null;
+        status?: string;
+        updated_at?: string;
+        last_price_check?: string;
+        price_check_failures?: number;
+        out_of_stock?: boolean;
+        user_tier?: string;
+      };
+      
       // Fetch items with their owner's subscription tier via a profiles join
       const { data: rawItems, error } = await supabase
         .from('items')
@@ -215,7 +209,7 @@ export async function GET(req: Request) {
         .not('url', 'is', null)
         .eq('status', 'active')
         .order('last_price_check', { ascending: true, nullsFirst: true })
-        .limit(fetchLimit);
+        .limit(BATCH_SIZE * 3);
 
       if (error) {
         console.error("❌ DB Error:", error.message, error.code);
@@ -226,7 +220,7 @@ export async function GET(req: Request) {
           .not('url', 'is', null)
           .eq('status', 'active')
           .order('last_price_check', { ascending: true, nullsFirst: true })
-          .limit(fetchLimit);
+          .limit(BATCH_SIZE * 3);
 
         if (fbErr) {
           return NextResponse.json({ error: fbErr.message }, { status: 500 });
@@ -244,10 +238,11 @@ export async function GET(req: Request) {
           return elapsed >= cooldownMs;
         }).slice(0, BATCH_SIZE);
 
-        if (fbItems.length === 0) break;
+        if (!fbItems || fbItems.length === 0) { hasMore = false; break; }
         console.log(`\n📦 Processing ${fbItems.length} items (fallback, no tier join)`);
 
         for (const item of fbItems) { await processItem(item); }
+        hasMore = false;
         break;
       }
 
@@ -268,21 +263,23 @@ export async function GET(req: Request) {
         return elapsed >= cooldownMs;
       });
 
-      if (items.length === 0) {
-        console.log('\n✅ No more eligible items to check');
-        break;
-      }
-
       // Prioritize higher-tier items first
       const tierPriority: Record<string, number> = { enterprise: 0, creator: 1, pro: 2, free: 3 };
       items.sort((a, b) => (tierPriority[a.user_tier || 'free'] ?? 4) - (tierPriority[b.user_tier || 'free'] ?? 4));
-      items = items.slice(0, Math.min(BATCH_SIZE, MAX_ITEMS - totalChecked));
+      items = items.slice(0, BATCH_SIZE);
 
-      console.log(`\n📦 Batch: processing ${items.length} items (${totalChecked} done so far)`);
+      if (!items || items.length === 0) {
+        hasMore = false;
+        break;
+      }
+
+      console.log(`\n📦 Processing ${items.length} items`);
 
       for (const item of items) {
         await processItem(item);
       }
+
+      hasMore = false;
     }
 
     async function processItem(item: any) {
