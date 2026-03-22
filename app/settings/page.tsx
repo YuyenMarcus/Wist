@@ -828,7 +828,7 @@ export default function SettingsPage() {
           {/* --- SECTION 4: PROFILE THEME (Creator+) --- */}
           <div id="theme" className="bg-beige-100 dark:bg-dpurple-900 p-8 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm space-y-6 scroll-mt-20">
             <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-dpurple-700 pb-2 flex items-center gap-2">
-              <Palette size={16} /> Profile Theme
+              <Palette size={16} /> Shared Profile Theme
             </h2>
 
             {!isTierAtLeast(profile?.subscription_tier, 'creator') ? (
