@@ -14,6 +14,7 @@ export interface Profile {
   username: string | null; // NEW: for public sharing
   username_set_at: string | null; // NEW: when username was set
   username_changed_at: string | null; // NEW: when username was last changed
+  name_changed_at: string | null; // when display name was last changed
   website: string | null;
   instagram_handle: string | null;
   instagram_igsid: string | null;
@@ -191,12 +192,35 @@ export async function updateProfile(
     'age', 'adult_content_filter', 'onboarding_completed',
     'auto_activate_queued', 'profile_theme', 'gifting_enabled',
     'gifting_message', 'preferred_currency', 'updated_at',
-    'username_set_at', 'username_changed_at',
+    'username_set_at', 'username_changed_at', 'name_changed_at',
     'banner_url', 'banner_position_x', 'banner_position_y', 'pinned_item_id',
     'messenger_psid', 'messenger_link_token',
   ];
   for (const key of Object.keys(updateData)) {
     if (!safeFields.includes(key)) delete updateData[key];
+  }
+
+  // Display name change lock (30 days)
+  if (updates.full_name !== undefined) {
+    const { data: currentProfile } = await getProfile(userId);
+    if (currentProfile && currentProfile.full_name !== updates.full_name) {
+      if (currentProfile.name_changed_at) {
+        const lastChanged = new Date(currentProfile.name_changed_at);
+        const daysSinceChange = (Date.now() - lastChanged.getTime()) / (1000 * 60 * 60 * 24);
+
+        if (daysSinceChange < 30) {
+          const daysRemaining = Math.ceil(30 - daysSinceChange);
+          return {
+            data: null,
+            error: {
+              message: `Display name can only be changed once every 30 days. You can change it again in ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''}.`,
+              code: 'NAME_CHANGE_LOCKED',
+            },
+          };
+        }
+      }
+      updateData.name_changed_at = new Date().toISOString();
+    }
   }
 
   // If setting username for first time, also set username_set_at

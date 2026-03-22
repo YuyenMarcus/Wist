@@ -315,9 +315,8 @@ export default function SettingsPage() {
       })
 
       if (error) {
-        // Check for username change lock
-        if (error.code === 'USERNAME_CHANGE_LOCKED') {
-          setMessage({ type: 'error', text: error.message || 'Username can only be changed once every 30 days.' })
+        if (error.code === 'USERNAME_CHANGE_LOCKED' || error.code === 'NAME_CHANGE_LOCKED') {
+          setMessage({ type: 'error', text: error.message })
           setSaving(false)
           return
         }
@@ -389,13 +388,41 @@ export default function SettingsPage() {
             
             <div>
               <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Display Name</label>
-              <input
-                type="text"
-                value={formData.fullName}
-                onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                className="w-full px-4 py-2 border border-zinc-200 dark:border-dpurple-600 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition text-zinc-900 dark:text-zinc-100 bg-beige-50 dark:bg-dpurple-800"
-                placeholder="Enter your full name"
-              />
+              {(() => {
+                const nameChanged = profile?.name_changed_at;
+                let nameDaysRemaining = 0;
+                let nameCanChange = true;
+                if (nameChanged) {
+                  const lastChanged = new Date(nameChanged);
+                  const daysSince = (Date.now() - lastChanged.getTime()) / (1000 * 60 * 60 * 24);
+                  nameDaysRemaining = Math.ceil(30 - daysSince);
+                  nameCanChange = daysSince >= 30;
+                }
+                const nameIsLocked = !nameCanChange && formData.fullName !== (profile?.full_name || '');
+                return (
+                  <>
+                    <input
+                      type="text"
+                      value={formData.fullName}
+                      onChange={(e) => {
+                        if (nameCanChange) setFormData({ ...formData, fullName: e.target.value });
+                      }}
+                      readOnly={!nameCanChange}
+                      className={`w-full px-4 py-2 border rounded-lg outline-none transition text-zinc-900 dark:text-zinc-100 bg-beige-50 dark:bg-dpurple-800 ${
+                        !nameCanChange
+                          ? 'border-zinc-200 dark:border-dpurple-700 opacity-60 cursor-not-allowed'
+                          : 'border-zinc-200 dark:border-dpurple-600 focus:ring-2 focus:ring-violet-500 focus:border-violet-500'
+                      }`}
+                      placeholder="Enter your full name"
+                    />
+                    {!nameCanChange && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 bg-amber-50 dark:bg-amber-950/30 p-2 rounded border border-amber-200 dark:border-amber-800/40">
+                        Display name can only be changed once every 30 days. You can change it again in {nameDaysRemaining} day{nameDaysRemaining !== 1 ? 's' : ''}.
+                      </p>
+                    )}
+                  </>
+                );
+              })()}
             </div>
 
             <div>
