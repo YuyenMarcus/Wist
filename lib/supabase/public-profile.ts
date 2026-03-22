@@ -281,10 +281,20 @@ export async function getPublicProfile(username: string): Promise<{
       return { profile, items: [], error: itemsError };
     }
 
-    // Step C: Hydrate from products table
-    const hydratedItems = await hydrateFromProductsTable(rawItems);
+    // Step C: Deduplicate by URL (keep the newest entry)
+    const seenUrls = new Set<string>();
+    const uniqueItems = rawItems.filter(item => {
+      if (!item.url) return true;
+      const normalized = item.url.split('?')[0].replace(/\/+$/, '').toLowerCase();
+      if (seenUrls.has(normalized)) return false;
+      seenUrls.add(normalized);
+      return true;
+    });
 
-    // Step D: Sanitize data
+    // Step D: Hydrate from products table
+    const hydratedItems = await hydrateFromProductsTable(uniqueItems);
+
+    // Step E: Sanitize data
     const sanitizedItems = sanitizeItems(hydratedItems);
 
     return {
