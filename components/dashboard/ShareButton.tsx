@@ -123,38 +123,30 @@ export default function ShareButton() {
     <>
       <button
         onClick={handleShare}
-        className="flex items-center gap-2 rounded-full text-sm font-medium border hover:bg-violet-50 dark:hover:bg-violet-950 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-300 dark:hover:border-violet-800 transition-colors p-2 sm:px-4 sm:py-2 bg-beige-100 dark:bg-dpurple-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-dpurple-600"
+        className={`flex items-center gap-2 rounded-full text-sm font-medium border transition-colors p-2 sm:px-4 sm:py-2 ${
+          success
+            ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800'
+            : 'bg-beige-100 dark:bg-dpurple-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-dpurple-600 hover:bg-violet-50 dark:hover:bg-violet-950 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-300 dark:hover:border-violet-800'
+        }`}
         title="Share List"
       >
-        <svg
-          className="w-3.5 h-3.5 sm:w-4 sm:h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
-          />
-        </svg>
-        <span className="hidden sm:inline">Share List</span>
-      </button>
-
-      {/* Success Toast */}
-      <AnimatePresence>
-        {success && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="fixed top-4 right-4 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm font-medium shadow-lg z-50"
-          >
-            Link copied to clipboard!
-          </motion.div>
+        {success ? (
+          <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+          </svg>
+        ) : (
+          <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+            />
+          </svg>
         )}
-      </AnimatePresence>
+        <span className="hidden sm:inline">{success ? 'Copied!' : 'Share List'}</span>
+        <span className="sm:hidden">{success ? 'Copied!' : ''}</span>
+      </button>
 
       {/* Username Modal */}
       <AnimatePresence>
