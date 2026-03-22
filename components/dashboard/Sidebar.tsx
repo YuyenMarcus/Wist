@@ -9,7 +9,7 @@ import {
   Sparkles, Zap, Coffee, Music, Gamepad2, Shirt, Car, Plane, 
   Camera, Palette, Dumbbell, BookOpen, Laptop, Phone, Watch, 
   Headphones, Utensils, Bed, Sofa, TreePine, Menu, X, EyeOff,
-  Moon, Sun, Upload, CreditCard
+  Moon, Sun, Upload
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
@@ -678,17 +678,6 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
           <EyeOff size={18} />
           {t('Hidden')}
         </Link>
-        <Link 
-          href="/dashboard/subscription" 
-          className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-            pathname === '/dashboard/subscription'
-              ? 'bg-violet-50 dark:bg-violet-950 text-violet-600 dark:text-violet-400'
-              : 'text-zinc-500 dark:text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400'
-          }`}
-        >
-          <CreditCard size={18} />
-          {t('Subscription')}
-        </Link>
       </div>
 
       {/* Collections Header with Manage Button */}
@@ -938,14 +927,6 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
                 <Upload size={18} />
                 {t('Import')}
               </button>
-              <Link 
-                href="/dashboard/subscription" 
-                className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-zinc-50 dark:hover:bg-dpurple-900 transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <CreditCard size={18} />
-                {t('Subscription')}
-              </Link>
               <Link 
                 href="/settings" 
                 className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-zinc-50 dark:hover:bg-dpurple-900 transition-colors"

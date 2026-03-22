@@ -68,7 +68,7 @@ function AddToMyListButton({ item }: { item: PublicItem }) {
     return (
       <button
         disabled
-        className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-emerald-500 text-white shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-emerald-500 text-white shadow-lg sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
       >
         <Check className="w-3.5 h-3.5" />
       </button>
@@ -79,7 +79,7 @@ function AddToMyListButton({ item }: { item: PublicItem }) {
     <button
       onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleAdd(); }}
       disabled={state === 'loading'}
-      className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-white/90 dark:bg-zinc-800/90 text-violet-600 dark:text-violet-400 shadow-lg backdrop-blur-sm border border-zinc-200/60 dark:border-zinc-700/60 opacity-0 group-hover:opacity-100 hover:bg-violet-600 hover:text-white dark:hover:bg-violet-600 dark:hover:text-white transition-all"
+      className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-white/90 dark:bg-zinc-800/90 text-violet-600 dark:text-violet-400 shadow-lg backdrop-blur-sm border border-zinc-200/60 dark:border-zinc-700/60 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-violet-600 hover:text-white dark:hover:bg-violet-600 dark:hover:text-white transition-all"
       title="Add to my wishlist"
     >
       {state === 'loading' ? (

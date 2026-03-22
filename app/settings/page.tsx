@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Loader2, AlertCircle, Check, Instagram, Facebook, Link as LinkIcon, ShoppingCart, Video, Shield, Lock, ArrowLeft, Zap, Palette, Gift, DollarSign, Moon, Sun, Camera, X as XIcon } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { getProfile, updateProfile } from '@/lib/supabase/profile'
@@ -362,6 +363,23 @@ export default function SettingsPage() {
           </button>
           <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">Profile Settings</h1>
         </div>
+
+        {/* Subscription Link */}
+        <Link
+          href="/dashboard/subscription"
+          className="flex items-center justify-between bg-gradient-to-r from-violet-50 to-fuchsia-50 dark:from-violet-950/40 dark:to-fuchsia-950/40 border border-violet-200 dark:border-violet-800/60 p-4 rounded-2xl shadow-sm hover:shadow-md transition-shadow group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center">
+              <Zap className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+            </div>
+            <div>
+              <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Manage Subscription</span>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">View plans, billing & payment method</p>
+            </div>
+          </div>
+          <ArrowLeft className="w-4 h-4 text-zinc-400 rotate-180 group-hover:translate-x-0.5 transition-transform" />
+        </Link>
 
         <form onSubmit={handleUpdate} className="space-y-8">
           
