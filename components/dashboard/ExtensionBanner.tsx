@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Link from 'next/link'
 import { X, Chrome } from 'lucide-react'
+import { CHROME_WEB_STORE_URL } from '@/lib/constants/chrome-web-store'
 
 export default function ExtensionBanner() {
   const [isVisible, setIsVisible] = useState(false) // Default to false to prevent flicker
@@ -70,12 +70,14 @@ export default function ExtensionBanner() {
       </div>
       
       <div className="mt-4 sm:mt-0 sm:ml-6 flex items-center gap-4">
-        <Link 
-          href="/extension" 
+        <a
+          href={CHROME_WEB_STORE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
           className="whitespace-nowrap rounded-md bg-violet-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-violet-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 transition-colors"
         >
           Get the Button
-        </Link>
+        </a>
         <button 
           onClick={handleDismiss} 
           className="-mr-1 flex p-2 rounded-md hover:bg-white/50 focus:outline-none sm:-mr-2 transition-colors"

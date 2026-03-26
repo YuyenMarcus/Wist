@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ShoppingBag, Bell, TrendingDown, ArrowRight, Sparkles, Download, Shield, CheckCircle2 } from 'lucide-react'
+import { ShoppingBag, Bell, TrendingDown, ArrowRight, Sparkles, Chrome, Shield, CheckCircle2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
+import { CHROME_WEB_STORE_URL } from '@/lib/constants/chrome-web-store'
 
 export default function ExtensionLandingPage() {
   const [user, setUser] = useState<any>(null)
@@ -128,12 +129,13 @@ export default function ExtensionLandingPage() {
           className="flex flex-col items-center gap-4"
         >
           <a
-            href="/wist-extension-download.zip"
-            download
+            href={CHROME_WEB_STORE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             className="download-extension-btn group flex h-14 items-center gap-3 rounded-full bg-zinc-900 px-8 text-base font-semibold text-white transition-all hover:bg-zinc-800 hover:shadow-xl hover:-translate-y-1"
           >
-            <Download className="h-5 w-5" />
-            Download Extension - It's Free
+            <Chrome className="h-5 w-5" />
+            Add to Chrome — Free
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
           </a>
           
@@ -224,12 +226,13 @@ export default function ExtensionLandingPage() {
         >
           <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to stop overpaying?</h2>
           <a
-            href="/wist-extension-download.zip"
-            download
+            href={CHROME_WEB_STORE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-8 py-4 bg-violet-600 text-white rounded-xl font-bold text-lg hover:bg-violet-500 transition shadow-lg"
           >
-            <Download size={20} />
-            Download Wist Extension
+            <Chrome size={20} />
+            Add to Chrome
           </a>
         </motion.div>
       </section>

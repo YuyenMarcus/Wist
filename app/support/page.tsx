@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import PageTransition from '@/components/ui/PageTransition'
 import Link from 'next/link'
+import { CHROME_WEB_STORE_URL } from '@/lib/constants/chrome-web-store'
 
 interface FAQItem {
   question: string
@@ -60,7 +61,7 @@ const faqSections: FAQSection[] = [
       },
       {
         question: 'How do I install the extension?',
-        answer: 'Download the extension from your dashboard or the Chrome Web Store. In Chrome, go to chrome://extensions, enable "Developer mode", click "Load unpacked", and select the downloaded extension folder.',
+        answer: `Install from the Chrome Web Store (recommended): ${CHROME_WEB_STORE_URL} — click Add to Chrome. For advanced users, you can also load an unpacked build from chrome://extensions with Developer mode.`,
       },
       {
         question: 'The extension says "Please log in" even though I\'m logged in.',

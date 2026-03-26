@@ -2,6 +2,10 @@
 
 Chrome extension for Wist that allows you to quickly add products to your wishlist from any retailer.
 
+## Install from Chrome Web Store
+
+**[Wist - Wishlist & Price Tracker](https://chromewebstore.google.com/detail/wist-wishlist-price-track/ffoghchfbnjochnhammhbeloicacnphk)** — click **Add to Chrome**.
+
 ## Features
 
 - 🎯 **One-Click Add**: Click the extension icon on any product page to add it to your wishlist

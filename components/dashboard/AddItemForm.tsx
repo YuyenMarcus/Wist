@@ -3,9 +3,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
+import { CHROME_WEB_STORE_URL } from '@/lib/constants/chrome-web-store'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Puzzle, Check, Download, Smartphone, Link as LinkIcon, Package } from 'lucide-react'
+import { Puzzle, Check, ExternalLink, Smartphone, Link as LinkIcon, Package } from 'lucide-react'
 import { useTranslation } from '@/lib/i18n/context'
 
 type Priority = 'high' | 'medium' | 'low'
@@ -331,12 +332,13 @@ export default function AddItemForm({ compact = false }: { compact?: boolean }) 
                 {t('The Wist extension enables one-click saving from any shopping site. You can also paste links below.')}
               </p>
               <a
-                href="/wist-extension-download.zip"
-                download
+                href={CHROME_WEB_STORE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 bg-violet-600 text-white text-xs font-medium rounded-lg hover:bg-violet-700 transition-colors"
               >
-                <Download className="w-3.5 h-3.5" />
-                {t('Download Extension')}
+                <ExternalLink className="w-3.5 h-3.5" />
+                {t('Add to Chrome')}
               </a>
             </div>
           </div>
@@ -354,8 +356,9 @@ export default function AddItemForm({ compact = false }: { compact?: boolean }) 
             <LinkIcon className={`${compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} text-zinc-400 mr-2 flex-shrink-0`} />
             {showExtensionPrompt ? (
               <a
-                href="/wist-extension-download.zip"
-                download
+                href={CHROME_WEB_STORE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="flex-1 text-zinc-400 dark:text-zinc-500 text-sm cursor-pointer hover:text-violet-500 dark:hover:text-violet-400 transition-colors"
               >
                 {t('Install the extension to add items...')}

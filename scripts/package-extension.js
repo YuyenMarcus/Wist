@@ -90,7 +90,7 @@ try {
   console.log(`\n📤 Ready to upload to Chrome Web Store:`);
   console.log(`   ${zipPath}\n`);
 
-  // Website download (app/extension + dashboard link to /wist-extension-download.zip)
+  // Website download zip (advanced / sideload); primary install is Chrome Web Store — see lib/constants/chrome-web-store.ts
   const downloadFolder = path.join(__dirname, '..', 'wist-extension-download');
   const publicZip = path.join(__dirname, '..', 'public', 'wist-extension-download.zip');
   if (fs.existsSync(downloadFolder)) {

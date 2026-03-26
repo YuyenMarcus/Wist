@@ -2,8 +2,8 @@
 
 import { AnimatePresence, motion } from 'framer-motion'
 import { Chrome, Upload, Sparkles, ArrowRight } from 'lucide-react'
-import Link from 'next/link'
 import { useMemo, useState, useEffect } from 'react'
+import { CHROME_WEB_STORE_URL } from '@/lib/constants/chrome-web-store'
 import ItemCard from './ItemCard'
 import { SupabaseProduct } from '@/lib/supabase/products'
 import { useTranslation } from '@/lib/i18n/context'
@@ -110,13 +110,15 @@ export default function WishlistGrid({ items, isOwner = true, onDelete, onReserv
             </div>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Link 
-                href="/extension" 
+              <a
+                href={CHROME_WEB_STORE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl transition-colors shadow-sm"
               >
                 <Chrome size={18} />
                 {t('Install Extension')}
-              </Link>
+              </a>
               {onImport && (
                 <button
                   onClick={onImport}

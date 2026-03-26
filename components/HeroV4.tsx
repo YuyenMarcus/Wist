@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { CHROME_WEB_STORE_URL } from '@/lib/constants/chrome-web-store'
 import { useRouter } from 'next/navigation'
 import { Chrome, Menu, X } from 'lucide-react'
 
@@ -176,10 +177,15 @@ export default function HeroV4({ isLoggedIn }: HeroV4Props) {
                 <span>Add New Item</span>
               </button>
             ) : (
-              <Link href="/extension" className="btn btn-secondary">
+              <a
+                href={CHROME_WEB_STORE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-secondary"
+              >
                 <Chrome className="btn-icon" size={20} />
                 <span>Get the Browser Button</span>
-              </Link>
+              </a>
             )}
           </div>
 

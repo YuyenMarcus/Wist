@@ -61,6 +61,7 @@ const es: Record<string, string> = {
   'Install the extension for the best experience': 'Instala la extensión para la mejor experiencia',
   'The Wist extension enables one-click saving from any shopping site. You can also paste links below.': 'La extensión de Wist permite guardar con un clic desde cualquier tienda. También puedes pegar enlaces abajo.',
   'Download Extension': 'Descargar Extensión',
+  'Add to Chrome': 'Añadir a Chrome',
   'Install the extension to add items...': 'Instala la extensión para agregar artículos...',
   'Paste a product link...': 'Pega un enlace de producto...',
   'Connecting...': 'Conectando...',
