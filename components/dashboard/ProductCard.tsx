@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ExternalLink, Trash2, MoreHorizontal, Check, FolderInput, TrendingDown, TrendingUp, Minus, ShoppingBag, EyeOff, PackageX, ImageIcon, X, Clock, AlertTriangle, Pin } from 'lucide-react';
+import { ExternalLink, Trash2, MoreHorizontal, Check, FolderInput, TrendingDown, TrendingUp, Minus, ShoppingBag, EyeOff, PackageX, ImageIcon, X, AlertTriangle, Pin } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '@/lib/supabase/client';
@@ -674,44 +674,15 @@ export default function ProductCard({ item, userCollections = [], onDelete, onHi
           </p>
         )}
 
-        {/* Tracking Status */}
-        <div className="flex items-center gap-1 mt-1 sm:mt-1.5">
-          {(item.price_check_failures ?? 0) >= 3 ? (
-            <>
-              <AlertTriangle className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-amber-500" />
-              <span className="text-[9px] sm:text-[10px] text-amber-500 font-medium">Check failed</span>
-            </>
-          ) : item.last_price_check ? (
-            <>
-              <Clock
-                className={`w-2.5 h-2.5 sm:w-3 sm:h-3 ${
-                  (item.price_check_failures ?? 0) > 0 ? 'text-amber-500' : 'text-gray-400'
-                }`}
-              />
-              <span
-                className={`text-[9px] sm:text-[10px] ${
-                  (item.price_check_failures ?? 0) > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400'
-                }`}
-              >
-                {(() => {
-                  const h = Math.floor((Date.now() - new Date(item.last_price_check).getTime()) / 3_600_000);
-                  const agoShort =
-                    h < 1 ? '< 1h ago' : h < 24 ? `${h}h ago` : `${Math.floor(h / 24)}d ago`;
-                  if ((item.price_check_failures ?? 0) > 0) {
-                    return `Could not verify · ${agoShort} — price may be outdated`;
-                  }
-                  if (h < 1) return 'Checked < 1h ago';
-                  return `Checked ${agoShort}`;
-                })()}
-              </span>
-            </>
-          ) : (
-            <>
-              <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-gray-300" />
-              <span className="text-[9px] sm:text-[10px] text-gray-300">Pending first check</span>
-            </>
-          )}
-        </div>
+        {/* Scrape issues only — no "last checked" timestamps (price change uses arrows above) */}
+        {(item.price_check_failures ?? 0) > 0 && (
+          <div className="flex items-center gap-1 mt-1 sm:mt-1.5">
+            <AlertTriangle className="w-2.5 h-2.5 sm:w-3 sm:h-3 shrink-0 text-amber-500" />
+            <span className="text-[9px] sm:text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+              {(item.price_check_failures ?? 0) >= 3 ? 'Check failed' : 'Price may be outdated'}
+            </span>
+          </div>
+        )}
 
         {/* Action Buttons - hidden until hover on desktop, always visible on mobile */}
         <div className="mt-2 sm:mt-3 flex items-center gap-1.5 sm:gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">

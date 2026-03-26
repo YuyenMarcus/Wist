@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Trash2, Edit2, Check, X, MoreHorizontal, FolderInput, TrendingDown, TrendingUp, EyeOff, ShoppingBag, PackageX, PackageCheck, Pencil, ImageIcon, Clock, AlertTriangle, Pin } from 'lucide-react'
+import { Trash2, Edit2, Check, X, MoreHorizontal, FolderInput, TrendingDown, TrendingUp, EyeOff, ShoppingBag, PackageX, PackageCheck, Pencil, ImageIcon, AlertTriangle, Pin } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
@@ -743,47 +743,35 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                       ${typeof previousPrice === 'number' ? previousPrice.toFixed(2) : previousPrice}
                     </span>
                   )}
-                  {/* Tracking Status — failures > 0 means last scrape(s) failed; timestamp is last attempt */}
-                  <div className="flex items-center gap-1 mt-0.5">
+                  {/* Price direction (green down / red up) — no "last checked" timestamps */}
+                  <div className="flex items-center gap-1 mt-0.5 min-h-[14px]">
                     {(item.price_check_failures ?? 0) >= 3 ? (
                       <>
-                        <AlertTriangle className="w-2.5 h-2.5 text-amber-500" />
+                        <AlertTriangle className="w-2.5 h-2.5 shrink-0 text-amber-500" />
                         <span className="text-[9px] sm:text-[10px] text-amber-500 font-medium">{t('Check failed')}</span>
                       </>
-                    ) : item.last_price_check ? (
+                    ) : (item.price_check_failures ?? 0) > 0 ? (
                       <>
-                        <Clock
-                          className={`w-2.5 h-2.5 ${
-                            (item.price_check_failures ?? 0) > 0 ? 'text-amber-500/90' : 'text-zinc-400'
-                          }`}
-                        />
-                        <span
-                          className={`text-[9px] sm:text-[10px] ${
-                            (item.price_check_failures ?? 0) > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-400'
-                          }`}
-                        >
-                          {(() => {
-                            const h = Math.floor((Date.now() - new Date(item.last_price_check!).getTime()) / 3_600_000);
-                            const agoShort =
-                              h < 1
-                                ? t('< 1h ago')
-                                : h < 24
-                                  ? `${h}${t('h ago')}`
-                                  : `${Math.floor(h / 24)}${t('d ago')}`;
-                            if ((item.price_check_failures ?? 0) > 0) {
-                              return `${t('Could not verify price')} · ${agoShort} — ${t('Price may be outdated')}`;
-                            }
-                            if (h < 1) return t('Checked < 1h ago');
-                            return `${t('Checked')} ${agoShort}`;
-                          })()}
+                        <AlertTriangle className="w-2.5 h-2.5 shrink-0 text-amber-500/90" />
+                        <span className="text-[9px] sm:text-[10px] text-amber-600 dark:text-amber-400">{t('Price may be outdated')}</span>
+                      </>
+                    ) : priceChange != null && priceChange !== 0 ? (
+                      priceChange < 0 ? (
+                        <span className="inline-flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400 font-semibold text-[9px] sm:text-[10px]">
+                          <TrendingDown className="w-2.5 h-2.5 sm:w-3 sm:h-3 shrink-0" />
+                          {priceChangePercent != null && Number.isFinite(priceChangePercent) ? (
+                            <span>{Math.abs(priceChangePercent).toFixed(0)}%</span>
+                          ) : null}
                         </span>
-                      </>
-                    ) : (
-                      <>
-                        <Clock className="w-2.5 h-2.5 text-zinc-300 dark:text-zinc-600" />
-                        <span className="text-[9px] sm:text-[10px] text-zinc-300 dark:text-zinc-600">{t('Pending first check')}</span>
-                      </>
-                    )}
+                      ) : (
+                        <span className="inline-flex items-center gap-0.5 text-red-600 dark:text-red-400 font-semibold text-[9px] sm:text-[10px]">
+                          <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3 shrink-0" />
+                          {priceChangePercent != null && Number.isFinite(priceChangePercent) ? (
+                            <span>{Math.abs(priceChangePercent).toFixed(0)}%</span>
+                          ) : null}
+                        </span>
+                      )
+                    ) : null}
                   </div>
                 </div>
                 
