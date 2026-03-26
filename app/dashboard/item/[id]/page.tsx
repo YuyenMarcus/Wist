@@ -6,7 +6,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import PageTransition from '@/components/ui/PageTransition';
-import { Receipt, FileText, Plus, Trash2, Shield, BarChart3, Lock, PackageX, PackageCheck } from 'lucide-react';
+import { Receipt, FileText, Plus, Trash2, Shield, BarChart3, Lock, PackageX, PackageCheck, TrendingDown, TrendingUp, AlertTriangle } from 'lucide-react';
 import { affiliateUrl } from '@/lib/amazon-affiliate';
 
 export default function ItemDetail() {
@@ -291,41 +291,21 @@ export default function ItemDetail() {
                     </div>
                   )}
 
-                  {/* Last Checked Time — last_price_check is last *attempt*; failures mean that attempt did not refresh price */}
+                  {/* Price change vs previous (no “checked X ago” timestamps) */}
                   <div className="pt-2 border-t border-gray-100 dark:border-dpurple-700 space-y-1.5">
-                    <p
-                      className={`text-sm ${
-                        (item.price_check_failures ?? 0) > 0
-                          ? 'text-amber-700 dark:text-amber-400'
-                          : 'text-gray-600 dark:text-zinc-400'
-                      }`}
-                    >
-                      {item.last_price_check ? (
-                        <>
-                          {(item.price_check_failures ?? 0) > 0
-                            ? 'Last check attempt · '
-                            : 'Last verified · '}
-                          {(() => {
-                            const lastChecked = new Date(item.last_price_check);
-                            const now = new Date();
-                            const hoursAgo = Math.floor((now.getTime() - lastChecked.getTime()) / (1000 * 60 * 60));
-                            if (hoursAgo < 1) return '< 1h ago';
-                            if (hoursAgo < 24) return `${hoursAgo}h ago`;
-                            return `${Math.floor(hoursAgo / 24)}d ago`;
-                          })()}
-                        </>
-                      ) : (
-                        'Not checked yet'
-                      )}
-                    </p>
-                    {(item.price_check_failures ?? 0) > 0 && (
+                    {(item.price_check_failures ?? 0) >= 3 ? (
+                      <p className="text-sm flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                        <AlertTriangle className="w-4 h-4 shrink-0" />
+                        <span className="font-medium">Check failed</span>
+                      </p>
+                    ) : (item.price_check_failures ?? 0) > 0 ? (
                       <p className="text-xs text-amber-800/90 dark:text-amber-300/90 leading-relaxed">
                         Automated checks couldn&apos;t read the live price (site layout, bot blocking, or temporary errors).
                         The large price is your last saved value in Wist — open the store to confirm.
                         {lastSuccessfulTrackAt && (
                           <>
                             {' '}
-                            Last successful log in history:{' '}
+                            Last price logged in history:{' '}
                             {new Date(lastSuccessfulTrackAt).toLocaleDateString(undefined, {
                               month: 'short',
                               day: 'numeric',
@@ -335,7 +315,24 @@ export default function ItemDetail() {
                           </>
                         )}
                       </p>
-                    )}
+                    ) : item.price_change != null && item.price_change !== 0 ? (
+                      <p
+                        className={`text-sm font-semibold flex items-center gap-1.5 ${
+                          item.price_change < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
+                        }`}
+                      >
+                        {item.price_change < 0 ? (
+                          <TrendingDown className="w-4 h-4 shrink-0" />
+                        ) : (
+                          <TrendingUp className="w-4 h-4 shrink-0" />
+                        )}
+                        {item.price_change_percent != null && Number.isFinite(item.price_change_percent) ? (
+                          <span>{Math.abs(item.price_change_percent).toFixed(0)}% vs last price</span>
+                        ) : (
+                          <span>Price {item.price_change < 0 ? 'down' : 'up'} vs last price</span>
+                        )}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
 
