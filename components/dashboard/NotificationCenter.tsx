@@ -57,7 +57,12 @@ export default function NotificationCenter({ compact = false }: NotificationCent
   const fetchNotifications = useCallback(async () => {
     try {
       const res = await fetch('/api/notifications')
-      if (!res.ok) return
+      if (!res.ok) {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[NotificationCenter] /api/notifications failed:', res.status)
+        }
+        return
+      }
       const data = await res.json()
       setNotifications(data.notifications || [])
       setUnreadCount(data.unreadCount || 0)

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Upload, FileSpreadsheet, Globe, Loader2, CheckCircle2, AlertCircle, FileText, Link2, ShoppingCart, ArrowRight } from 'lucide-react'
+import { X, Upload, FileSpreadsheet, Loader2, CheckCircle2, AlertCircle, FileText, Link2, ShoppingCart, ArrowRight } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { useTranslation } from '@/lib/i18n/context'
 
@@ -38,6 +38,7 @@ export default function ImportModal({ isOpen, onClose, onComplete }: ImportModal
   const [amazonUrl, setAmazonUrl] = useState('')
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [filePreview, setFilePreview] = useState<string[][] | null>(null)
+  const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [mounted, setMounted] = useState(false)
   useEffect(() => { setMounted(true) }, [])
@@ -49,6 +50,7 @@ export default function ImportModal({ isOpen, onClose, onComplete }: ImportModal
     setSheetsUrl('')
     setAmazonUrl('')
     setImporting(false)
+    setDragOver(false)
   }, [])
 
   const handleClose = () => {
@@ -56,12 +58,7 @@ export default function ImportModal({ isOpen, onClose, onComplete }: ImportModal
     onClose()
   }
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setUploadedFile(file)
-    setResult(null)
-
+  const loadFilePreview = async (file: File) => {
     try {
       const XLSX = await import('xlsx')
       const arrayBuffer = await file.arrayBuffer()
@@ -72,6 +69,25 @@ export default function ImportModal({ isOpen, onClose, onComplete }: ImportModal
     } catch {
       setFilePreview(null)
     }
+  }
+
+  const acceptSpreadsheet = async (file: File) => {
+    const lower = file.name.toLowerCase()
+    const ok = lower.endsWith('.xlsx') || lower.endsWith('.xls') || lower.endsWith('.csv')
+    if (!ok) {
+      setResult({ total: 0, imported: 0, failed: 1, errors: [t('Please upload an Excel (.xlsx, .xls) or CSV file.')] })
+      return
+    }
+    setUploadedFile(file)
+    setResult(null)
+    await loadFilePreview(file)
+  }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    await acceptSpreadsheet(file)
+    e.target.value = ''
   }
 
   const handleSpreadsheetImport = async () => {
@@ -253,8 +269,36 @@ export default function ImportModal({ isOpen, onClose, onComplete }: ImportModal
                   {t('Upload an Excel (.xlsx) or CSV file. Wist will automatically detect columns for')} <span className="font-medium">{t('name')}</span>, <span className="font-medium">{t('price')}</span>, <span className="font-medium">{t('link')}</span>, {t('and')} <span className="font-medium">{t('image')}</span>.
                 </p>
                 <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-beige-200 dark:border-dpurple-600 rounded-xl p-8 text-center cursor-pointer hover:border-violet-300 dark:hover:border-violet-700 hover:bg-violet-50/30 dark:hover:bg-violet-950/20 transition-colors"
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      fileInputRef.current?.click()
+                    }
+                  }}
+                  onDragOver={e => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setDragOver(true)
+                  }}
+                  onDragLeave={e => {
+                    e.preventDefault()
+                    if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(false)
+                  }}
+                  onDrop={e => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setDragOver(false)
+                    const file = e.dataTransfer.files?.[0]
+                    if (file) void acceptSpreadsheet(file)
+                  }}
+                  className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
+                    dragOver
+                      ? 'border-violet-500 bg-violet-50/50 dark:bg-violet-950/30 dark:border-violet-500'
+                      : 'border-beige-200 dark:border-dpurple-600 hover:border-violet-300 dark:hover:border-violet-700 hover:bg-violet-50/30 dark:hover:bg-violet-950/20'
+                  }`}
                 >
                   {uploadedFile ? (
                     <div className="space-y-1">
@@ -265,7 +309,7 @@ export default function ImportModal({ isOpen, onClose, onComplete }: ImportModal
                   ) : (
                     <div className="space-y-2">
                       <Upload className="w-8 h-8 text-zinc-300 dark:text-zinc-600 mx-auto" />
-                      <p className="text-sm text-zinc-500 dark:text-zinc-400">{t('Click to upload')}</p>
+                      <p className="text-sm text-zinc-500 dark:text-zinc-400">{t('Click to upload or drag a file here')}</p>
                       <p className="text-xs text-zinc-400 dark:text-zinc-500">.xlsx, .xls, .csv</p>
                     </div>
                   )}

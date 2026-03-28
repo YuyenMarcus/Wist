@@ -5,10 +5,14 @@ import type { NextRequest } from 'next/server'
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
-  const next = requestUrl.searchParams.get('next') || '/dashboard'
+  const nextRaw = requestUrl.searchParams.get('next') || '/dashboard'
   const type = requestUrl.searchParams.get('type')
 
-  const redirectUrl = new URL(next, 'https://wishlist.nuvio.cloud')
+  const siteOrigin =
+    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') || requestUrl.origin
+  const nextPath =
+    nextRaw.startsWith('/') && !nextRaw.startsWith('//') ? nextRaw : '/dashboard'
+  const redirectUrl = new URL(nextPath, siteOrigin)
   if (type === 'signup') {
     redirectUrl.searchParams.set('confirmed', 'true')
   }
@@ -38,7 +42,9 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Auth callback error:', error)
-      return NextResponse.redirect(`https://wishlist.nuvio.cloud/login?error=${encodeURIComponent(error.message)}`)
+      return NextResponse.redirect(
+        `${siteOrigin}/login?error=${encodeURIComponent(error.message)}`
+      )
     }
 
     // Ensure a profile row exists (handles deleted profiles or first-time OAuth)

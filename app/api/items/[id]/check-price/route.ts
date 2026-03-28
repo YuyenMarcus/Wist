@@ -1,6 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { staticScrape } from '@/lib/scraper/static-scraper'
+import { getServiceRoleSupabase, hasServiceRoleKey } from '@/lib/supabase/service-role'
+import {
+  queuePriceDropNotification,
+  queuePriceIncreaseNotification,
+} from '@/lib/notifications/queue-helpers'
 
 export const dynamic = 'force-dynamic'
 
@@ -121,6 +126,31 @@ export async function POST(
       }
 
       await supabase.from('items').update(updateData).eq('id', itemId)
+
+      // Bell + /api/notifications read `notification_queue`; badge uses `price_history` only — keep both in sync.
+      if (
+        priceChanged &&
+        oldPrice > 0 &&
+        hasServiceRoleKey()
+      ) {
+        try {
+          const admin = getServiceRoleSupabase()
+          const { data: profile } = await admin
+            .from('profiles')
+            .select('subscription_tier')
+            .eq('id', user.id)
+            .maybeSingle()
+          const tier = profile?.subscription_tier || 'free'
+          if (newPrice < oldPrice) {
+            await queuePriceDropNotification(admin, user.id, itemId, oldPrice, newPrice, tier)
+          } else if (newPrice > oldPrice) {
+            await queuePriceIncreaseNotification(admin, user.id, itemId, oldPrice, newPrice, tier)
+          }
+        } catch (e) {
+          console.warn('[check-price] notification queue skipped:', e)
+        }
+      }
+
       await supabase.from('price_history').insert({ item_id: itemId, price: newPrice })
 
       const { data: priceHistory } = await supabase

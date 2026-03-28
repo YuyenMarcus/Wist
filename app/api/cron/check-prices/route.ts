@@ -1,129 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { TIERS, type SubscriptionTier } from '@/lib/constants/subscription-tiers';
-import { isTierAtLeast } from '@/lib/tier-guards';
 import { staticScrape } from '@/lib/scraper/static-scraper';
+import {
+  queuePriceDropNotification,
+  queueBackInStockNotification,
+  queuePriceIncreaseNotification,
+} from '@/lib/notifications/queue-helpers';
 
 function getTierCheckInterval(tier: string): number {
   const config = TIERS[tier as SubscriptionTier];
   if (!config) return TIERS.free.intervalMs;
   return config.intervalMs;
-}
-
-// Notification queue helper - queues price drop notifications for users
-async function queuePriceDropNotification(
-  supabase: any,
-  userId: string,
-  itemId: string,
-  oldPrice: number,
-  newPrice: number,
-  userTier?: string
-) {
-  // Need a real baseline price to compute a drop (avoid NaN / Infinity when oldPrice is 0)
-  if (!oldPrice || oldPrice <= 0) return;
-
-  const priceChangePercent = ((newPrice - oldPrice) / oldPrice) * 100;
-
-  if (priceChangePercent >= 0) return;
-
-  // Free tier: at most one price-drop notification per item per week (not one for whole account)
-  if (!userTier || userTier === 'free') {
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const { count } = await supabase
-      .from('notification_queue')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .eq('item_id', itemId)
-      .eq('notification_type', 'price_drop')
-      .gte('created_at', weekAgo);
-
-    if ((count || 0) > 0) {
-      console.log(`   ⏳ Free tier — price drop already notified for this item this week, skipping`);
-      return;
-    }
-  }
-
-  const { error } = await (supabase as any)
-    .from('notification_queue')
-    .insert({
-      user_id: userId,
-      item_id: itemId,
-      notification_type: 'price_drop',
-      old_price: oldPrice,
-      new_price: newPrice,
-      price_change_percent: priceChangePercent,
-      sent: false,
-    });
-  
-  if (error) {
-    console.log(`   ⚠️  Failed to queue notification: ${error.message}`);
-  } else {
-    console.log(`   🔔 Notification queued for user (${Math.abs(priceChangePercent).toFixed(1)}% drop)`);
-  }
-}
-
-async function queueBackInStockNotification(
-  supabase: any,
-  userId: string,
-  itemId: string,
-  price: number
-) {
-  const { error } = await supabase
-    .from('notification_queue')
-    .insert({
-      user_id: userId,
-      item_id: itemId,
-      notification_type: 'back_in_stock',
-      old_price: 0,
-      new_price: price,
-      price_change_percent: 0,
-      sent: false,
-    });
-
-  if (error) {
-    console.log(`   ⚠️  Failed to queue back-in-stock notification: ${error.message}`);
-  } else {
-    console.log(`   🔔 Back-in-stock notification queued at $${price}`);
-  }
-}
-
-/** Pro+ only — matches GET /api/notifications tier filter for price_increase. Returns true if a row was inserted. */
-async function queuePriceIncreaseNotification(
-  supabase: any,
-  userId: string,
-  itemId: string,
-  oldPrice: number,
-  newPrice: number,
-  userTier?: string
-): Promise<boolean> {
-  if (!isTierAtLeast(userTier, 'pro')) {
-    console.log(`   ⏳ Price increase alerts are Pro+ only, skipping queue`);
-    return false;
-  }
-
-  if (!oldPrice || oldPrice <= 0) return false;
-
-  const priceChangePercent = ((newPrice - oldPrice) / oldPrice) * 100;
-  if (priceChangePercent <= 0) return false;
-
-  const { error } = await (supabase as any)
-    .from('notification_queue')
-    .insert({
-      user_id: userId,
-      item_id: itemId,
-      notification_type: 'price_increase',
-      old_price: oldPrice,
-      new_price: newPrice,
-      price_change_percent: priceChangePercent,
-      sent: false,
-    });
-
-  if (error) {
-    console.log(`   ⚠️  Failed to queue price-increase notification: ${error.message}`);
-    return false;
-  }
-  console.log(`   🔔 Price increase notification queued (+${priceChangePercent.toFixed(1)}%)`);
-  return true;
 }
 
 // ⚠️ CRITICAL CHANGE: Use the SERVICE_ROLE_KEY

@@ -24,6 +24,41 @@ const es: Record<string, string> = {
   'Failed to sign in with Google': 'Error al iniciar sesión con Google',
   'Failed to sign up with Google': 'Error al registrarse con Google',
 
+  'Forgot password?': '¿Olvidaste tu contraseña?',
+  'Reset your password': 'Restablecer tu contraseña',
+  "Enter the email for your account and we'll send you a reset link.":
+    'Ingresa el email de tu cuenta y te enviaremos un enlace para restablecerla.',
+  'Check your email': 'Revisa tu correo',
+  'If an account exists for that address, we sent a link to reset your password.':
+    'Si existe una cuenta con esa dirección, enviamos un enlace para restablecer tu contraseña.',
+  'Back to sign in': 'Volver a iniciar sesión',
+  'Please enter your email address.': 'Por favor ingresa tu correo electrónico.',
+  'Something went wrong.': 'Algo salió mal.',
+  'Email': 'Correo',
+  'Sending...': 'Enviando...',
+  'Send reset link': 'Enviar enlace',
+  'Link invalid or expired': 'Enlace inválido o caducado',
+  'Request a new reset link and try again.': 'Solicita un nuevo enlace e inténtalo de nuevo.',
+  'Choose a new password': 'Elige una nueva contraseña',
+  'Use at least 6 characters.': 'Usa al menos 6 caracteres.',
+  'New password': 'Nueva contraseña',
+  'Confirm password': 'Confirmar contraseña',
+  'Update password': 'Actualizar contraseña',
+  'Password must be at least 6 characters.': 'La contraseña debe tener al menos 6 caracteres.',
+  'Passwords do not match.': 'Las contraseñas no coinciden.',
+
+  // === TREAT YOURSELF METER ===
+  'Treat yourself meter': 'Medidor de caprichos',
+  'Treat yourself meter sub': 'Alcanza hitos para desbloquear una idea de compra',
+  saved: 'ahorrados',
+  'Treat next unlock title': 'Próximo: {item}',
+  'Treat save more sub': 'Ahorra {amount} más para un capricho',
+  'Treat goal title': '¡Llegaste a la meta!',
+  'Treat goal sub': 'Es hora de un capricho — te lo ganaste',
+  'Treat item headphones': 'Auriculares inalámbricos',
+  'Treat item shoes': 'Zapatillas para correr',
+  'Treat item lamp': 'Lámpara de escritorio',
+
   // === SIDEBAR / NAV ===
   'Dashboard': 'Panel',
   'Collections': 'Colecciones',
@@ -322,6 +357,9 @@ const es: Record<string, string> = {
   'link': 'enlace',
   'image': 'imagen',
   'Click to upload': 'Haz clic para subir',
+  'Click to upload or drag a file here': 'Haz clic o arrastra un archivo aquí',
+  'Please upload an Excel (.xlsx, .xls) or CSV file.':
+    'Sube un archivo Excel (.xlsx, .xls) o CSV.',
   'Preview': 'Vista previa',
   'rows': 'filas',
   'Import Spreadsheet': 'Importar Hoja de Cálculo',

@@ -48,6 +48,19 @@ async function parseFetchJsonSafe(response) {
   }
 }
 
+/** Safe string for any thrown value (avoids undefined when `e` is not an Error). */
+function formatErrorMessage(e) {
+  if (e == null) return 'Unknown error';
+  if (typeof e === 'string') return e;
+  if (e instanceof Error) return e.message || String(e);
+  if (typeof e === 'object' && typeof e.message === 'string') return e.message;
+  try {
+    return String(e);
+  } catch {
+    return 'Unknown error';
+  }
+}
+
 // ============================================================================
 // TOKEN MANAGEMENT
 // ============================================================================
@@ -115,6 +128,17 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
       sendResponse({ success: false, error: "No token provided" });
     }
     
+    return true;
+  }
+
+  // From wishlist.nuvio.cloud (NotificationForwarder) — external messages use this listener, not onMessage
+  if (message.type === 'PRICE_DROP_NOTIFICATION' && Array.isArray(message.notifications)) {
+    handlePriceDropNotifications(message.notifications)
+      .then(() => sendResponse({ success: true }))
+      .catch((err) => {
+        console.error('❌ [Background] External PRICE_DROP_NOTIFICATION failed:', err);
+        sendResponse({ success: false, error: formatErrorMessage(err) });
+      });
     return true;
   }
 });
@@ -415,7 +439,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log("🔒 WIST: Preview requested for", request.url);
     handlePreviewLink(request.url, sendResponse).catch(error => {
       console.error("❌ [Background] Preview error:", error);
-      sendResponse({ success: false, error: error.message });
+      sendResponse({ success: false, error: formatErrorMessage(error) });
     });
     return true; // Keep channel open for async response
   }
@@ -425,7 +449,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log("🧩 [Background] Webapp scrape request for:", request.url);
     handleWebappScrape(request.url, sendResponse).catch(error => {
       console.error("❌ [Background] Webapp scrape error:", error);
-      sendResponse({ success: false, error: error.message });
+      sendResponse({ success: false, error: formatErrorMessage(error) });
     });
     return true; // Keep channel open for async response
   }
@@ -446,7 +470,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse({ success: true, token });
       })
       .catch(error => {
-        sendResponse({ success: false, error: error.message });
+        sendResponse({ success: false, error: formatErrorMessage(error) });
       });
     return true; // Keep channel open for async response
   }
@@ -456,7 +480,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log("💾 WIST: Save Request", request.data);
     handleSaveItem(request.data, sendResponse).catch(error => {
       console.error("❌ [Background] Save error (unhandled):", error);
-      sendResponse({ success: false, error: error.message || 'Unknown error' });
+      sendResponse({ success: false, error: formatErrorMessage(error) });
     });
     return true; // Keep channel open for async response
   }
@@ -465,7 +489,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.type === 'SAVE_ITEM') {
     handleSaveItem(request.payload, sendResponse).catch(error => {
       console.error("❌ [Background] Save error (unhandled):", error);
-      sendResponse({ success: false, error: error.message || 'Unknown error' });
+      sendResponse({ success: false, error: formatErrorMessage(error) });
     });
     return true; // Keep channel open for async response
   }
@@ -572,7 +596,7 @@ async function handleWebappScrape(productUrl, sendResponse) {
             }
           }
         } catch (e) {
-          console.warn("⚠️ [Background] Redsky API failed:", e.message);
+          console.warn("⚠️ [Background] Redsky API failed:", formatErrorMessage(e));
         }
       }
 
@@ -594,7 +618,7 @@ async function handleWebappScrape(productUrl, sendResponse) {
       }
     }
     
-    sendResponse({ success: false, error: error.message });
+    sendResponse({ success: false, error: formatErrorMessage(error) });
   }
 }
 
@@ -1259,11 +1283,9 @@ async function handlePreviewLink(productUrl, sendResponse) {
     sendResponse({ success: true, data: data.data || data });
   } catch (error) {
     console.error("❌ WIST: Error", error);
-    // Ensure sendResponse is always called, even on unexpected errors
     if (sendResponse) {
-      sendResponse({ success: false, error: error.message || 'Unknown error' });
+      sendResponse({ success: false, error: formatErrorMessage(error) });
     }
-    throw error; // Re-throw so outer catch can handle it
   }
 }
 
@@ -1378,7 +1400,7 @@ async function handleSaveItem(payload, sendResponse) {
     
     // Ensure sendResponse is always called, even on unexpected errors
     if (sendResponse) {
-      const fail = { success: false, error: error?.message || 'Unknown error' };
+      const fail = { success: false, error: formatErrorMessage(error) };
       if (error && typeof error === 'object' && error.upgrade === true && error.upgradeUrl) {
         fail.upgrade = true;
         fail.upgradeUrl = error.upgradeUrl;
@@ -1387,9 +1409,6 @@ async function handleSaveItem(payload, sendResponse) {
       }
       sendResponse(fail);
     }
-    
-    // Re-throw so outer catch can handle it if needed
-    throw error;
   }
 }
 

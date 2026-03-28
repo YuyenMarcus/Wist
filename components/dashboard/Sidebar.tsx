@@ -657,17 +657,6 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
       {/* Main Navigation */}
       <div className="space-y-1 mb-6 px-4">
         <Link 
-          href="/dashboard/purchased" 
-          className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-            pathname === '/dashboard/purchased'
-              ? 'bg-violet-50 dark:bg-violet-950 text-violet-600 dark:text-violet-400'
-              : 'text-zinc-500 dark:text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400'
-          }`}
-        >
-          <Gift size={18} />
-          {t('Purchased')}
-        </Link>
-        <Link 
           href="/dashboard/hidden" 
           className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
             pathname === '/dashboard/hidden'

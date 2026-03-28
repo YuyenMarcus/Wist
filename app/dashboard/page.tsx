@@ -135,6 +135,15 @@ export default function DashboardPage() {
     return uncategorized
   }, [products, viewMode])
 
+  /** Sum of $ saved from price drops (negative price_change vs last history point). */
+  const totalSavings = useMemo(() => {
+    return products.reduce((sum, p: any) => {
+      const pc = p.price_change
+      if (typeof pc === 'number' && pc < 0) return sum - pc
+      return sum
+    }, 0)
+  }, [products])
+
   // Load user, profile, and products
   useEffect(() => {
     async function loadUser() {
@@ -626,7 +635,7 @@ export default function DashboardPage() {
         user={user} 
         profile={profile}
         itemCount={products.length}
-        totalValue={products.reduce((sum, p: any) => sum + (parseFloat(p.current_price || p.price) || 0), 0)}
+        totalSavings={totalSavings}
         onRefreshPrices={handleRefreshPrices}
         refreshing={refreshing}
       />

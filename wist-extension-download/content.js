@@ -1766,13 +1766,13 @@ async function handleJustGotIt(item) {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
-      <div id="wist-p-loading" style="display:none;align-items:center;justify-content:center;padding:80px 0;">
+      <div id="wist-p-loading" style="display:none;align-items:center;justify-content:center;padding:40px 0 36px;">
         <div class="wist-p-loader">
           <div class="wist-p-spinner"></div>
           <span class="wist-p-loader-text">Detecting product...</span>
         </div>
       </div>
-      <div id="wist-p-content" style="display:none;">
+      <div id="wist-p-content" style="display:none;flex:0 0 auto;">
         <div class="wist-p-img-section">
           <img id="wist-p-main-img" class="wist-p-main-img" src="" alt="Product" />
         </div>
@@ -1833,7 +1833,7 @@ async function handleJustGotIt(item) {
           </button>
         </div>
       </div>
-      <div id="wist-p-success" style="display:none;flex-direction:column;align-items:center;justify-content:center;padding:80px 24px;text-align:center;">
+      <div id="wist-p-success" style="display:none;flex-direction:column;align-items:center;justify-content:center;padding:44px 24px 40px;text-align:center;flex:0 0 auto;">
         <div class="wist-p-success-ring">
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
         </div>
@@ -1850,31 +1850,39 @@ async function handleJustGotIt(item) {
 
       #wist-backdrop {
         position:absolute; top:0; left:0; right:0; bottom:0;
-        background:rgba(0,0,0,0); transition:background 0.35s ease;
+        background:rgba(0,0,0,0); transition:background-color 0.2s ease;
         pointer-events:none;
       }
       /* No backdrop-filter — full-page blur is very expensive and tanks FPS */
-      #wist-backdrop.visible { background:rgba(0,0,0,0.4); pointer-events:auto; }
+      #wist-backdrop.visible { background:rgba(0,0,0,0.38); pointer-events:auto; }
 
       #wist-drawer {
-        position:absolute; top:12px; right:12px; bottom:auto;
-        max-height:calc(100vh - 24px);
+        position:absolute; top:12px; right:12px; left:auto; bottom:auto;
         width:380px; max-width:calc(100vw - 24px);
+        height:fit-content;
+        max-height:calc(100vh - 24px);
+        max-height:calc(100dvh - 24px);
         background:#fff;
         border-radius:16px;
-        box-shadow:0 24px 48px -12px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.04);
+        box-shadow:0 12px 32px rgba(0,0,0,0.14), 0 0 0 1px rgba(0,0,0,0.05);
         transform:translate3d(calc(100% + 24px),0,0);
-        transition:transform 0.28s cubic-bezier(0.16,1,0.3,1);
-        display:flex; flex-direction:column;
+        transition:transform 0.22s cubic-bezier(0.16,1,0.3,1);
+        display:flex; flex-direction:column; flex:0 0 auto;
         font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
         font-size:14px; color:#18181b; letter-spacing:-0.01em;
         overflow-x:hidden;
         overflow-y:auto;
         overscroll-behavior:contain;
-        contain:layout style;
+        contain:layout style paint;
+        isolation:isolate;
+        backface-visibility:hidden;
         pointer-events:auto;
       }
       #wist-drawer.open{transform:translate3d(0,0,0);}
+      @media (prefers-reduced-motion: reduce) {
+        #wist-backdrop { transition-duration:0.01ms; }
+        #wist-drawer { transition-duration:0.15s; }
+      }
 
       #wist-drawer { scrollbar-width:thin; scrollbar-color:#e4e4e7 transparent; }
       #wist-drawer::-webkit-scrollbar{width:4px;}
@@ -1928,16 +1936,16 @@ async function handleJustGotIt(item) {
       .wist-p-thumb {
         width:52px; height:52px; flex-shrink:0; border-radius:10px;
         border:2px solid #e4e4e7; object-fit:contain; background:#fafafa;
-        cursor:pointer; transition:all 0.15s;
+        cursor:pointer; transition:border-color 0.15s ease;
       }
-      .wist-p-thumb:hover { border-color:#c4b5fd; transform:scale(1.05); }
+      .wist-p-thumb:hover { border-color:#c4b5fd; }
       .wist-p-thumb.selected { border-color:#7c3aed; box-shadow:0 0 0 1.5px #7c3aed; }
 
       /* ── Divider ── */
       .wist-p-divider { height:1px; background:#f4f4f5; margin:0 20px; flex-shrink:0; }
 
       /* ── Form ── */
-      .wist-p-form { padding:16px 20px 16px; display:flex; flex-direction:column; gap:14px; flex:0 0 auto; }
+      .wist-p-form { padding:14px 20px 12px; display:flex; flex-direction:column; gap:12px; flex:0 0 auto; }
       .wist-p-field { display:flex; flex-direction:column; gap:5px; }
       .wist-p-label {
         font-size:11px; font-weight:700; color:#a1a1aa;
@@ -1976,7 +1984,7 @@ async function handleJustGotIt(item) {
       .wist-p-privacy {
         display:flex; justify-content:space-between; align-items:center;
         padding:10px 14px; border-radius:10px; border:1.5px solid #e4e4e7;
-        cursor:pointer; transition:all 0.15s; user-select:none;
+        cursor:pointer; transition:border-color 0.15s ease, background 0.15s ease; user-select:none;
       }
       .wist-p-privacy:hover { border-color:#d4d4d8; background:#fafafa; }
       .wist-p-privacy-left { display:flex; align-items:center; gap:8px; color:#71717a; }
@@ -1993,21 +2001,25 @@ async function handleJustGotIt(item) {
       }
       .wist-p-switch.active .wist-p-knob { transform:translateX(16px); }
 
-      /* ── Save button ── */
+      /* ── Save button (no filter:* — filters repaint a large layer and hurt FPS) */
       .wist-p-save-btn {
         width:100%; border:none;
-        padding:14px 16px; border-radius:12px;
+        padding:13px 16px; border-radius:12px;
         font-weight:700; font-size:15px; cursor:pointer;
-        font-family:inherit; margin-top:2px; letter-spacing:-0.01em;
+        font-family:inherit; margin-top:0; letter-spacing:-0.01em;
         display:flex; align-items:center; justify-content:center; gap:8px;
         background:linear-gradient(135deg,#7c3aed 0%,#6d28d9 100%);
         color:#fff;
-        box-shadow:0 1px 3px rgba(124,58,237,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
-        transition:all 0.2s;
+        box-shadow:0 1px 2px rgba(124,58,237,0.25);
+        transition:transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
       }
-      .wist-p-save-btn:hover { filter:brightness(1.08); box-shadow:0 4px 12px rgba(124,58,237,0.3), inset 0 1px 0 rgba(255,255,255,0.1); transform:translateY(-1px); }
-      .wist-p-save-btn:active { transform:translateY(0); filter:brightness(0.97); }
-      .wist-p-save-btn:disabled { background:#d4d4d8; color:#a1a1aa; cursor:not-allowed; box-shadow:none; transform:none; filter:none; }
+      .wist-p-save-btn:hover {
+        background:linear-gradient(135deg,#8b5cf6 0%,#7c3aed 100%);
+        box-shadow:0 3px 10px rgba(124,58,237,0.28);
+        transform:translateY(-1px);
+      }
+      .wist-p-save-btn:active { transform:translateY(0); background:linear-gradient(135deg,#6d28d9 0%,#5b21b6 100%); }
+      .wist-p-save-btn:disabled { background:#d4d4d8; color:#a1a1aa; cursor:not-allowed; box-shadow:none; transform:none; }
       .wist-p-save-icon { flex-shrink:0; }
 
       /* ── Limit notice ── */
@@ -2035,7 +2047,7 @@ async function handleJustGotIt(item) {
         transition:all 0.2s; letter-spacing:-0.01em;
         box-shadow:0 1px 3px rgba(124,58,237,0.25);
       }
-      .wist-p-upgrade-cta:hover { filter:brightness(1.08); transform:translateY(-1px); }
+      .wist-p-upgrade-cta:hover { background:linear-gradient(135deg,#8b5cf6 0%,#7c3aed 100%); transform:translateY(-1px); }
 
       /* ── Success ── */
       .wist-p-success-ring {

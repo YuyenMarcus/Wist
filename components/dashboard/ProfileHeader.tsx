@@ -9,6 +9,7 @@ import ImportModal from '@/components/dashboard/ImportModal'
 import { Profile } from '@/lib/supabase/profile'
 import { useTranslation } from '@/lib/i18n/context'
 import NotificationCenter from '@/components/dashboard/NotificationCenter'
+import TreatYourselfMeter from '@/components/dashboard/TreatYourselfMeter'
 
 interface ProfileHeaderProps {
   user: {
@@ -17,12 +18,13 @@ interface ProfileHeaderProps {
   }
   profile: Profile | null
   itemCount: number
-  totalValue: number
+  /** Total $ saved from tracked price drops (used for Treat yourself meter). */
+  totalSavings: number
   onRefreshPrices: () => void | Promise<void>
   refreshing: boolean
 }
 
-export default function ProfileHeader({ user, profile, itemCount, totalValue, onRefreshPrices, refreshing }: ProfileHeaderProps) {
+export default function ProfileHeader({ user, profile, itemCount, totalSavings, onRefreshPrices, refreshing }: ProfileHeaderProps) {
   const { t } = useTranslation()
   const [showImport, setShowImport] = useState(false)
   const displayName = profile?.full_name || 'Curator'
@@ -82,10 +84,8 @@ export default function ProfileHeader({ user, profile, itemCount, totalValue, on
         <div className="flex flex-shrink-0 items-center justify-end gap-3 sm:gap-5 pb-1 max-md:w-full md:max-w-none">
           <div className="hidden sm:flex gap-5 text-center mr-2">
             <div>
-              <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
-                ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-              </div>
-              <div className="text-[10px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-semibold">{t('Value')}</div>
+              <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{itemCount}</div>
+              <div className="text-[10px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-semibold">{t('Items')}</div>
             </div>
             <Link href="/dashboard/purchased" className="group">
               <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-green-600 transition-colors flex items-center justify-center">
@@ -120,12 +120,6 @@ export default function ProfileHeader({ user, profile, itemCount, totalValue, on
       {/* Mobile-only stats row */}
       <div className="flex sm:hidden gap-5 mt-3 pl-2 text-center">
         <div>
-          <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
-            ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-          </div>
-          <div className="text-[10px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-semibold">{t('Value')}</div>
-        </div>
-        <div>
           <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{itemCount}</div>
           <div className="text-[10px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-semibold">{t('Items')}</div>
         </div>
@@ -135,6 +129,11 @@ export default function ProfileHeader({ user, profile, itemCount, totalValue, on
           </div>
           <div className="text-[10px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-semibold group-hover:text-green-600 transition-colors">{t('Purchased')}</div>
         </Link>
+      </div>
+
+      {/* Treat yourself meter — savings from price drops */}
+      <div className="mt-4 w-full max-w-md pl-0 sm:pl-2 md:max-w-lg">
+        <TreatYourselfMeter savedAmount={totalSavings} />
       </div>
 
       {/* Import Modal */}

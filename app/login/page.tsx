@@ -147,6 +147,15 @@ function LoginForm() {
           view="sign_in"
           showLinks={false}
         />
+
+        <div className="mt-4 text-center">
+          <Link
+            href="/forgot-password"
+            className="text-sm font-medium text-violet-600 hover:text-violet-700"
+          >
+            {t('Forgot password?')}
+          </Link>
+        </div>
       </div>
 
       <p className="mt-4 text-center text-xs text-zinc-400 max-w-sm mx-auto leading-relaxed">
