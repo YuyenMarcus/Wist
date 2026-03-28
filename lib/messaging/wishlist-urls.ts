@@ -42,6 +42,24 @@ function isFacebookProxyOrCdnHost(hostname: string): boolean {
   );
 }
 
+/**
+ * True when the URL is a Meta CDN media asset (image/video) that can never
+ * redirect to a real product page. These appear when a user shares an IG post
+ * via the paper-plane button — Meta delivers the post's media, not the product link.
+ */
+function isMetaMediaOnlyCdn(href: string): boolean {
+  try {
+    const u = new URL(href);
+    const h = u.hostname.toLowerCase();
+    if (h.includes('fbsbx.com') && u.pathname.includes('ig_messaging_cdn')) return true;
+    if (h.includes('fbcdn.net') && /\.(jpg|jpeg|png|gif|webp|mp4|mov)/i.test(u.pathname)) return true;
+    if (h.includes('scontent') && h.includes('fbcdn.net')) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 /** Messenger / IG often use l.facebook.com/l.php?u=https%3A%2F%2F... */
 function tryUnwrapFacebookLinkShim(href: string): string | null {
   try {
@@ -70,6 +88,9 @@ function tryUnwrapFacebookLinkShim(href: string): string | null {
  */
 export async function resolveWishlistUrl(url: string): Promise<string> {
   if (!/^https?:\/\//i.test(url)) return url;
+
+  // Media-only CDN URLs (ig_messaging_cdn, scontent) never redirect to a product.
+  if (isMetaMediaOnlyCdn(url)) return '';
 
   const shimTarget = tryUnwrapFacebookLinkShim(url);
   if (shimTarget) {
@@ -185,12 +206,72 @@ function extractUrlsFromAttachments(message: any): string[] {
     add(attachment?.url);
     const p = attachment?.payload;
     if (p && typeof p === 'object') {
-      for (const key of ['target_url', 'share_url', 'canonical_url']) {
+      for (const key of ['target_url', 'share_url', 'canonical_url', 'link', 'fallback_url', 'product_url']) {
         add((p as Record<string, unknown>)[key]);
+      }
+      // Instagram shared posts sometimes nest a link in items[]
+      if (Array.isArray((p as any).items)) {
+        for (const item of (p as any).items) {
+          add(item?.url);
+          add(item?.link);
+          add(item?.target_url);
+        }
       }
     }
   }
   return [...urls];
+}
+
+/**
+ * Given a lookaside CDN URL, extract the asset_id and try the Instagram Graph API
+ * to find the post's caption → extract any product URLs from it.
+ */
+async function tryResolveMediaAssetToProductUrls(cdnUrl: string): Promise<string[]> {
+  try {
+    const u = new URL(cdnUrl);
+    const assetId = u.searchParams.get('asset_id');
+    if (!assetId) return [];
+
+    const token = process.env.INSTAGRAM_ACCESS_TOKEN?.trim();
+    if (!token) return [];
+
+    const res = await fetch(
+      `https://graph.facebook.com/v21.0/${assetId}?fields=permalink,caption&access_token=${encodeURIComponent(token)}`,
+      { signal: AbortSignal.timeout(8000) }
+    );
+    if (!res.ok) {
+      console.log(`[wishlist-urls] Graph API media lookup ${res.status} for asset ${assetId}`);
+      return [];
+    }
+    const data = await res.json() as { permalink?: string; caption?: string };
+    const found: string[] = [];
+
+    // Extract URLs from the post caption
+    if (data.caption) {
+      const urlRegex = /https?:\/\/[^\s<>"{}|\\^`\[\]]+/gi;
+      const matches = data.caption.match(urlRegex);
+      if (matches) {
+        for (const m of matches) {
+          const cleaned = m.replace(/[.,;:!?)]+$/, '');
+          try {
+            if (!isFacebookProxyOrCdnHost(new URL(cleaned).hostname)) {
+              found.push(cleaned);
+            }
+          } catch { /* skip */ }
+        }
+      }
+    }
+
+    // Post permalink as a last resort (at least it's the IG post, not a raw image)
+    if (found.length === 0 && data.permalink) {
+      found.push(data.permalink);
+    }
+
+    return found;
+  } catch (e) {
+    console.warn('[wishlist-urls] tryResolveMediaAssetToProductUrls failed:', e);
+    return [];
+  }
 }
 
 export type WishlistUrlChannel = 'instagram' | 'messenger';
@@ -221,11 +302,31 @@ export async function extractResolvedWishlistUrls(
     candidates = fromAttachments;
   }
 
+  // Identify CDN-only media URLs before resolving — if all candidates are media CDN URLs,
+  // try the Graph API to get real product links from the post caption.
+  const cdnOnly = candidates.filter(isMetaMediaOnlyCdn);
+  const nonCdn = candidates.filter((u) => !isMetaMediaOnlyCdn(u));
+
+  if (nonCdn.length === 0 && cdnOnly.length > 0) {
+    // All URLs are media CDN — try Graph API lookup for post caption links
+    const graphResults = await Promise.all(cdnOnly.map(tryResolveMediaAssetToProductUrls));
+    const graphUrls = graphResults.flat();
+    if (graphUrls.length > 0) {
+      candidates = graphUrls;
+    } else {
+      // No product URLs found via Graph API either
+      return [];
+    }
+  } else {
+    candidates = nonCdn.length > 0 ? nonCdn : candidates;
+  }
+
   const resolved = await Promise.all(candidates.map((u) => resolveWishlistUrl(u)));
 
   const out: string[] = [];
   const seen = new Set<string>();
   for (const r of resolved) {
+    if (!r) continue; // resolveWishlistUrl returns '' for media-only CDN URLs
     const key = normalizeUrlKey(r);
     if (seen.has(key)) continue;
     seen.add(key);

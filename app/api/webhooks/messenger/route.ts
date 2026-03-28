@@ -175,13 +175,36 @@ async function handleMessage(event: any) {
     return;
   }
 
+  // Log attachment structure for debugging shared post content
+  if (Array.isArray(event.message?.attachments)) {
+    console.log('[Messenger Webhook] Attachments:', JSON.stringify(event.message.attachments.map((a: any) => ({
+      type: a.type,
+      payloadKeys: a.payload ? Object.keys(a.payload) : [],
+      url: (a.payload?.url || '').substring(0, 100),
+    }))));
+  }
+
   const urls = await extractResolvedWishlistUrls(event.message);
 
   if (urls.length === 0) {
-    await sendReply(
-      senderId,
-      "I couldn't find a link in that message. Try sharing a product link!"
-    );
+    const hasAttachments = Array.isArray(event.message?.attachments) && event.message.attachments.length > 0;
+    if (hasAttachments) {
+      await sendReply(
+        senderId,
+        "I got the image from that post, but I couldn't find a product link in it.\n\n" +
+        "Try this instead:\n" +
+        "1. Open the post or ad\n" +
+        "2. Tap the product or link\n" +
+        "3. Copy the URL from your browser\n" +
+        "4. Paste it here\n\n" +
+        "I'll add it to your wishlist!"
+      );
+    } else {
+      await sendReply(
+        senderId,
+        "I couldn't find a link in that message. Try sharing a product link!"
+      );
+    }
     return;
   }
 
