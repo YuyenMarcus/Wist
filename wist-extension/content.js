@@ -1853,30 +1853,35 @@ async function handleJustGotIt(item) {
         background:rgba(0,0,0,0); transition:background 0.35s ease;
         pointer-events:none;
       }
-      #wist-backdrop.visible { background:rgba(0,0,0,0.35); pointer-events:auto; backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px); }
+      /* No backdrop-filter — full-page blur is very expensive and tanks FPS */
+      #wist-backdrop.visible { background:rgba(0,0,0,0.4); pointer-events:auto; }
 
       #wist-drawer {
-        position:absolute; top:12px; right:12px; bottom:12px;
+        position:absolute; top:12px; right:12px; bottom:auto;
+        max-height:calc(100vh - 24px);
         width:380px; max-width:calc(100vw - 24px);
         background:#fff;
         border-radius:16px;
         box-shadow:0 24px 48px -12px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.04);
-        transform:translateX(calc(100% + 24px));
-        transition:transform 0.4s cubic-bezier(0.16,1,0.3,1);
+        transform:translate3d(calc(100% + 24px),0,0);
+        transition:transform 0.28s cubic-bezier(0.16,1,0.3,1);
         display:flex; flex-direction:column;
         font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
         font-size:14px; color:#18181b; letter-spacing:-0.01em;
-        overflow:hidden;
+        overflow-x:hidden;
+        overflow-y:auto;
+        overscroll-behavior:contain;
+        contain:layout style;
         pointer-events:auto;
       }
-      #wist-drawer.open{transform:translateX(0);}
+      #wist-drawer.open{transform:translate3d(0,0,0);}
 
       /* Inner scrollable area (keeps header fixed) */
       .wist-p-img-section, .wist-p-gallery, .wist-p-divider, .wist-p-form,
       #wist-p-loading, #wist-p-success {
         /* These scroll naturally within the flex column */
       }
-      #wist-drawer { overflow-y:auto; scrollbar-width:thin; scrollbar-color:#e4e4e7 transparent; }
+      #wist-drawer { scrollbar-width:thin; scrollbar-color:#e4e4e7 transparent; }
       #wist-drawer::-webkit-scrollbar{width:4px;}
       #wist-drawer::-webkit-scrollbar-thumb{background:#e4e4e7;border-radius:4px;}
 
@@ -1937,7 +1942,7 @@ async function handleJustGotIt(item) {
       .wist-p-divider { height:1px; background:#f4f4f5; margin:0 20px; flex-shrink:0; }
 
       /* ── Form ── */
-      .wist-p-form { padding:16px 20px 24px; display:flex; flex-direction:column; gap:14px; }
+      .wist-p-form { padding:16px 20px 16px; display:flex; flex-direction:column; gap:14px; flex:0 0 auto; }
       .wist-p-field { display:flex; flex-direction:column; gap:5px; }
       .wist-p-label {
         font-size:11px; font-weight:700; color:#a1a1aa;
