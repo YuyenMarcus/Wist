@@ -399,15 +399,6 @@ export default function SubscriptionPage() {
                     {t('Change subscription')}
                   </button>
                 )}
-
-                {!isEnterprise && !hasStripeCustomer && (
-                  <a
-                    href="#compare-plans"
-                    className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-violet-200 dark:border-violet-800 bg-white/80 dark:bg-dpurple-900/60 text-violet-700 dark:text-violet-300 text-sm font-semibold py-2.5 px-4 hover:bg-violet-50 dark:hover:bg-violet-950/40 transition-colors"
-                  >
-                    {t('View plans')}
-                  </a>
-                )}
               </div>
             </div>
           </div>
