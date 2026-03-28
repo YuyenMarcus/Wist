@@ -38,7 +38,7 @@ export default function ProfileHeader({ user, profile, itemCount, totalValue, on
   const bannerPosY = clampPct(profile?.banner_position_y)
 
   return (
-    <div className="relative z-50 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 sm:pt-4 pb-4">
+    <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 sm:pt-4 pb-4">
       {/* Banner — no overlap on mobile so name/username sit fully below the image */}
       <div className="relative w-full h-24 sm:h-32 rounded-xl sm:rounded-2xl overflow-hidden mb-4 md:mb-[-1.75rem]">
         {bannerUrl ? (

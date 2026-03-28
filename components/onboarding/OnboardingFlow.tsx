@@ -246,8 +246,8 @@ export default function OnboardingFlow({ userId, onComplete }: OnboardingFlowPro
 
   const handleAgeSubmit = async () => {
     const parsed = parseInt(age, 10)
-    if (isNaN(parsed) || parsed < 5 || parsed > 120) {
-      setAgeError(t('Please enter a valid age between 5 and 120.'))
+    if (isNaN(parsed) || parsed < 5 || parsed > 95) {
+      setAgeError(t('Please enter a valid age between 5 and 95.'))
       return
     }
 
@@ -308,7 +308,7 @@ export default function OnboardingFlow({ userId, onComplete }: OnboardingFlowPro
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       {phase === 'age' ? (
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -334,7 +334,7 @@ export default function OnboardingFlow({ userId, onComplete }: OnboardingFlowPro
             onKeyDown={(e) => e.key === 'Enter' && handleAgeSubmit()}
             placeholder={t('Your age')}
             min={5}
-            max={120}
+            max={95}
             className="w-full px-4 py-3 text-center text-lg font-semibold border border-zinc-200 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition text-zinc-900 placeholder:text-zinc-300"
             autoFocus
           />
