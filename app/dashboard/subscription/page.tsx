@@ -525,7 +525,7 @@ export default function SubscriptionPage() {
           <PlanCard
             title={TIERS.pro.displayName}
             price={TIERS.pro.priceLabel}
-            description={t('Unlimited items, daily checks, gifting, sync, and more.')}
+            description={t('Unlimited items, 12-hour checks, gifting, sync, and more.')}
             features={TIERS.pro.features.slice(0, 7)}
             icon={<Diamond className="w-4 h-4 text-violet-600" />}
             variant="popular"

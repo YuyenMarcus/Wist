@@ -444,8 +444,8 @@ export default function AddItemForm({ compact = false }: { compact?: boolean }) 
                         </p>
                         <p className="mt-1 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
                           {locale === 'es'
-                            ? `Estás usando ${itemLimitBanner.current} de ${itemLimitBanner.limit} artículos en tu plan actual. Mejora para guardados ilimitados, comprobaciones de precio diarias y más.`
-                            : `You're using ${itemLimitBanner.current} of ${itemLimitBanner.limit} items on your current plan. Upgrade for unlimited saves, daily price checks, and more.`}
+                            ? `Estás usando ${itemLimitBanner.current} de ${itemLimitBanner.limit} artículos en tu plan actual. Mejora para guardados ilimitados, revisiones cada 12 horas y más.`
+                            : `You're using ${itemLimitBanner.current} of ${itemLimitBanner.limit} items on your current plan. Upgrade for unlimited saves, 12-hour price checks, and more.`}
                         </p>
                         <Link
                           href="/dashboard/subscription"

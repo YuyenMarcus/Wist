@@ -340,7 +340,7 @@ async function handleSave(item) {
           }
           if (errorUpgradeSubtitle) {
             errorUpgradeSubtitle.textContent =
-              `You're using ${cur} of ${lim} items on your current plan. Upgrade for unlimited saves, daily price checks, and more.`;
+              `You're using ${cur} of ${lim} items on your current plan. Upgrade for unlimited saves, 12-hour price checks, and more.`;
           }
           if (upgradeCta) upgradeCta.href = response.upgradeUrl;
           showState('error');

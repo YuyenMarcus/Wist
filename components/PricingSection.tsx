@@ -21,7 +21,7 @@ const PLANS: {
     accent: 'text-zinc-900',
     checkColor: 'text-zinc-400',
     featureOverrides: [
-      'Up to 100 tracked items',
+      'Up to 30 tracked items',
       '10 collections',
       'Weekly price checks',
       'Weekly price drop alerts',
@@ -32,14 +32,14 @@ const PLANS: {
   },
   {
     key: 'pro',
-    tagline: 'Unlimited tracking, daily checks, gifting, and full sync.',
+    tagline: 'Unlimited tracking, 12-hour checks, gifting, and full sync.',
     highlight: true,
     ctaLabel: 'Start Free Trial',
     accent: 'text-violet-600',
     checkColor: 'text-violet-500',
     featureOverrides: [
       'Unlimited items & collections',
-      'Daily price checks',
+      '12-hour price checks',
       'Back-in-stock alerts by variant',
       'Similar product comparison',
       'Smart auto-categorization',

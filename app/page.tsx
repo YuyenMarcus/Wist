@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import GoogleOneTap from '@/components/GoogleOneTap'
 import HeroV4 from '@/components/HeroV4'
+import AppStoreSection from '@/components/AppStoreSection'
 import PricingSection from '@/components/PricingSection'
 
 export default function LandingPage() {
@@ -31,6 +32,7 @@ export default function LandingPage() {
       {!isLoggedIn && <GoogleOneTap />}
       
       <HeroV4 isLoggedIn={isLoggedIn} />
+      <AppStoreSection />
       <PricingSection />
     </main>
   )

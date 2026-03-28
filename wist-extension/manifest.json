@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Wist - Wishlist & Price Tracker",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Save items, track prices, and build your wishlist.",
   "permissions": [
     "activeTab",

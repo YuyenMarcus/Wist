@@ -43,7 +43,7 @@ const faqSections: FAQSection[] = [
       },
       {
         question: 'Is Wist free to use?',
-            answer: 'Yes. Wist has a generous free tier: 100 tracked items, 10 collections, weekly price checks, and sharing — no card required. Pro adds unlimited items, daily checks, and more.',
+            answer: 'Yes. Wist has a generous free tier: 30 tracked items, 10 collections, weekly price checks, and sharing — no card required. Pro adds unlimited items, 12-hour checks, and more.',
       },
       {
         question: 'How do I share my wishlist?',
