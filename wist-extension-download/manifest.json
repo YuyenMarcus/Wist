@@ -73,7 +73,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["lordicon-animation.json", "white_logo.png"],
+      "resources": ["lordicon-animation.json", "white_logo.png", "icons/icon48.png"],
       "matches": ["<all_urls>"]
     }
   ]

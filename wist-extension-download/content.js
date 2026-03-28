@@ -150,9 +150,25 @@ function scrapeCurrentPage() {
   const currencyInfo = detectCurrency(price, domain);
   
   // Clean up price (extract numeric value)
+  // Handles European format (1.234,56 or 180,00) where comma is the decimal separator
   let priceValue = 0;
   if (price) {
-    const priceMatch = price.toString().replace(/[^0-9.]/g, '');
+    let raw = price.toString();
+    const hasComma = raw.includes(',');
+    const hasDot = raw.includes('.');
+    if (hasComma && !hasDot) {
+      // "180,00" or "1234,56" — comma is the decimal separator
+      raw = raw.replace(/,/, '.');
+    } else if (hasComma && hasDot) {
+      const lastComma = raw.lastIndexOf(',');
+      const lastDot = raw.lastIndexOf('.');
+      if (lastComma > lastDot) {
+        // "1.234,56" — dot is thousands, comma is decimal
+        raw = raw.replace(/\./g, '').replace(',', '.');
+      }
+      // else "1,234.56" — comma is thousands, dot is decimal (default)
+    }
+    const priceMatch = raw.replace(/[^0-9.]/g, '');
     priceValue = parseFloat(priceMatch) || 0;
   }
 
@@ -1552,7 +1568,7 @@ async function handleJustGotIt(item) {
     console.log('[Wist] backdrop:', !!backdrop, 'drawer:', !!drawer);
     if (backdrop) backdrop.classList.add('visible');
     if (drawer) drawer.classList.add('open');
-    if (fabHost) fabHost.style.display = 'none';
+    if (fabHost) fabHost.style.setProperty('display', 'none', 'important');
     setTimeout(() => loadPanelData(), 50);
   }
 
@@ -1564,7 +1580,7 @@ async function handleJustGotIt(item) {
     const drawer = drawerShadow.querySelector('#wist-drawer');
     if (backdrop) backdrop.classList.remove('visible');
     if (drawer) drawer.classList.remove('open');
-    if (fabHost) fabHost.style.display = '';
+    if (fabHost) fabHost.style.setProperty('display', 'block', 'important');
   }
 
   function loadPanelData() {
@@ -1741,10 +1757,7 @@ async function handleJustGotIt(item) {
       <div id="wist-p-header">
         <div class="wist-p-header-left">
           <span class="wist-p-brand">
-            <svg class="wist-p-logo" width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="#7c3aed" opacity="0.15"/>
-              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="#7c3aed" stroke-width="1.5" stroke-linejoin="round"/>
-            </svg>
+            <img class="wist-p-logo" src="${chrome.runtime.getURL('icons/icon48.png')}" width="20" height="20" alt="Wist" style="border-radius:4px;" />
             Wist
           </span>
           <span class="wist-p-subtitle">Save to wishlist</span>

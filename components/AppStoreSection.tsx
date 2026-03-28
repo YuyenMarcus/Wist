@@ -26,7 +26,7 @@ export default function AppStoreSection() {
         }}
       />
 
-      <div className="relative max-w-5xl mx-auto flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
+      <div className="relative max-w-5xl mx-auto rounded-3xl border border-zinc-200/70 bg-white/50 backdrop-blur-sm p-8 sm:p-12 lg:p-16 flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
         {/* Phone mockup */}
         <div className="relative flex-shrink-0 w-[220px] sm:w-[260px]">
           <div className="relative rounded-[2.5rem] border-[6px] border-zinc-900 bg-zinc-900 shadow-2xl shadow-zinc-900/20 overflow-hidden aspect-[9/19.5]">

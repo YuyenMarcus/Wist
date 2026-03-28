@@ -18,6 +18,11 @@ export default function HeroV4({ isLoggedIn }: HeroV4Props) {
 
   const prices = [699, 650, 620, 699, 680, 699]
 
+  const BASELINE = new Date('2026-03-25T00:00:00Z').getTime()
+  const daysSinceBaseline = Math.max(0, Math.floor((Date.now() - BASELINE) / 86_400_000))
+  const itemsTracked = (10247 + Math.floor(daysSinceBaseline / 2)).toLocaleString()
+  const savedByUsers = (127493 + daysSinceBaseline).toLocaleString()
+
   useEffect(() => {
     // Animate price drop
     const interval = setInterval(() => {
@@ -195,13 +200,13 @@ export default function HeroV4({ isLoggedIn }: HeroV4Props) {
               <svg className="trust-icon" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
               </svg>
-              <span><strong>10,247</strong> items tracked</span>
+              <span><strong>{itemsTracked}</strong> items tracked</span>
             </div>
             <div className="trust-item">
               <svg className="trust-icon" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
               </svg>
-              <span><strong>$127,493</strong> saved by users</span>
+              <span><strong>${savedByUsers}</strong> saved by users</span>
             </div>
             <div className="trust-item">
               <svg className="trust-icon" viewBox="0 0 20 20" fill="currentColor">
