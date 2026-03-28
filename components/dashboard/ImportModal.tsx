@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { X, Upload, FileSpreadsheet, Globe, Loader2, CheckCircle2, AlertCircle, FileText, Link2, ShoppingCart, ArrowRight } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { useTranslation } from '@/lib/i18n/context'
@@ -38,6 +39,8 @@ export default function ImportModal({ isOpen, onClose, onComplete }: ImportModal
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [filePreview, setFilePreview] = useState<string[][] | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
 
   const resetState = useCallback(() => {
     setResult(null)
@@ -195,7 +198,7 @@ export default function ImportModal({ isOpen, onClose, onComplete }: ImportModal
     }
   }
 
-  if (!isOpen) return null
+  if (!isOpen || !mounted) return null
 
   const tabs: { id: Tab; label: string; icon: typeof FileSpreadsheet }[] = [
     { id: 'spreadsheet', label: t('Excel / CSV'), icon: FileSpreadsheet },
@@ -203,7 +206,7 @@ export default function ImportModal({ isOpen, onClose, onComplete }: ImportModal
     { id: 'amazon', label: t('Amazon'), icon: ShoppingCart },
   ]
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[10000] flex items-center justify-center">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={handleClose} />
       <div className="relative bg-beige-50 dark:bg-dpurple-900 rounded-2xl shadow-xl max-w-lg w-full mx-4 max-h-[85vh] overflow-y-auto">
@@ -468,6 +471,7 @@ export default function ImportModal({ isOpen, onClose, onComplete }: ImportModal
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
