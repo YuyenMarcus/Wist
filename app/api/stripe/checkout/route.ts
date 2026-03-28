@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type Stripe from 'stripe';
 import { createClient } from '@/lib/supabase/server';
 import { getStripe, getAppUrl } from '@/lib/stripe/server';
-import { tierToPriceId, stripeSecretConfigured } from '@/lib/stripe/tiers';
+import { tierToPriceId, stripeSecretConfigured, tierPriceNotConfiguredResponse } from '@/lib/stripe/tiers';
 import { getServiceRoleSupabase } from '@/lib/supabase/service-role';
 
 export const dynamic = 'force-dynamic';
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
 
     const priceId = tierToPriceId(tier);
     if (!priceId) {
-      return NextResponse.json({ error: 'Price ID not configured for this tier.' }, { status: 503 });
+      return NextResponse.json(tierPriceNotConfiguredResponse(tier), { status: 503 });
     }
 
     const admin = getServiceRoleSupabase();

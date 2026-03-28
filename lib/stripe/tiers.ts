@@ -26,10 +26,27 @@ export function priceIdToTier(priceId: string): SubscriptionTier | null {
   return null;
 }
 
+/** Env var names for recurring subscription Price IDs (Stripe Dashboard → Products → copy price_…). */
+export const STRIPE_PRICE_ENV_VAR: Record<'pro' | 'creator', string> = {
+  pro: 'STRIPE_PRICE_PRO',
+  creator: 'STRIPE_PRICE_CREATOR',
+};
+
 export function tierToPriceId(tier: 'pro' | 'creator'): string | null {
   if (tier === 'pro') return process.env.STRIPE_PRICE_PRO?.trim() || null;
   if (tier === 'creator') return process.env.STRIPE_PRICE_CREATOR?.trim() || null;
   return null;
+}
+
+/** Use when checkout / plan change fails because the tier’s Price ID env is unset. */
+export function tierPriceNotConfiguredResponse(tier: 'pro' | 'creator') {
+  const envVar = STRIPE_PRICE_ENV_VAR[tier];
+  return {
+    error: `Price ID not configured for ${tier}.`,
+    hint: `Set ${envVar} to your Stripe recurring subscription Price ID (starts with price_).`,
+    tier,
+    envVar,
+  };
 }
 
 export function stripeSecretConfigured(): boolean {

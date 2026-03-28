@@ -3,7 +3,7 @@ import type Stripe from 'stripe';
 import { createClient } from '@/lib/supabase/server';
 import { getServiceRoleSupabase } from '@/lib/supabase/service-role';
 import { getStripe } from '@/lib/stripe/server';
-import { tierToPriceId, priceIdToTier } from '@/lib/stripe/tiers';
+import { tierToPriceId, priceIdToTier, tierPriceNotConfiguredResponse } from '@/lib/stripe/tiers';
 import { subscriptionGrantsPaidAccess } from '@/lib/stripe/sync-profile';
 
 export const dynamic = 'force-dynamic';
@@ -104,7 +104,7 @@ export async function POST(req: Request) {
 
     const newPriceId = tierToPriceId(targetTier);
     if (!newPriceId) {
-      return NextResponse.json({ error: 'Stripe price not configured for that tier.' }, { status: 503 });
+      return NextResponse.json(tierPriceNotConfiguredResponse(targetTier), { status: 503 });
     }
 
     const stripe = getStripe();

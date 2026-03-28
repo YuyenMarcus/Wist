@@ -180,7 +180,10 @@ export default function SubscriptionPage() {
         body: JSON.stringify({ tier }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Checkout failed');
+      if (!res.ok) {
+        const msg = [data.error, data.hint].filter(Boolean).join(' ');
+        throw new Error(msg || 'Checkout failed');
+      }
       if (data.url) {
         window.location.href = data.url as string;
         return;
@@ -204,7 +207,10 @@ export default function SubscriptionPage() {
           body: JSON.stringify({ tier: target }),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || 'Could not update plan');
+        if (!res.ok) {
+          const msg = [data.error, data.hint].filter(Boolean).join(' ');
+          throw new Error(msg || 'Could not update plan');
+        }
         setMessage({ type: 'ok', text: t('Your plan was updated.') });
         await load();
         return true;
@@ -232,7 +238,8 @@ export default function SubscriptionPage() {
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          throw new Error(data.error || t('Could not load price preview'));
+          const msg = [data.error, data.hint].filter(Boolean).join(' ');
+          throw new Error(msg || t('Could not load price preview'));
         }
         setPlanChangeFlow({
           target,
