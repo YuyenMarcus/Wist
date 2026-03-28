@@ -34,7 +34,7 @@ const es: Record<string, string> = {
   'Back to sign in': 'Volver a iniciar sesión',
   'Please enter your email address.': 'Por favor ingresa tu correo electrónico.',
   'Something went wrong.': 'Algo salió mal.',
-  'Email': 'Correo',
+  'Email': 'Correo electrónico',
   'Sending...': 'Enviando...',
   'Send reset link': 'Enviar enlace',
   'Link invalid or expired': 'Enlace inválido o caducado',
@@ -283,7 +283,6 @@ const es: Record<string, string> = {
 
   // === ACCOUNT ===
   'Account': 'Cuenta',
-  'Email': 'Correo Electrónico',
   'Subscription': 'Suscripción',
   'Current Plan': 'Plan Actual',
   'Manage Subscription': 'Administrar Suscripción',
