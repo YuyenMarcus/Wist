@@ -204,7 +204,7 @@ export default function ImportModal({ isOpen, onClose, onComplete }: ImportModal
   ]
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={handleClose} />
       <div className="relative bg-beige-50 dark:bg-dpurple-900 rounded-2xl shadow-xl max-w-lg w-full mx-4 max-h-[85vh] overflow-y-auto">
 
