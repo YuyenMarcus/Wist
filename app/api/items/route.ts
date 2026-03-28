@@ -195,7 +195,28 @@ export async function POST(request: Request) {
       }
     }
 
-    // 3. CHECK: Does this URL already exist in products table?
+    // 3a. DUPLICATE CHECK: reject if user already has this URL as an active item
+    if (url && supabaseClient) {
+      const normalizedUrl = url.toLowerCase().trim();
+      const { data: existingItem } = await supabaseClient
+        .from('items')
+        .select('id, title')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .ilike('url', normalizedUrl)
+        .limit(1)
+        .maybeSingle();
+
+      if (existingItem) {
+        console.log("⚠️ [API] Duplicate URL, returning existing item:", existingItem.id);
+        return NextResponse.json(
+          { success: true, item: existingItem, duplicate: true },
+          { headers: corsHeaders(origin) }
+        );
+      }
+    }
+
+    // 3b. CHECK: Does this URL already exist in products table?
     let existingProduct = null;
     if (url && supabaseClient) {
       const { data: productData } = await supabaseClient

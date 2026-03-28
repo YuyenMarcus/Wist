@@ -66,7 +66,28 @@ export async function POST(req: Request) {
     const body = await req.json();
     let { url, title, price, image_url, retailer, description, currency, client_tier } = body;
 
-    // 5. CHECK: Does this URL already exist in products table?
+    // 5a. DUPLICATE CHECK: reject if user already has this URL as an active item
+    if (url) {
+      const normalizedUrl = url.toLowerCase().trim();
+      const { data: existingItem } = await supabase
+        .from('items')
+        .select('id, title')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .ilike('url', normalizedUrl)
+        .limit(1)
+        .maybeSingle();
+
+      if (existingItem) {
+        console.log("[Wist API] Duplicate URL, returning existing item:", existingItem.id);
+        return NextResponse.json(
+          { success: true, data: existingItem, duplicate: true },
+          { headers: corsHeaders(origin) }
+        );
+      }
+    }
+
+    // 5b. CHECK: Does this URL already exist in products table?
     let existingProduct = null;
     if (url) {
       const { data: productData } = await supabase
@@ -78,7 +99,6 @@ export async function POST(req: Request) {
       if (productData) {
         existingProduct = productData;
         console.log("[Wist API] Found existing product in catalog:", productData.title);
-        // Use existing product data to fill in missing fields
         title = title || existingProduct.title || null;
         price = price || existingProduct.price || null;
         image_url = image_url || existingProduct.image || null;
