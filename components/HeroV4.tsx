@@ -5,9 +5,6 @@ import Link from 'next/link'
 import { CHROME_WEB_STORE_URL } from '@/lib/constants/chrome-web-store'
 import { useRouter } from 'next/navigation'
 import { Chrome, Menu, X } from 'lucide-react'
-import dynamic from 'next/dynamic'
-
-const DarkVeil = dynamic(() => import('@/components/DarkVeil'), { ssr: false })
 
 interface HeroV4Props {
   isLoggedIn: boolean
@@ -82,18 +79,9 @@ export default function HeroV4({ isLoggedIn }: HeroV4Props) {
 
   return (
     <div className="hero">
-      {/* Background Animation */}
-      <div style={{ position: 'absolute', inset: 0, zIndex: 0, opacity: 0.35, pointerEvents: 'none' }}>
-        <DarkVeil
-          hueShift={0}
-          noiseIntensity={0}
-          scanlineIntensity={0}
-          speed={0.5}
-          scanlineFrequency={0}
-          warpAmount={0}
-        />
-      </div>
+      {/* Background Effects */}
       <div className="bg-gradient"></div>
+      <div className="bg-grid"></div>
 
       {/* Navigation */}
       <nav className="nav">

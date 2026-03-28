@@ -29,6 +29,11 @@ export default function LandingPage() {
 
   return (
     <main className="relative w-full overflow-hidden bg-white selection:bg-violet-100">
+      <div className="organic-bg" aria-hidden="true">
+        <div className="blob-a" />
+        <div className="blob-b" />
+        <div className="blob-c" />
+      </div>
       {!isLoggedIn && <GoogleOneTap />}
       
       <HeroV4 isLoggedIn={isLoggedIn} />
