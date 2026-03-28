@@ -249,6 +249,16 @@ export default function AddItemForm({ compact = false }: { compact?: boolean }) 
       }
 
       const { data: { session } } = await supabase.auth.getSession()
+
+      let clientTier: string | undefined
+      if (session?.user?.id) {
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('subscription_tier')
+          .eq('id', session.user.id)
+          .single()
+        clientTier = prof?.subscription_tier || undefined
+      }
       
       const response = await fetch('/api/items', {
         method: 'POST',
@@ -262,6 +272,7 @@ export default function AddItemForm({ compact = false }: { compact?: boolean }) 
           price: priceValue,
           image_url: metadata.image || null,
           currency: metadata.currency || 'USD',
+          client_tier: clientTier,
         }),
       })
 

@@ -98,6 +98,15 @@ export default function QueuedItemCard({ item, onUpdate, onDelete, amazonTag }: 
       }
 
       const { data: { session } } = await supabase.auth.getSession()
+      let clientTier: string | undefined
+      if (session?.user?.id) {
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('subscription_tier')
+          .eq('id', session.user.id)
+          .single()
+        clientTier = prof?.subscription_tier || undefined
+      }
       const res = await fetch('/api/items', {
         method: 'PATCH',
         headers: {
@@ -110,6 +119,7 @@ export default function QueuedItemCard({ item, onUpdate, onDelete, amazonTag }: 
           price: scraped?.price?.replace?.(/[^0-9.]/g, '') || undefined,
           image_url: scraped?.image || scraped?.image_url || undefined,
           status: 'active',
+          client_tier: clientTier,
         }),
       })
       const result = await res.json()

@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   try {
     // 1. Get the data sent from the extension or dashboard
     const body = await request.json();
-    let { title, price, url, image_url, status, retailer, note, collection_id, is_public, currency, out_of_stock } = body;
+    let { title, price, url, image_url, status, retailer, note, collection_id, is_public, currency, out_of_stock, client_tier } = body;
 
     console.log("📥 [API] Incoming Item Request:", { url, hasTitle: !!title, hasPrice: !!price });
 
@@ -332,7 +332,7 @@ export async function POST(request: Request) {
     // 6b. Check item limit for active items
     const effectiveStatus = status || 'active';
     if (effectiveStatus === 'active') {
-      const limitCheck = await checkItemLimitForApi(user.id, supabaseClient);
+      const limitCheck = await checkItemLimitForApi(user.id, supabaseClient, client_tier);
       if (!limitCheck.allowed) {
         return NextResponse.json(
           { error: 'Item limit reached', limit: limitCheck.limit, current: limitCheck.current, upgrade: true },
@@ -505,7 +505,7 @@ export async function PATCH(request: Request) {
 
   try {
     const body = await request.json();
-    const { id, title, price, image_url, status: newStatus } = body;
+    const { id, title, price, image_url, status: newStatus, client_tier } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -581,7 +581,7 @@ export async function PATCH(request: Request) {
     }
 
     if (newStatus === 'active') {
-      const limitCheck = await checkItemLimitForApi(user.id, supabaseClient);
+      const limitCheck = await checkItemLimitForApi(user.id, supabaseClient, client_tier);
       if (!limitCheck.allowed) {
         return NextResponse.json(
           { error: 'Item limit reached', limit: limitCheck.limit, current: limitCheck.current, upgrade: true },

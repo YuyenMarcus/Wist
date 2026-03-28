@@ -76,9 +76,10 @@ function getClientForTierChecks(userSupabase: any) {
  */
 export async function checkItemLimitForApi(
   userId: string,
-  fallbackSupabase?: any
+  fallbackSupabase?: any,
+  clientTier?: string
 ): Promise<ItemLimitResult> {
-  const first = await computeItemLimitForApi(userId, fallbackSupabase);
+  const first = await computeItemLimitForApi(userId, fallbackSupabase, clientTier);
   if (first.allowed) return first;
 
   // Whenever a user is blocked by any finite limit, attempt a Stripe re-sync.
@@ -87,7 +88,7 @@ export async function checkItemLimitForApi(
   if (first.limit != null) {
     const synced = await tryResyncTierFromStripe(userId);
     if (synced) {
-      const second = await computeItemLimitForApi(userId, fallbackSupabase);
+      const second = await computeItemLimitForApi(userId, fallbackSupabase, clientTier);
       if (second.allowed) {
         console.log(
           '[checkItemLimitForApi] Re-synced subscription from Stripe; user is no longer capped.'
@@ -102,30 +103,37 @@ export async function checkItemLimitForApi(
 
 async function computeItemLimitForApi(
   userId: string,
-  fallbackSupabase?: any
+  fallbackSupabase?: any,
+  clientTier?: string
 ): Promise<ItemLimitResult> {
   if (hasServiceRoleKey()) {
     try {
       const client = getServiceRoleSupabase();
-      return runLimitCheck(client, userId, fallbackSupabase);
+      return runLimitCheck(client, userId, fallbackSupabase, clientTier);
     } catch (e) {
       console.error('[checkItemLimitForApi] Service role failed:', e);
     }
   }
   if (fallbackSupabase) {
-    return checkItemLimit(fallbackSupabase, userId);
+    return checkItemLimit(fallbackSupabase, userId, clientTier);
   }
   console.error(
     '[checkItemLimitForApi] SUPABASE_SERVICE_ROLE_KEY is not set and no fallback client. Set the key in Vercel → Environment Variables.'
   );
-  // Last resort: REST tier + count only with service role (never hard-deny without reading DB)
-  return runLimitCheckWithRestFallback(userId);
+  return runLimitCheckWithRestFallback(userId, clientTier);
 }
 
 /** When no Supabase client exists, still evaluate limits via PostgREST if service role key is set. */
-async function runLimitCheckWithRestFallback(userId: string): Promise<ItemLimitResult> {
+async function runLimitCheckWithRestFallback(userId: string, clientTier?: string): Promise<ItemLimitResult> {
   const restTier = await fetchSubscriptionTierRest(userId);
-  const tier = normalizeTier(restTier || 'free');
+  let tier = normalizeTier(restTier || 'free');
+  if (clientTier) {
+    const ct = normalizeTier(clientTier);
+    if (TIER_RANK[ct] > TIER_RANK[tier]) {
+      console.log(`[runLimitCheckWithRestFallback] client_tier "${ct}" > server "${tier}", using client`);
+      tier = ct;
+    }
+  }
   const limit = getItemLimit(tier);
   if (limit === null) {
     return { allowed: true, limit: null, current: 0 };
@@ -159,9 +167,9 @@ async function runLimitCheckWithRestFallback(userId: string): Promise<ItemLimitR
   }
 }
 
-async function runLimitCheck(client: any, userId: string, fallbackSupabase?: any): Promise<ItemLimitResult> {
+async function runLimitCheck(client: any, userId: string, fallbackSupabase?: any, clientTier?: string): Promise<ItemLimitResult> {
   if (!client) {
-    return runLimitCheckWithRestFallback(userId);
+    return runLimitCheckWithRestFallback(userId, clientTier);
   }
 
   const { data: profile, error: profileError } = await client
@@ -203,6 +211,16 @@ async function runLimitCheck(client: any, userId: string, fallbackSupabase?: any
     }
   }
 
+  // Client-asserted tier — trust the higher value so misconfigured server env never downgrades a paid user
+  if (clientTier) {
+    const ct = normalizeTier(clientTier);
+    const tRaw = normalizeTier(raw == null || raw === '' ? '' : String(raw));
+    if (TIER_RANK[ct] > TIER_RANK[tRaw]) {
+      console.log(`[runLimitCheck] client_tier "${ct}" > all server sources "${tRaw}", using client`);
+      raw = clientTier;
+    }
+  }
+
   const rawStr =
     raw == null || raw === ''
       ? ''
@@ -210,6 +228,10 @@ async function runLimitCheck(client: any, userId: string, fallbackSupabase?: any
         ? raw
         : String(raw);
   const tier = normalizeTier(rawStr || 'free');
+
+  console.log(
+    `[checkItemLimit] userId=${userId} resolved_tier="${tier}" raw="${rawStr}" clientTier="${clientTier ?? 'none'}" restTier="${restTier ?? 'null'}"`
+  );
 
   if (
     typeof raw === 'string' &&
@@ -248,10 +270,11 @@ async function runLimitCheck(client: any, userId: string, fallbackSupabase?: any
 
 export async function checkItemLimit(
   supabase: any,
-  userId: string
+  userId: string,
+  clientTier?: string
 ): Promise<ItemLimitResult> {
   const client = getClientForTierChecks(supabase);
-  return runLimitCheck(client, userId, supabase);
+  return runLimitCheck(client, userId, supabase, clientTier);
 }
 
 export function isTierAtLeast(

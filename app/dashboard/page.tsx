@@ -365,6 +365,7 @@ export default function DashboardPage() {
                   price: scraped.price || undefined,
                   image_url: scraped.image || scraped.image_url || undefined,
                   status: 'active',
+                  client_tier: profile?.subscription_tier || undefined,
                 }),
               })
               console.log(`✅ Auto-scraped: ${scraped.title?.substring(0, 40)}`)

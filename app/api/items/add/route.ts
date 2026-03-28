@@ -64,7 +64,7 @@ export async function POST(req: Request) {
 
     // 4. Parse Data
     const body = await req.json();
-    let { url, title, price, image_url, retailer, description, currency } = body;
+    let { url, title, price, image_url, retailer, description, currency, client_tier } = body;
 
     // 5. CHECK: Does this URL already exist in products table?
     let existingProduct = null;
@@ -134,7 +134,7 @@ export async function POST(req: Request) {
     }
 
     // 7b. Check item limit (use service role so subscription_tier is read correctly)
-    const limitCheck = await checkItemLimitForApi(user.id, supabase);
+    const limitCheck = await checkItemLimitForApi(user.id, supabase, client_tier);
     if (!limitCheck.allowed) {
       return NextResponse.json(
         { error: 'Item limit reached', limit: limitCheck.limit, current: limitCheck.current, upgrade: true },

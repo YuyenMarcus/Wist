@@ -52,13 +52,23 @@ function SharePageContent() {
 
       const { data: { session } } = await supabase.auth.getSession()
 
+      let clientTier: string | undefined
+      if (user.id) {
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('subscription_tier')
+          .eq('id', user.id)
+          .single()
+        clientTier = prof?.subscription_tier || undefined
+      }
+
       const response = await fetch('/api/items', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
         },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url, client_tier: clientTier }),
       })
 
       const result = await response.json()

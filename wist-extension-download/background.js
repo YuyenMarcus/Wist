@@ -1282,6 +1282,35 @@ async function handleSaveItem(payload, sendResponse) {
     console.log("✅ [Extension] Token extracted, length:", token.length);
     console.log("🔑 [Extension] Token preview:", token.substring(0, 20) + "...");
 
+    // Read the user's subscription tier so the server doesn't misidentify paid users as free
+    let clientTier = undefined;
+    try {
+      const meRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${token}` },
+      });
+      if (meRes.ok) {
+        const me = await meRes.json();
+        if (me?.id) {
+          const profileRes = await fetch(
+            `${SUPABASE_URL}/rest/v1/profiles?select=subscription_tier&id=eq.${encodeURIComponent(me.id)}`,
+            {
+              headers: {
+                apikey: SUPABASE_ANON_KEY,
+                Authorization: `Bearer ${token}`,
+                Accept: "application/json",
+              },
+            }
+          );
+          if (profileRes.ok) {
+            const rows = await profileRes.json();
+            if (rows?.[0]?.subscription_tier) clientTier = rows[0].subscription_tier;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("[Extension] Could not read subscription_tier:", e);
+    }
+
     // Prepare payload
     const apiPayload = {
       url: payload.url,
@@ -1293,6 +1322,7 @@ async function handleSaveItem(payload, sendResponse) {
       collection_id: payload.collection_id || null,
       is_public: payload.is_public !== undefined ? Boolean(payload.is_public) : false,
       currency: payload.currency || "USD",
+      client_tier: clientTier,
     };
 
     console.log("📦 [Extension] Payload:", JSON.stringify(apiPayload, null, 2));
@@ -1303,7 +1333,7 @@ async function handleSaveItem(payload, sendResponse) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}` // <--- Critical Header
+        "Authorization": `Bearer ${token}`
       },
       body: JSON.stringify(apiPayload)
     });

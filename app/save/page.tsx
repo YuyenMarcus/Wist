@@ -2,6 +2,7 @@
 
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState, Suspense } from 'react';
+import { supabase } from '@/lib/supabase/client';
 
 function SaveContent() {
   const searchParams = useSearchParams();
@@ -22,7 +23,17 @@ function SaveContent() {
       if (!url) return;
 
       try {
-        // We use the internal API, which works perfectly with cookies here
+        let clientTier: string | undefined
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user?.id) {
+          const { data: prof } = await supabase
+            .from('profiles')
+            .select('subscription_tier')
+            .eq('id', user.id)
+            .single()
+          clientTier = prof?.subscription_tier || undefined
+        }
+
         const response = await fetch('/api/items/add', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -33,7 +44,8 @@ function SaveContent() {
             price: price ? parseFloat(price) : 0,
             image_url: image,
             retailer,
-            description: description || ''
+            description: description || '',
+            client_tier: clientTier,
           })
         });
 

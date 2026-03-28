@@ -41,6 +41,16 @@ function AddToMyListButton({ item, theme }: { item: PublicItem; theme: ProfileTh
         return;
       }
 
+      let clientTier: string | undefined;
+      if (session.user?.id) {
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('subscription_tier')
+          .eq('id', session.user.id)
+          .single();
+        clientTier = prof?.subscription_tier || undefined;
+      }
+
       const res = await fetch('/api/items/add', {
         method: 'POST',
         headers: {
@@ -52,6 +62,7 @@ function AddToMyListButton({ item, theme }: { item: PublicItem; theme: ProfileTh
           title: item.title,
           price: item.price,
           image_url: item.image,
+          client_tier: clientTier,
         }),
       });
 
