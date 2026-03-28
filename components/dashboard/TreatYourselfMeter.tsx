@@ -16,9 +16,11 @@ const MILESTONES = [
 interface TreatYourselfMeterProps {
   /** Total $ saved from tracked price drops (sum of drops across items). */
   savedAmount: number
+  /** Inline stat in profile header (replaces large card). */
+  variant?: 'card' | 'inline'
 }
 
-export default function TreatYourselfMeter({ savedAmount }: TreatYourselfMeterProps) {
+export default function TreatYourselfMeter({ savedAmount, variant = 'card' }: TreatYourselfMeterProps) {
   const { t } = useTranslation()
   const raw = Math.max(0, savedAmount)
   const barPct = GOAL > 0 ? Math.min(100, (raw / GOAL) * 100) : 0
@@ -41,6 +43,30 @@ export default function TreatYourselfMeter({ savedAmount }: TreatYourselfMeterPr
 
   const m1Unlocked = raw >= MILESTONES[0].amount
   const m2Unlocked = raw >= MILESTONES[1].amount
+
+  const tooltip = `${unlockTitle} ${unlockSub}`
+
+  if (variant === 'inline') {
+    return (
+      <div className="text-center max-w-[5.5rem]" title={tooltip}>
+        <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">
+          ${Math.round(raw).toLocaleString()}
+        </div>
+        <div className="text-[10px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-semibold">
+          {t('saved')}
+        </div>
+        <div
+          className="mt-1.5 mx-auto h-1 w-[3.25rem] rounded-full bg-zinc-200/80 dark:bg-dpurple-800 overflow-hidden"
+          aria-hidden
+        >
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-[#7F77DD] to-[#D4537E] transition-[width] duration-500 ease-out"
+            style={{ width: `${barPct}%` }}
+          />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="w-full rounded-xl border border-beige-200 bg-white p-4 shadow-sm dark:border-dpurple-700 dark:bg-dpurple-900 sm:p-5">

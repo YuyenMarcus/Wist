@@ -29,7 +29,7 @@ export default function AppStoreSection() {
       <div className="relative max-w-7xl mx-auto rounded-3xl border-2 border-violet-200/60 bg-white/50 backdrop-blur-sm p-12 sm:p-16 lg:p-24 flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
         {/* Phone mockup */}
         <div className="relative flex-shrink-0 w-[220px] sm:w-[260px]">
-          <div className="relative rounded-[2.5rem] border-[6px] border-zinc-900 bg-zinc-900 shadow-2xl shadow-zinc-900/20 overflow-hidden aspect-[9/19.5]">
+          <div className="relative rounded-[2.5rem] border-[14px] border-zinc-900 bg-zinc-900 shadow-2xl shadow-zinc-900/20 overflow-hidden aspect-[9/19.5]">
             <div className="absolute inset-0 bg-gradient-to-br from-violet-50 via-white to-purple-50 flex flex-col items-center justify-center px-5">
               <img
                 src="/logo.png"

@@ -82,11 +82,12 @@ export default function ProfileHeader({ user, profile, itemCount, totalSavings, 
 
         {/* Stats + Actions — bell only with desktop header; mobile uses Sidebar MobileHeader bell */}
         <div className="flex flex-shrink-0 items-center justify-end gap-3 sm:gap-5 pb-1 max-md:w-full md:max-w-none">
-          <div className="hidden sm:flex gap-5 text-center mr-2">
+          <div className="hidden sm:flex gap-5 text-center mr-2 items-start">
             <div>
               <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{itemCount}</div>
               <div className="text-[10px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-semibold">{t('Items')}</div>
             </div>
+            <TreatYourselfMeter variant="inline" savedAmount={totalSavings} />
             <Link href="/dashboard/purchased" className="group">
               <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-green-600 transition-colors flex items-center justify-center">
                 <ShoppingBag className="w-4 h-4" />
@@ -118,22 +119,18 @@ export default function ProfileHeader({ user, profile, itemCount, totalSavings, 
       )}
 
       {/* Mobile-only stats row */}
-      <div className="flex sm:hidden gap-5 mt-3 pl-2 text-center">
+      <div className="flex sm:hidden gap-5 mt-3 pl-2 text-center items-start justify-center flex-wrap">
         <div>
           <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{itemCount}</div>
           <div className="text-[10px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-semibold">{t('Items')}</div>
         </div>
+        <TreatYourselfMeter variant="inline" savedAmount={totalSavings} />
         <Link href="/dashboard/purchased" className="group">
           <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-green-600 transition-colors flex items-center justify-center">
             <ShoppingBag className="w-4 h-4" />
           </div>
           <div className="text-[10px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-semibold group-hover:text-green-600 transition-colors">{t('Purchased')}</div>
         </Link>
-      </div>
-
-      {/* Treat yourself meter — savings from price drops */}
-      <div className="mt-4 w-full max-w-md pl-0 sm:pl-2 md:max-w-lg">
-        <TreatYourselfMeter savedAmount={totalSavings} />
       </div>
 
       {/* Import Modal */}
