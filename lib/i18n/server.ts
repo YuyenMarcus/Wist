@@ -11,6 +11,6 @@ export async function getServerTranslation() {
   const locale = await getLocale()
   return {
     locale,
-    t: (key: string) => translate(key, locale),
+    t: (key: string, vars?: Record<string, string>) => translate(key, locale, vars),
   }
 }

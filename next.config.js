@@ -10,6 +10,10 @@ const nextConfig = {
     },
   },
   
+  async redirects() {
+    return [{ source: '/favicon.ico', destination: '/icon.svg', permanent: false }]
+  },
+
   // CORS Headers for Chrome Extension
   async headers() {
     return [

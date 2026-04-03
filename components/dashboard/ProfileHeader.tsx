@@ -68,7 +68,7 @@ export default function ProfileHeader({ user, profile, itemCount }: ProfileHeade
               </p>
             ) : (
               <p className="mt-0.5 text-xs text-zinc-400 dark:text-zinc-500 max-w-xs leading-relaxed italic hidden sm:block">
-                No bio yet. Add one in settings.
+                {t('No bio yet. Add one in settings.')}
               </p>
             )}
           </div>

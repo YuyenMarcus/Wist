@@ -8,9 +8,11 @@ import { supabase } from '@/lib/supabase/client'
 import { getProfile, updateProfile, Profile } from '@/lib/supabase/profile'
 import { useUsername } from '@/hooks/useUsername'
 import LavenderLoader from '@/components/ui/LavenderLoader'
+import { useTranslation } from '@/lib/i18n/context'
 
 export default function AccountPage() {
   const router = useRouter()
+  const { t } = useTranslation()
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
@@ -50,7 +52,7 @@ export default function AccountPage() {
         
         if (userError) throw userError
         if (!currentUser) {
-          setError('Not authenticated. Please log in.')
+          setError(t('Not authenticated. Please log in.'))
           setLoading(false)
           return
         }
@@ -71,14 +73,14 @@ export default function AccountPage() {
         setUsername(existingUsername)
       } catch (err: any) {
         console.error('Error loading profile:', err)
-        setError(err.message || 'Failed to load profile')
+        setError(err.message || t('Failed to load profile'))
       } finally {
         setLoading(false)
       }
     }
 
     loadUserAndProfile()
-  }, [])
+  }, [t])
 
   // Handle avatar upload
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -89,13 +91,13 @@ export default function AccountPage() {
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      setError('Please select an image file')
+      setError(t('Please select an image file'))
       return
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      setError('Image must be less than 5MB')
+      setError(t('Image must be less than 5MB'))
       return
     }
 
@@ -139,7 +141,7 @@ export default function AccountPage() {
       setTimeout(() => setSuccess(false), 3000)
     } catch (err: any) {
       console.error('Error uploading avatar:', err)
-      setError(err.message || 'Failed to upload avatar')
+      setError(err.message || t('Failed to upload avatar'))
     } finally {
       setUploading(false)
       // Reset file input
@@ -154,7 +156,7 @@ export default function AccountPage() {
     e.preventDefault()
     
     if (!user) {
-      setError('Not authenticated')
+      setError(t('Not authenticated'))
       return
     }
 
@@ -165,7 +167,7 @@ export default function AccountPage() {
 
       // Final validation before submitting
       if (username !== currentUsername && !isValid) {
-        setError('Please fix username errors before saving')
+        setError(t('Please fix username errors before saving'))
         return
       }
 
@@ -178,9 +180,9 @@ export default function AccountPage() {
       if (updateError) {
         // Check for username change lock
         if (updateError.code === 'USERNAME_CHANGE_LOCKED') {
-          setError(updateError.message || 'Username can only be changed once every 30 days.')
+          setError(updateError.message || t('Username can only be changed once every 30 days.'))
         } else if (updateError.code === '23505' || updateError.message.includes('unique')) {
-          setError('Username is already taken. Please choose another.')
+          setError(t('Username is already taken. Please choose another.'))
         } else {
           throw updateError
         }
@@ -195,7 +197,7 @@ export default function AccountPage() {
       setTimeout(() => setSuccess(false), 3000)
     } catch (err: any) {
       console.error('Error updating profile:', err)
-      setError(err.message || 'Failed to update profile')
+      setError(err.message || t('Failed to update profile'))
     } finally {
       setSaving(false)
     }
@@ -215,7 +217,7 @@ export default function AccountPage() {
         <div className="text-center">
           <p className="text-red-600">{error}</p>
           <a href="/login" className="mt-4 text-violet-600 dark:text-violet-400 hover:underline">
-            Go to Login
+            {t('Go to Login')}
           </a>
         </div>
       </div>
@@ -231,7 +233,7 @@ export default function AccountPage() {
           animate={{ opacity: 1, y: 0 }}
           className="text-4xl font-semibold text-zinc-900 dark:text-zinc-100 mb-12 text-center"
         >
-          Account Settings
+          {t('Account Settings')}
         </motion.h1>
 
         <div className="bg-white dark:bg-dpurple-900 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm p-8">
@@ -243,7 +245,7 @@ export default function AccountPage() {
               className="mb-6 rounded-lg bg-green-50 dark:bg-green-950/30 p-4 border border-green-200 dark:border-green-800"
             >
               <p className="text-sm font-medium text-green-800 dark:text-green-300">
-                Profile updated successfully!
+                {t('Profile updated successfully!')}
               </p>
             </motion.div>
           )}
@@ -262,7 +264,7 @@ export default function AccountPage() {
           {/* Avatar Upload Section */}
           <div className="mb-8">
             <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-4 text-center">
-              Profile Picture
+              {t('Profile Picture')}
             </label>
             <div className="flex justify-center">
               <div className="relative group">
@@ -305,7 +307,7 @@ export default function AccountPage() {
                     {uploading ? (
                       <div className="text-white text-sm font-medium">
                         <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                        Uploading...
+                        {t('Uploading...')}
                       </div>
                     ) : (
                       <svg
@@ -337,7 +339,8 @@ export default function AccountPage() {
           {/* Profile Info */}
           <div className="mb-8 text-center">
             <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-1">
-              <span className="font-medium">Email:</span> {profile?.email || user?.email || 'N/A'}
+              <span className="font-medium">{t('Email:')}</span>{' '}
+              {profile?.email || user?.email || t('N/A')}
             </p>
           </div>
 
@@ -345,7 +348,7 @@ export default function AccountPage() {
           <form onSubmit={handleSave}>
             <div className="mb-6">
               <label htmlFor="full_name" className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2">
-                Full Name
+                {t('Full Name')}
               </label>
               <input
                 type="text"
@@ -360,7 +363,7 @@ export default function AccountPage() {
             {/* Username Input */}
             <div className="mb-6">
               <label htmlFor="username" className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2">
-                Username
+                {t('Username')}
               </label>
               {(() => {
                 const usernameChangedAt = profile?.username_changed_at;
@@ -393,7 +396,7 @@ export default function AccountPage() {
                               : 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30'
                             : 'border-zinc-200 dark:border-dpurple-700 focus:ring-violet-200 dark:focus:ring-violet-800 focus:border-violet-300 dark:focus:border-violet-600'
                         }`}
-                        placeholder="username"
+                        placeholder={t('username placeholder')}
                       />
                 
                 {/* Status Indicator Icon */}
@@ -414,7 +417,11 @@ export default function AccountPage() {
               {!canChange && username === currentUsername && (
                 <div className="mt-2 p-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
                   <p className="text-xs text-amber-700 dark:text-amber-300">
-                    Username can only be changed once every 30 days. You can change it again in {daysRemaining} day{daysRemaining !== 1 ? 's' : ''}.
+                    {daysRemaining === 1
+                      ? t('Username can only be changed once every 30 days. You can change it again in 1 day.')
+                      : t('Username can only be changed once every 30 days. You can change it again in {days} days.', {
+                          days: String(daysRemaining),
+                        })}
                   </p>
                 </div>
               )}
@@ -424,13 +431,13 @@ export default function AccountPage() {
                 {username !== currentUsername && username.length > 0 && (
                   <>
                     {checkingUsername && (
-                      <span className="text-xs text-zinc-400">Checking availability...</span>
+                      <span className="text-xs text-zinc-400">{t('Checking availability...')}</span>
                     )}
                     {!checkingUsername && usernameError && (
                       <span className="text-xs text-red-500 font-medium">{usernameError}</span>
                     )}
                     {!checkingUsername && isValid && (
-                      <span className="text-xs text-green-600 font-medium">Username available</span>
+                      <span className="text-xs text-green-600 font-medium">{t('Username available')}</span>
                     )}
                   </>
                 )}
@@ -443,7 +450,7 @@ export default function AccountPage() {
             {/* Bio Input */}
             <div className="mb-6">
               <label htmlFor="bio" className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2">
-                Bio
+                {t('Bio')}
               </label>
               <textarea
                 id="bio"
@@ -455,7 +462,7 @@ export default function AccountPage() {
                 }}
                 rows={3}
                 className="w-full rounded-xl border border-zinc-200 dark:border-dpurple-700 bg-white dark:bg-dpurple-800 px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 shadow-sm focus:border-violet-300 dark:focus:border-violet-600 focus:outline-none focus:ring-2 focus:ring-violet-200 dark:focus:ring-violet-800 transition-colors resize-none"
-                placeholder="Tell us about yourself..."
+                placeholder={t('Tell us about yourself...')}
               />
               <div className="flex justify-end mt-1">
                 <span className={`text-xs ${
@@ -475,7 +482,7 @@ export default function AccountPage() {
                 className="px-6 py-2.5 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors"
                 disabled={saving}
               >
-                Cancel
+                {t('Cancel')}
               </button>
               {(() => {
                 const isUsernameChanging = username !== currentUsername;
@@ -498,10 +505,10 @@ export default function AccountPage() {
                     {saving ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Saving...
+                        {t('Saving...')}
                       </>
                     ) : (
-                      'Save Changes'
+                      t('Save Changes')
                     )}
                   </button>
                 );
@@ -511,7 +518,7 @@ export default function AccountPage() {
 
           {/* Settings Navigation */}
           <div className="mt-8 pt-8 border-t border-zinc-200 dark:border-dpurple-700">
-            <h3 className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-3">Settings</h3>
+            <h3 className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-3">{t('Settings')}</h3>
             <div className="space-y-1">
               <button
                 onClick={() => router.push('/settings')}
@@ -521,8 +528,8 @@ export default function AccountPage() {
                   <User size={16} className="text-zinc-500 dark:text-zinc-400 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors" />
                 </div>
                 <div className="flex-1">
-                  <span className="text-sm font-medium">Profile Settings</span>
-                  <p className="text-xs text-zinc-400">Name, username, bio, social links</p>
+                  <span className="text-sm font-medium">{t('Profile Settings')}</span>
+                  <p className="text-xs text-zinc-400">{t('Name, username, bio, social links')}</p>
                 </div>
                 <ChevronRight size={16} className="text-zinc-300 dark:text-zinc-600 group-hover:text-violet-400 transition-colors" />
               </button>
@@ -535,8 +542,8 @@ export default function AccountPage() {
                   <Shield size={16} className="text-zinc-500 dark:text-zinc-400 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors" />
                 </div>
                 <div className="flex-1">
-                  <span className="text-sm font-medium">Content & Privacy</span>
-                  <p className="text-xs text-zinc-400">Adult content filter, preferences</p>
+                  <span className="text-sm font-medium">{t('Content & Privacy')}</span>
+                  <p className="text-xs text-zinc-400">{t('Adult content filter, preferences')}</p>
                 </div>
                 <ChevronRight size={16} className="text-zinc-300 dark:text-zinc-600 group-hover:text-violet-400 transition-colors" />
               </button>
@@ -549,8 +556,8 @@ export default function AccountPage() {
                   <LinkIcon size={16} className="text-zinc-500 dark:text-zinc-400 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors" />
                 </div>
                 <div className="flex-1">
-                  <span className="text-sm font-medium">Creator & Monetization</span>
-                  <p className="text-xs text-zinc-400">Amazon affiliate, social links</p>
+                  <span className="text-sm font-medium">{t('Creator & Monetization')}</span>
+                  <p className="text-xs text-zinc-400">{t('Amazon affiliate, social links')}</p>
                 </div>
                 <ChevronRight size={16} className="text-zinc-300 dark:text-zinc-600 group-hover:text-violet-400 transition-colors" />
               </button>
@@ -563,8 +570,8 @@ export default function AccountPage() {
                   <Bell size={16} className="text-zinc-500 dark:text-zinc-400 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors" />
                 </div>
                 <div className="flex-1">
-                  <span className="text-sm font-medium">Help & Support</span>
-                  <p className="text-xs text-zinc-400">FAQs, troubleshooting, contact</p>
+                  <span className="text-sm font-medium">{t('Help & Support')}</span>
+                  <p className="text-xs text-zinc-400">{t('FAQs, troubleshooting, contact')}</p>
                 </div>
                 <ChevronRight size={16} className="text-zinc-300 dark:text-zinc-600 group-hover:text-violet-400 transition-colors" />
               </button>
@@ -577,7 +584,7 @@ export default function AccountPage() {
               onClick={() => router.push('/dashboard')}
               className="w-full flex items-center justify-center gap-2 rounded-lg bg-zinc-50 dark:bg-dpurple-800 px-4 py-3 text-zinc-600 dark:text-zinc-300 font-semibold hover:bg-zinc-100 dark:hover:bg-dpurple-700 transition-colors"
             >
-              <ArrowLeft size={18} /> Back to Dashboard
+              <ArrowLeft size={18} /> {t('Back to Dashboard')}
             </button>
           </div>
         </div>
@@ -592,7 +599,7 @@ export default function AccountPage() {
             }}
             className="text-sm text-red-600 hover:text-red-700 font-medium flex items-center justify-center gap-2 mx-auto"
           >
-            <LogOut size={16} /> Sign Out
+            <LogOut size={16} /> {t('Sign Out')}
           </button>
         </div>
       </div>

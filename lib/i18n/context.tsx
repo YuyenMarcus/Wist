@@ -7,7 +7,7 @@ import type { Locale } from './index'
 
 interface I18nContextValue {
   locale: Locale
-  t: (key: string) => string
+  t: (key: string, vars?: Record<string, string>) => string
   setLocale: (locale: Locale) => void
 }
 
@@ -35,7 +35,7 @@ export function I18nProvider({ children, initialLocale = 'en' }: { children: Rea
     document.cookie = `locale=${newLocale};path=/;max-age=${60 * 60 * 24 * 365};samesite=lax`
   }, [])
 
-  const t = useCallback((key: string) => translate(key, locale), [locale])
+  const t = useCallback((key: string, vars?: Record<string, string>) => translate(key, locale, vars), [locale])
 
   return (
     <I18nContext.Provider value={{ locale, t, setLocale }}>

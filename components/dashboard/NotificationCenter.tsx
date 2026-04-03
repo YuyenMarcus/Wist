@@ -169,7 +169,8 @@ export default function NotificationCenter({ compact = false }: NotificationCent
         return (
           <>
             <span className="font-semibold text-zinc-900 dark:text-zinc-100">{short}</span>{' '}
-            is <span className="font-bold text-blue-600">{t('back in stock')}</span>
+            {t('is')}{' '}
+            <span className="font-bold text-blue-600">{t('back in stock')}</span>
             {n.new_price ? (
               <span className="text-zinc-400 dark:text-zinc-500"> {t('at')} ${n.new_price.toFixed(2)}</span>
             ) : null}

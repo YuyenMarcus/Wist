@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import PageTransition from '@/components/ui/PageTransition';
 import { BarChart3, PackageX, PackageCheck, TrendingDown, TrendingUp, AlertTriangle, Sparkles } from 'lucide-react';
-import { affiliateUrl } from '@/lib/amazon-affiliate';
+import { affiliateUrl, effectiveAmazonAffiliateId } from '@/lib/amazon-affiliate';
 import { priceHistoryTimeMs } from '@/lib/price-history-utils';
 
 export default function ItemDetail() {
@@ -38,7 +38,9 @@ export default function ItemDetail() {
           .single();
         tier = profile?.subscription_tier || 'free';
         setUserTier(tier);
-        setAmazonTag(profile?.amazon_affiliate_id || null);
+        setAmazonTag(
+          effectiveAmazonAffiliateId(profile?.subscription_tier, profile?.amazon_affiliate_id),
+        );
       }
 
       // 1. Get Item Details - try items table first, then products table

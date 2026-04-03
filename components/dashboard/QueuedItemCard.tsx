@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Clock, Edit2, Trash2, Check, X, ExternalLink, CircleCheck, Loader2, Smartphone } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { affiliateUrl } from '@/lib/amazon-affiliate'
+import { useTranslation } from '@/lib/i18n/context'
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false)
@@ -38,6 +39,7 @@ interface Props {
 }
 
 export default function QueuedItemCard({ item, onUpdate, onDelete, amazonTag }: Props) {
+  const { t } = useTranslation()
   const isMobile = useIsMobile()
   const [isEditing, setIsEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(item.title || '')
@@ -66,11 +68,11 @@ export default function QueuedItemCard({ item, onUpdate, onDelete, amazonTag }: 
   const timeAgo = (() => {
     const diff = Date.now() - new Date(item.created_at).getTime()
     const mins = Math.floor(diff / 60000)
-    if (mins < 60) return `${mins}m ago`
+    if (mins < 60) return t('{n}m ago', { n: String(Math.max(0, mins)) })
     const hours = Math.floor(mins / 60)
-    if (hours < 24) return `${hours}h ago`
+    if (hours < 24) return t('{n}h ago', { n: String(hours) })
     const days = Math.floor(hours / 24)
-    return `${days}d ago`
+    return t('{n}d ago', { n: String(days) })
   })()
 
   async function handleActivate() {
@@ -137,7 +139,8 @@ export default function QueuedItemCard({ item, onUpdate, onDelete, amazonTag }: 
       })
       const result = await res.json()
       if (result.success) {
-        onUpdate(item.id, result.item)
+        const row = result.item
+        onUpdate(item.id, { ...row, status: (row?.status as string) || 'active' })
       }
     } catch (err) {
       console.error('Activate failed:', err)
@@ -193,12 +196,12 @@ export default function QueuedItemCard({ item, onUpdate, onDelete, amazonTag }: 
   if (isEditing) {
     return (
       <div className="bg-beige-100 border-2 border-dashed border-violet-300 rounded-xl p-4 space-y-3">
-        <p className="text-xs text-violet-600 font-medium">Fill in details manually</p>
+        <p className="text-xs text-violet-600 font-medium">{t('Fill in details manually')}</p>
         <input
           type="text"
           value={editTitle}
           onChange={(e) => setEditTitle(e.target.value)}
-          placeholder="Product name"
+          placeholder={t('Product name')}
           className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400"
           autoFocus
         />
@@ -206,7 +209,7 @@ export default function QueuedItemCard({ item, onUpdate, onDelete, amazonTag }: 
           type="text"
           value={editPrice}
           onChange={(e) => setEditPrice(e.target.value)}
-          placeholder="Price (e.g. 29.99)"
+          placeholder={t('Price placeholder example')}
           className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400"
         />
         <div className="flex gap-2">
@@ -216,7 +219,7 @@ export default function QueuedItemCard({ item, onUpdate, onDelete, amazonTag }: 
             className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-violet-600 text-white text-xs font-medium rounded-lg hover:bg-violet-700 disabled:opacity-50 transition-colors"
           >
             {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-            Save
+            {t('Save')}
           </button>
           <button
             onClick={() => setIsEditing(false)}
@@ -251,7 +254,7 @@ export default function QueuedItemCard({ item, onUpdate, onDelete, amazonTag }: 
           <div className="flex items-center gap-2 mb-1">
             <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-full">
               <Clock className="w-2.5 h-2.5" />
-              Queued
+              {t('Queued')}
             </span>
             <span className="text-[10px] text-zinc-400">{timeAgo}</span>
           </div>
@@ -281,7 +284,7 @@ export default function QueuedItemCard({ item, onUpdate, onDelete, amazonTag }: 
         <div className="mt-3 flex items-center justify-between">
           <p className="text-[10px] text-zinc-400 flex items-center gap-1">
             <Smartphone className="w-3 h-3" />
-            Open on PC to activate
+            {t('Open on PC to activate')}
           </p>
           <button
             onClick={handleDelete}
@@ -298,14 +301,14 @@ export default function QueuedItemCard({ item, onUpdate, onDelete, amazonTag }: 
             className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-violet-50 text-violet-700 text-xs font-medium rounded-lg hover:bg-violet-100 disabled:opacity-50 transition-colors"
           >
             {isActivating ? <Loader2 className="w-3 h-3 animate-spin" /> : <CircleCheck className="w-3 h-3" />}
-            {isActivating ? 'Scraping...' : 'Activate'}
+            {isActivating ? t('Scraping...') : t('Activate')}
           </button>
           <button
             onClick={() => setIsEditing(true)}
             className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-zinc-50 text-zinc-700 text-xs font-medium rounded-lg hover:bg-zinc-100 transition-colors"
           >
             <Edit2 className="w-3 h-3" />
-            Edit
+            {t('Edit')}
           </button>
           <button
             onClick={handleDelete}

@@ -44,13 +44,9 @@ export const metadata: Metadata = {
   generator: 'Next.js',
   referrer: 'origin-when-cross-origin',
   icons: {
-    icon: [
-      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
-      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
-      { url: '/favicon-128x128.png', sizes: '128x128', type: 'image/png' },
-    ],
-    shortcut: '/favicon-32x32.png',
-    apple: '/favicon-128x128.png',
+    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
   },
   openGraph: {
     type: 'website',

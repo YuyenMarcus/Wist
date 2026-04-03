@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { getProfile, updateProfile } from '@/lib/supabase/profile'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslation } from '@/lib/i18n/context'
 
 export default function ShareButton() {
+  const { t } = useTranslation()
   const [showModal, setShowModal] = useState(false)
   const [username, setUsername] = useState<string | null>(null)
   const [newUsername, setNewUsername] = useState('')
@@ -55,7 +57,7 @@ export default function ShareButton() {
       .single()
 
     if (data && data.username !== username) {
-      setError('Username is already taken')
+      setError(t('Username is already taken'))
       return false
     }
 
@@ -66,7 +68,7 @@ export default function ShareButton() {
   // Handle share
   const handleShare = async () => {
     if (!userId) {
-      alert('Please log in to share your wishlist')
+      alert(t('Please log in to share your wishlist'))
       return
     }
 
@@ -86,7 +88,7 @@ export default function ShareButton() {
   // Save username
   const handleSaveUsername = async () => {
     if (!newUsername.trim()) {
-      setError('Please enter a username')
+      setError(t('Please enter a username'))
       return
     }
 
@@ -113,7 +115,7 @@ export default function ShareButton() {
       setSuccess(true)
       setTimeout(() => setSuccess(false), 3000)
     } catch (err: any) {
-      setError(err.message || 'Failed to save username')
+      setError(err.message || t('Failed to save username'))
     } finally {
       setSaving(false)
     }
@@ -128,7 +130,7 @@ export default function ShareButton() {
             ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800'
             : 'bg-beige-100 dark:bg-dpurple-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-dpurple-600 hover:bg-violet-50 dark:hover:bg-violet-950 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-300 dark:hover:border-violet-800'
         }`}
-        title="Share List"
+        title={t('Share List')}
       >
         {success ? (
           <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -144,8 +146,8 @@ export default function ShareButton() {
             />
           </svg>
         )}
-        <span className="hidden sm:inline">{success ? 'Copied!' : 'Share List'}</span>
-        <span className="sm:hidden">{success ? 'Copied!' : ''}</span>
+        <span className="hidden sm:inline">{success ? t('Copied!') : t('Share List')}</span>
+        <span className="sm:hidden">{success ? t('Copied!') : ''}</span>
       </button>
 
       {/* Username Modal */}
@@ -171,16 +173,16 @@ export default function ShareButton() {
             >
               <div className="bg-beige-50 dark:bg-dpurple-900 rounded-2xl shadow-xl max-w-md w-full p-6">
                 <h2 className="text-xl font-semibold text-zinc-900 mb-2">
-                  Claim a Username
+                  {t('Claim a Username')}
                 </h2>
                 <p className="text-sm text-zinc-500 mb-6">
-                  Choose a unique username to share your wishlist with friends.
+                  {t('Choose a unique username to share your wishlist with friends.')}
                 </p>
 
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-zinc-700 mb-2">
-                      Username
+                      {t('Username')}
                     </label>
                     <input
                       type="text"
@@ -189,11 +191,11 @@ export default function ShareButton() {
                         setNewUsername(e.target.value)
                         setError(null)
                       }}
-                      placeholder="your-username"
+                      placeholder={t('username placeholder')}
                       className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900"
                     />
                     <p className="mt-1 text-xs text-zinc-400">
-                      Only letters, numbers, underscores, and hyphens. 3-30 characters.
+                      {t('Only letters, numbers, underscores, and hyphens. 3-30 characters.')}
                     </p>
                   </div>
 
@@ -210,14 +212,14 @@ export default function ShareButton() {
                       }}
                       className="flex-1 px-4 py-2 border border-zinc-300 text-zinc-700 rounded-lg text-sm font-medium hover:bg-zinc-50 transition-colors"
                     >
-                      Cancel
+                      {t('Cancel')}
                     </button>
                     <button
                       onClick={handleSaveUsername}
                       disabled={saving || !newUsername.trim()}
                       className="flex-1 px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-medium hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                      {saving ? 'Saving...' : 'Save & Share'}
+                      {saving ? t('Saving...') : t('Save & Share')}
                     </button>
                   </div>
                 </div>

@@ -1,4 +1,16 @@
+import { isTierAtLeast } from '@/lib/tier-guards';
+
 const DEFAULT_TAG = 'wist04-20';
+
+/** Amazon Associate ID is a Wist Pro+ feature; free tier uses the platform default tag only. */
+export function effectiveAmazonAffiliateId(
+  subscriptionTier: string | null | undefined,
+  amazonAffiliateId: string | null | undefined
+): string | null {
+  if (!isTierAtLeast(subscriptionTier, 'pro')) return null;
+  const id = amazonAffiliateId?.trim();
+  return id || null;
+}
 
 /**
  * Appends an Amazon affiliate tag to an Amazon product URL.

@@ -67,10 +67,86 @@ const es: Record<string, string> = {
   'Hidden': 'Ocultos',
   'Items': 'Artículos',
   'Purchased': 'Comprados',
-  'Timeline': 'Línea de tiempo',
+  'Timeline': 'Cronología',
   'Categories': 'Categorías',
   'Your lists': 'Tus listas',
   'No collection': 'Sin colección',
+  'Queue': 'Cola',
+  'Items auto-activate on desktop with the extension':
+    'Los artículos se activan solos en escritorio con la extensión',
+  'Press Activate on each item to scrape and add it':
+    'Pulsa Activar en cada artículo para extraer datos y añadirlo',
+  'Delete the item in your queue? This cannot be undone.':
+    '¿Eliminar el artículo de la cola? Esta acción no se puede deshacer.',
+  'Delete all {n} items in your queue? This cannot be undone.':
+    '¿Eliminar los {n} artículos de la cola? Esta acción no se puede deshacer.',
+  'Delete all': 'Eliminar todos',
+  'Could not clear queue.': 'No se pudo vaciar la cola.',
+  'Queue ({n})': 'Cola ({n})',
+  '{n}m ago': 'hace {n} min',
+  '{n}h ago': 'hace {n} h',
+  '{n}d ago': 'hace {n} d',
+  'Queued': 'En cola',
+  'Fill in details manually': 'Completa los datos a mano',
+  'Product name': 'Nombre del producto',
+  'Price placeholder example': 'Precio (ej. 29.99)',
+  'Open on PC to activate': 'Abre en el PC para activar',
+  'Scraping...': 'Extrayendo...',
+  'Activate': 'Activar',
+  'Uploading...': 'Subiendo...',
+  'Share List': 'Compartir lista',
+  'Please log in to share your wishlist': 'Inicia sesión para compartir tu lista',
+  'Claim a Username': 'Elige un nombre de usuario',
+  'Choose a unique username to share your wishlist with friends.':
+    'Elige un nombre único para compartir tu lista con amigos.',
+  'Only letters, numbers, underscores, and hyphens. 3-30 characters.':
+    'Solo letras, números, guiones bajos y medios. Entre 3 y 30 caracteres.',
+  'Please enter a username': 'Introduce un nombre de usuario',
+  'Save & Share': 'Guardar y compartir',
+  'Failed to save username': 'No se pudo guardar el usuario',
+  'Username can only contain letters, numbers, underscores, and hyphens':
+    'El usuario solo puede tener letras, números, guiones bajos y medios',
+  'Username must be between 3 and 30 characters':
+    'El usuario debe tener entre 3 y 30 caracteres',
+  'No bio yet. Add one in settings.': 'Sin biografía. Añádela en ajustes.',
+  'Profile Picture': 'Foto de perfil',
+  'Email:': 'Correo:',
+  'Enter your full name': 'Tu nombre completo',
+  'Tell us about yourself...': 'Cuéntanos sobre ti...',
+  'Profile updated successfully!': '¡Perfil actualizado!',
+  'Go to Login': 'Ir a iniciar sesión',
+  'Not authenticated': 'No autenticado',
+  'Not authenticated. Please log in.': 'No autenticado. Inicia sesión.',
+  'Failed to load profile': 'No se pudo cargar el perfil',
+  'Username is already taken. Please choose another.':
+    'Ese nombre de usuario ya está en uso. Elige otro.',
+  'Username is already taken': 'Ese nombre de usuario ya está en uso',
+  'Adult content filter, preferences': 'Filtro de contenido para adultos, preferencias',
+  'username placeholder': 'usuario',
+  'Please fix username errors before saving':
+    'Corrige los errores del usuario antes de guardar',
+  'Username can only be changed once every 30 days.':
+    'El usuario solo se puede cambiar una vez cada 30 días.',
+  'Failed to update profile': 'No se pudo actualizar el perfil',
+  'Please select an image file': 'Elige un archivo de imagen',
+  'Image must be less than 5MB': 'La imagen debe pesar menos de 5 MB',
+  'Failed to upload avatar': 'No se pudo subir el avatar',
+  'Checking availability...': 'Comprobando disponibilidad...',
+  'Username available': 'Usuario disponible',
+  'Username can only be changed once every 30 days. You can change it again in {days} day(s).':
+    'El usuario solo se puede cambiar cada 30 días. Podrás cambiarlo de nuevo en {days} día(s).',
+  'Username can only be changed once every 30 days. You can change it again in 1 day.':
+    'El usuario solo se puede cambiar cada 30 días. Podrás cambiarlo de nuevo en 1 día.',
+  'Username can only be changed once every 30 days. You can change it again in {days} days.':
+    'El usuario solo se puede cambiar cada 30 días. Podrás cambiarlo de nuevo en {days} días.',
+  'Username can only be changed once every 30 days. You can change it again in {days} day.':
+    'El usuario solo se puede cambiar cada 30 días. Podrás cambiarlo de nuevo en {days} día.',
+  'Name, username, bio, social links': 'Nombre, usuario, bio y enlaces',
+  'Content & Privacy': 'Contenido y privacidad',
+  'Creator & Monetization': 'Creador y monetización',
+  'Amazon affiliate, social links': 'Afiliado Amazon y enlaces',
+  'FAQs, troubleshooting, contact': 'Preguntas, solución de problemas, contacto',
+  'Back to Dashboard': 'Volver al panel',
   'Share collection': 'Compartir colección',
   'Link copied!': '¡Enlace copiado!',
   'Set a username in Settings to share collection links.':
@@ -266,6 +342,7 @@ const es: Record<string, string> = {
 
   // === SETTINGS ===
   'Account Settings': 'Configuración de Cuenta',
+  'Profile Settings': 'Ajustes de perfil',
   'Profile': 'Perfil',
   'Preferences': 'Preferencias',
   'Gifting': 'Regalos',
@@ -335,7 +412,6 @@ const es: Record<string, string> = {
   'View': 'Ver',
   'Edit': 'Editar',
   'Remove': 'Eliminar',
-  'Back to Dashboard': 'Volver al Panel',
   'Free': 'Gratis',
   'Wist Free': 'Wist Gratis',
   'Wist Pro': 'Wist Pro',
@@ -473,6 +549,70 @@ const es: Record<string, string> = {
 
   'Plan limit reached': 'Límite del plan alcanzado',
   'View plans & upgrade': 'Ver planes y mejorar',
+  'Upgrade to Wist Pro to add your Amazon Associate Store ID':
+    'Mejora a Wist Pro para añadir tu ID de tienda de Amazon Associates',
+  'Your tag is used on Amazon links from your public wishlist so you earn commissions.':
+    'Tu etiqueta se usa en los enlaces de Amazon de tu lista pública para que recibas comisiones.',
+
+  // === WISHLIST GRID (empty / onboarding strip) ===
+  'Welcome to your Wishlist': 'Bienvenido a tu lista de deseos',
+  'Start tracking prices and never miss a deal. Here\'s how to get started:':
+    'Empieza a seguir precios y no te pierdas ninguna oferta. Así puedes empezar:',
+  'Install the browser extension': 'Instala la extensión del navegador',
+  'Save items from any store with one click': 'Guarda artículos de cualquier tienda con un clic',
+  'Browse your favorite stores': 'Navega por tus tiendas favoritas',
+  'Amazon, Target, Nike, and thousands more': 'Amazon, Target, Nike y miles más',
+  'Get notified when prices drop': 'Recibe avisos cuando bajen los precios',
+  'We\'ll track every item and alert you automatically':
+    'Rastreamos cada artículo y te avisamos automáticamente',
+  'Install Extension': 'Instalar extensión',
+  'Import from spreadsheet': 'Importar desde hoja de cálculo',
+
+  // === PRICING SECTION (landing — keys must match PLANS in PricingSection.tsx) ===
+  'Start free, upgrade anytime. No credit card required.':
+    'Comienza gratis, mejora cuando quieras. No se requiere tarjeta de crédito.',
+  'Custom': 'Personalizado',
+  '10 collections': '10 colecciones',
+  'Weekly price drop alerts': 'Alertas semanales de bajada de precio',
+  'Unlimited items & collections': 'Artículos y colecciones ilimitados',
+  'Smart auto-categorization': 'Auto-categorización inteligente',
+  '2-year price history': 'Historial de precios de 2 años',
+  'Built for influencers and content creators. Application only.':
+    'Creado para influencers y creadores de contenido. Solo con solicitud.',
+  'Apply Now': 'Solicitar ahora',
+  'Everything in Pro': 'Todo lo de Pro',
+  '6-hour price checks': 'Revisiones de precio cada 6 horas',
+
+  // === ITEM CARD (extra) ===
+  'Image URL': 'URL de imagen',
+  'Change Image': 'Cambiar imagen',
+  'Check failed': 'Comprobación fallida',
+  'Pin to Profile': 'Fijar en el perfil',
+  'Unpin from Profile': 'Quitar del perfil',
+
+  // === ONBOARDING (age gate must match max={95} in OnboardingFlow) ===
+  'Please enter a valid age between 5 and 95.': 'Introduce una edad válida entre 5 y 95.',
+
+  // === IMPORT MODAL (column header — distinct from lowercase "name") ===
+  'Name': 'Nombre',
+
+  // === ADD ITEM FORM ===
+  'Add to wishlist': 'Añadir a la lista',
+
+  // === AD CARDS (AdItemCard.tsx creatives) ===
+  'Try Wist+': 'Prueba Wist+',
+  'Wist+ starts at $5/mo': 'Wist+ desde $5/mes',
+
+  // === TIER CONFIG (subscription-tiers.ts → PlanCard features / labels) ===
+  '30 items in dashboard': '30 artículos en el panel',
+  'Price drop notifications (weekly)': 'Notificaciones de bajada de precio (semanales)',
+  'Multi-currency support': 'Soporte multidivisa',
+  'Everything in Creator': 'Todo lo de Creator',
+  'Dedicated support': 'Soporte dedicado',
+  'API access': 'Acceso a la API',
+  'Team/org wishlists': 'Listas de equipo u organización',
+  'Bulk gifting': 'Regalos masivos',
+  'Custom branding': 'Marca personalizada',
 
   // === TIME AGO ===
   'm ago': 'min',

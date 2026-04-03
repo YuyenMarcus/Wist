@@ -8,6 +8,7 @@
  * Security: Only returns items with status='active' to prevent exposing purchase history
  */
 
+import { isTierAtLeast } from '@/lib/tier-guards';
 import { createClient } from '@supabase/supabase-js';
 import { getSupabaseAdmin } from './client';
 
@@ -25,6 +26,8 @@ export interface PublicProfileData {
   gifting_enabled: boolean;
   gifting_message: string | null;
   amazon_affiliate_id: string | null;
+  /** When true, adult-detected titles show blurred images on shared pages (owner setting). */
+  adult_content_filter: boolean;
 }
 
 export interface PublicItem {
@@ -101,7 +104,10 @@ async function resolveUsernameToUserId(username: string): Promise<{
       profile_theme: data.profile_theme || null,
       gifting_enabled: data.gifting_enabled ?? false,
       gifting_message: data.gifting_message ?? null,
-      amazon_affiliate_id: data.amazon_affiliate_id ?? null,
+      amazon_affiliate_id: isTierAtLeast(data.subscription_tier, 'pro')
+        ? (data.amazon_affiliate_id ?? null)
+        : null,
+      adult_content_filter: data.adult_content_filter ?? true,
     },
     error: null,
   };

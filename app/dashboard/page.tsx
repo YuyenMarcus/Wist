@@ -20,6 +20,7 @@ import AddItemForm from '@/components/dashboard/AddItemForm'
 import PageTransition from '@/components/ui/PageTransition'
 import { useTranslation } from '@/lib/i18n/context'
 import { updateProfile } from '@/lib/supabase/profile'
+import { effectiveAmazonAffiliateId } from '@/lib/amazon-affiliate'
 
 function getColCount(w: number) {
   if (w < 640) return 2
@@ -146,6 +147,11 @@ export default function DashboardPage() {
     return uncategorized
   }, [products, viewMode, collectionIdSet])
 
+  const amazonAffiliateTag = useMemo(
+    () => effectiveAmazonAffiliateId(profile?.subscription_tier, profile?.amazon_affiliate_id),
+    [profile?.subscription_tier, profile?.amazon_affiliate_id],
+  )
+
   // Load user, profile, and products
   useEffect(() => {
     async function loadUser() {
@@ -171,9 +177,6 @@ export default function DashboardPage() {
         if (!result.error && result.data) {
           setProducts(result.data)
           setQueuedItems(result.queued || [])
-          
-          // Seed price history for items that have no entries yet (runs once, non-blocking)
-          fetch('/api/seed-price-history', { method: 'POST' }).catch(() => {})
         }
 
         // Load collections for "Move to" dropdown and Categories view
@@ -360,33 +363,39 @@ export default function DashboardPage() {
 
           if (result?.success && result?.data) {
             const scraped = result.data
-            const hasGoodData = scraped.title && scraped.title.length > 5
-
-            if (hasGoodData) {
-              const { data: { session } } = await supabase.auth.getSession()
-              await fetch('/api/items', {
-                method: 'PATCH',
-                headers: {
-                  'Content-Type': 'application/json',
-                  ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
-                },
-                body: JSON.stringify({
-                  id: item.id,
-                  title: scraped.title,
-                  price:
-                    typeof scraped.price === 'number' && scraped.price > 0
-                      ? scraped.price
-                      : scraped.original_price_raw != null && scraped.original_price_raw !== ''
-                        ? String(scraped.original_price_raw).replace(/[^0-9.]/g, '')
-                        : undefined,
-                  image_url: scraped.image || scraped.image_url || undefined,
-                  status: 'active',
-                  out_of_stock: scraped.out_of_stock === true,
-                  client_tier: profile?.subscription_tier || undefined,
-                }),
-              })
-              console.log(`✅ Auto-scraped: ${scraped.title?.substring(0, 40)}`)
+            const title =
+              scraped.title && String(scraped.title).trim().length > 0
+                ? scraped.title
+                : item.title && item.title !== 'New Item'
+                  ? item.title
+                  : 'Untitled Item'
+            let patchPrice: number | string | undefined
+            const raw = scraped.original_price_raw ?? scraped.price
+            if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) {
+              patchPrice = raw
+            } else if (raw != null && raw !== '') {
+              const cleaned = String(raw).replace(/[^0-9.]/g, '')
+              const n = parseFloat(cleaned)
+              if (Number.isFinite(n) && n > 0) patchPrice = cleaned
             }
+            const { data: { session } } = await supabase.auth.getSession()
+            await fetch('/api/items', {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+              },
+              body: JSON.stringify({
+                id: item.id,
+                title,
+                price: patchPrice,
+                image_url: scraped.image || scraped.image_url || undefined,
+                status: 'active',
+                out_of_stock: scraped.out_of_stock === true,
+                client_tier: profile?.subscription_tier || undefined,
+              }),
+            })
+            console.log(`✅ Auto-scraped: ${String(title).substring(0, 40)}`)
           }
         } catch (err) {
           console.warn(`⚠️ Auto-scrape failed for ${item.url}:`, err)
@@ -567,11 +576,14 @@ export default function DashboardPage() {
 
   const adultFilterEnabled = profile?.adult_content_filter ?? true
 
-  const handleQueuedUpdate = (id: string, updatedItem: any) => {
-    setQueuedItems(prev => prev.filter(q => q.id !== id))
-    if (updatedItem.status === 'active') {
-      fetchItems()
+  const handleQueuedUpdate = async (id: string, updatedItem: any) => {
+    const activated =
+      updatedItem?.status === 'active' ||
+      (updatedItem && String(updatedItem.status || '').toLowerCase() === 'active')
+    if (activated) {
+      setQueuedItems(prev => prev.filter(q => q.id !== id))
     }
+    await fetchItems()
   }
 
   const handleQueuedDelete = (id: string) => {
@@ -581,7 +593,11 @@ export default function DashboardPage() {
   const handleDeleteAllQueued = async () => {
     if (!user || queuedItems.length === 0) return
     const n = queuedItems.length
-    if (!confirm(`Delete all ${n} item${n === 1 ? '' : 's'} in your queue? This cannot be undone.`)) {
+    const confirmMsg =
+      n === 1
+        ? t('Delete the item in your queue? This cannot be undone.')
+        : t('Delete all {n} items in your queue? This cannot be undone.', { n: String(n) })
+    if (!confirm(confirmMsg)) {
       return
     }
     setClearingQueue(true)
@@ -595,13 +611,13 @@ export default function DashboardPage() {
       })
       const payload = await res.json().catch(() => ({}))
       if (!res.ok) {
-        alert(typeof payload.error === 'string' ? payload.error : 'Could not clear queue.')
+        alert(typeof payload.error === 'string' ? payload.error : t('Could not clear queue.'))
         return
       }
       setQueuedItems([])
     } catch (e) {
       console.error('Clear queue failed:', e)
-      alert('Could not clear queue.')
+      alert(t('Could not clear queue.'))
     } finally {
       setClearingQueue(false)
     }
@@ -690,12 +706,12 @@ export default function DashboardPage() {
               <div className="flex flex-wrap items-center gap-2 min-w-0">
                 <Clock className="w-4 h-4 text-amber-600 shrink-0" />
                 <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                  Queue ({queuedItems.length})
+                  {t('Queue ({n})', { n: String(queuedItems.length) })}
                 </h3>
                 <span className="text-xs text-zinc-500 dark:text-zinc-400">
                   {autoActivateEnabled
-                    ? 'Items auto-activate on desktop with the extension'
-                    : 'Press Activate on each item to scrape and add it'}
+                    ? t('Items auto-activate on desktop with the extension')
+                    : t('Press Activate on each item to scrape and add it')}
                 </span>
               </div>
               <button
@@ -709,7 +725,7 @@ export default function DashboardPage() {
                 ) : (
                   <Trash2 className="w-3.5 h-3.5" />
                 )}
-                Delete all
+                {t('Delete all')}
               </button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -719,7 +735,7 @@ export default function DashboardPage() {
                   item={item}
                   onUpdate={handleQueuedUpdate}
                   onDelete={handleQueuedDelete}
-                  amazonTag={profile?.amazon_affiliate_id}
+                  amazonTag={amazonAffiliateTag}
                 />
               ))}
             </div>
@@ -739,7 +755,7 @@ export default function DashboardPage() {
             userCollections={collections}
             adultFilterEnabled={adultFilterEnabled}
             tier={profile?.subscription_tier}
-            amazonTag={profile?.amazon_affiliate_id}
+            amazonTag={amazonAffiliateTag}
             onImport={() => openImport()}
           />
         )}
@@ -803,7 +819,7 @@ export default function DashboardPage() {
                     pinnedItemId={pinnedItemId}
                     adultFilterEnabled={adultFilterEnabled}
                     tier={profile?.subscription_tier}
-                    amazonTag={profile?.amazon_affiliate_id}
+                    amazonTag={amazonAffiliateTag}
                   />
                 )} />
               </section>
@@ -827,7 +843,7 @@ export default function DashboardPage() {
                     pinnedItemId={pinnedItemId}
                     adultFilterEnabled={adultFilterEnabled}
                     tier={profile?.subscription_tier}
-                    amazonTag={profile?.amazon_affiliate_id}
+                    amazonTag={amazonAffiliateTag}
                   />
                 )} />
               </section>
@@ -863,7 +879,7 @@ export default function DashboardPage() {
                       pinnedItemId={pinnedItemId}
                       adultFilterEnabled={adultFilterEnabled}
                       tier={profile?.subscription_tier}
-                      amazonTag={profile?.amazon_affiliate_id}
+                      amazonTag={amazonAffiliateTag}
                     />
                   )} />
                 </section>

@@ -373,7 +373,7 @@ export default function SubscriptionPage() {
                 </p>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-                    {current.displayName}
+                    {t(current.displayName)}
                   </span>
                   <TierBadge tier={tier} size="md" />
                 </div>
@@ -509,7 +509,7 @@ export default function SubscriptionPage() {
 
         <div className="grid gap-5 lg:gap-6 lg:grid-cols-3">
           <PlanCard
-            title={TIERS.free.displayName}
+            title={t(TIERS.free.displayName)}
             price={TIERS.free.priceLabel}
             description={t('Get started with core wishlist tools.')}
             features={TIERS.free.features.slice(0, 6)}
@@ -521,7 +521,7 @@ export default function SubscriptionPage() {
             onSubscribe={() => {}}
           />
           <PlanCard
-            title={TIERS.pro.displayName}
+            title={t(TIERS.pro.displayName)}
             price={TIERS.pro.priceLabel}
             description={t('Unlimited items, 12-hour checks, gifting, sync, and more.')}
             features={TIERS.pro.features.slice(0, 7)}
@@ -548,7 +548,7 @@ export default function SubscriptionPage() {
             }
           />
           <PlanCard
-            title={TIERS.creator.displayName}
+            title={t(TIERS.creator.displayName)}
             price={TIERS.creator.priceLabel}
             description={t('Everything in Pro plus faster checks, analytics, and creator badge.')}
             features={TIERS.creator.features}
@@ -745,6 +745,7 @@ function PlanCard({
   popularLabel?: string;
   icon?: ReactNode;
 }) {
+  const { t } = useTranslation();
   const base =
     'relative rounded-2xl border p-6 md:p-7 flex flex-col h-full transition-shadow duration-200';
   const styles =
@@ -778,7 +779,7 @@ function PlanCard({
                 variant === 'creator' ? 'text-amber-600 dark:text-amber-500' : 'text-violet-500 dark:text-violet-400'
               }`}
             />
-            <span className="leading-snug">{f}</span>
+            <span className="leading-snug">{t(f)}</span>
           </li>
         ))}
       </ul>

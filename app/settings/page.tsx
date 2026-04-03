@@ -64,6 +64,7 @@ function AppearanceSection() {
 }
 
 export default function SettingsPage() {
+  const { t } = useTranslation()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -305,7 +306,9 @@ export default function SettingsPage() {
         website: formData.website.trim() || null,
         instagram_handle: cleanInsta || null,
         tiktok_handle: cleanTikTok || null,
-        amazon_affiliate_id: formData.amazonId.trim() || null,
+        amazon_affiliate_id: isTierAtLeast(profile?.subscription_tier, 'pro')
+          ? formData.amazonId.trim() || null
+          : null,
         adult_content_filter: isMinor ? true : formData.adultFilter,
         auto_activate_queued: formData.autoActivate,
         profile_theme: formData.profileTheme,
@@ -360,7 +363,7 @@ export default function SettingsPage() {
           >
             <ArrowLeft className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
           </button>
-          <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">Profile Settings</h1>
+          <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">{t('Profile Settings')}</h1>
         </div>
 
         {/* Subscription Link */}
@@ -707,22 +710,40 @@ export default function SettingsPage() {
               />
             </div>
 
-            {/* Amazon Affiliate - The Money Maker */}
-            <div className="bg-violet-50 dark:bg-violet-950/30 p-4 rounded-xl border border-violet-200 dark:border-violet-800">
-              <label className="block text-sm font-bold text-zinc-900 dark:text-zinc-100 mb-1 flex items-center gap-2">
-                <ShoppingCart size={14} /> Amazon Associate Store ID
-              </label>
-              <p className="text-xs text-zinc-600 dark:text-zinc-400 mb-3">
-                Enter your ID (e.g., <code className="bg-beige-50 px-1.5 py-0.5 rounded text-violet-700 font-mono">sarah-20</code>). We will automatically replace our links with yours on your profile so you keep 100% of commissions.
-              </p>
-              <input
-                type="text"
-                value={formData.amazonId}
-                onChange={(e) => setFormData({ ...formData, amazonId: e.target.value })}
-                placeholder="tag-20"
-                className="w-full px-4 py-2 border border-violet-300 dark:border-violet-700 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none bg-beige-50 dark:bg-dpurple-800 text-zinc-900 dark:text-zinc-100"
-              />
-            </div>
+            {/* Amazon Associate ID — Pro+ (same gating as affiliate links on wishlist) */}
+            {!isTierAtLeast(profile?.subscription_tier, 'pro') ? (
+              <div className="bg-violet-50 dark:bg-violet-950/30 p-4 rounded-xl border border-violet-200 dark:border-violet-800 text-center space-y-3">
+                <Lock size={24} className="text-violet-300 dark:text-violet-600 mx-auto" />
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                  {t('Upgrade to Wist Pro to add your Amazon Associate Store ID')}
+                </p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-500">
+                  {t('Your tag is used on Amazon links from your public wishlist so you earn commissions.')}
+                </p>
+                <Link
+                  href="/dashboard/subscription"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold px-4 py-2.5 shadow-sm transition-colors"
+                >
+                  {t('View plans & upgrade')}
+                </Link>
+              </div>
+            ) : (
+              <div className="bg-violet-50 dark:bg-violet-950/30 p-4 rounded-xl border border-violet-200 dark:border-violet-800">
+                <label className="block text-sm font-bold text-zinc-900 dark:text-zinc-100 mb-1 flex items-center gap-2">
+                  <ShoppingCart size={14} /> Amazon Associate Store ID
+                </label>
+                <p className="text-xs text-zinc-600 dark:text-zinc-400 mb-3">
+                  Enter your ID (e.g., <code className="bg-beige-50 dark:bg-dpurple-800 px-1.5 py-0.5 rounded text-violet-700 font-mono">sarah-20</code>). We will automatically replace our links with yours on your profile so you keep 100% of commissions.
+                </p>
+                <input
+                  type="text"
+                  value={formData.amazonId}
+                  onChange={(e) => setFormData({ ...formData, amazonId: e.target.value })}
+                  placeholder="tag-20"
+                  className="w-full px-4 py-2 border border-violet-300 dark:border-violet-700 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none bg-beige-50 dark:bg-dpurple-800 text-zinc-900 dark:text-zinc-100"
+                />
+              </div>
+            )}
           </div>
 
           {/* --- SECTION 3: CONTENT PREFERENCES --- */}

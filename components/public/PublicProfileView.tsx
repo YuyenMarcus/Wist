@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { PublicProfileData, PublicItem } from '@/lib/supabase/public-profile';
 import { getProfileTheme, type ProfileTheme } from '@/lib/constants/profile-themes';
 import TierBadge from '@/components/ui/TierBadge';
-import { Globe, Sparkles, Plus, Check, Loader2, Gift, Users } from 'lucide-react';
+import { Globe, Sparkles, Plus, Check, Loader2, Gift, Users, EyeOff } from 'lucide-react';
+import { isAdultContent } from '@/lib/content-filter';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase/client';
 
@@ -278,6 +279,7 @@ function PublicItemCard({
   reserverName,
   onReserved,
   onUnreserved,
+  adultFilterEnabled,
 }: {
   item: PublicItem;
   amazonTag?: string | null;
@@ -288,7 +290,9 @@ function PublicItemCard({
   reserverName?: string | null;
   onReserved?: (itemId: string, token: string, name: string) => void;
   onUnreserved?: (itemId: string) => void;
+  adultFilterEnabled: boolean;
 }) {
+  const isNsfw = adultFilterEnabled && isAdultContent(item.title);
   let href = item.url;
   if (amazonTag && href && /amazon\./i.test(href)) {
     try {
@@ -329,9 +333,17 @@ function PublicItemCard({
             <img
               src={item.image}
               alt={item.title || ''}
-              className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${isReserved ? 'blur-[2px]' : ''}`}
+              className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${
+                isNsfw ? 'blur-xl scale-110' : isReserved ? 'blur-[2px]' : ''
+              }`}
               loading="lazy"
             />
+            {isNsfw && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center z-[8] bg-zinc-900/40 pointer-events-none">
+                <EyeOff className="w-6 h-6 sm:w-8 sm:h-8 text-white/80 mb-1" />
+                <span className="text-white/90 text-xs sm:text-sm font-bold tracking-wider">18+</span>
+              </div>
+            )}
             {isReserved && (
               <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
                 <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg">
@@ -372,6 +384,7 @@ export default function PublicProfileView({
   const isRegistryMode = sharedCollection?.registry_mode === true;
   const collectionId = sharedCollection?.id;
   const backgroundImage = sharedCollection?.background_image_url;
+  const adultFilterEnabled = profile.adult_content_filter ?? true;
 
   const handleReserved = useCallback((itemId: string, _token: string, name: string) => {
     setReservations(prev => ({ ...prev, [itemId]: { name: name || null } }));
@@ -547,6 +560,7 @@ export default function PublicProfileView({
                 theme={theme}
                 registryMode={isRegistryMode}
                 collectionId={collectionId}
+                adultFilterEnabled={adultFilterEnabled}
                 isReserved={!!reservations[item.id]}
                 reserverName={reservations[item.id]?.name}
                 onReserved={handleReserved}

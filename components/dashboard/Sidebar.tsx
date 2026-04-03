@@ -516,7 +516,9 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
     if (!newCollectionName.trim() || loading) return;
 
     if (isAtCollectionLimit) {
-      alert(`You've reached the limit of ${collectionLimit} collections on your current plan. Upgrade to add more.`);
+      alert(
+        `${t("You've reached the limit of")} ${collectionLimit} ${t('collections on your current plan. Upgrade to add more.')}`,
+      );
       return;
     }
 
@@ -679,25 +681,27 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
         <div className="flex p-1 bg-beige-100 dark:bg-dpurple-900 border border-beige-200 dark:border-dpurple-600 rounded-lg shadow-sm">
           <Link 
             href="/dashboard" 
-            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+            title={t('Timeline')}
+            className={`flex-1 min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-md transition-colors text-center leading-tight ${
               viewMode === 'timeline' 
                 ? 'bg-violet-50 dark:bg-violet-950 text-violet-600 dark:text-violet-400 shadow-sm' 
                 : 'text-zinc-500 dark:text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400'
             }`}
           >
-            <LayoutGrid size={16} />
-            {t('Timeline')}
+            <LayoutGrid size={16} className="shrink-0" />
+            <span className="break-words hyphens-auto">{t('Timeline')}</span>
           </Link>
           <Link 
             href="/dashboard?view=grouped" 
-            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+            title={t('Collections')}
+            className={`flex-1 min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-md transition-colors text-center leading-tight ${
               viewMode === 'grouped' 
                 ? 'bg-violet-50 dark:bg-violet-950 text-violet-600 dark:text-violet-400 shadow-sm' 
                 : 'text-zinc-500 dark:text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400'
             }`}
           >
-            <Layers size={16} />
-            {t('Collections')}
+            <Layers size={16} className="shrink-0" />
+            <span className="break-words hyphens-auto">{t('Collections')}</span>
           </Link>
         </div>
       </div>
@@ -732,7 +736,9 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
           <button 
             onClick={() => {
               if (isAtCollectionLimit) {
-                alert(`You've reached the limit of ${collectionLimit} collections on your free plan. Upgrade to add more.`);
+                alert(
+                  `${t("You've reached the limit of")} ${collectionLimit} ${t('collections on your free plan. Upgrade to add more.')}`,
+                );
                 return;
               }
               setIsCreating(true);
