@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import Sidebar from '@/components/dashboard/Sidebar';
+import { ImportModalProvider } from '@/components/dashboard/ImportModalProvider';
 
 export interface DashboardCollection {
   id: string;
@@ -30,16 +31,20 @@ export default function DashboardChrome({
 
   if (hideSidebar) {
     return (
-      <div className="min-h-screen bg-beige-50 dark:bg-dpurple-950 transition-colors">
-        {children}
-      </div>
+      <ImportModalProvider clientTier={tier}>
+        <div className="min-h-screen bg-beige-50 dark:bg-dpurple-950 transition-colors">
+          {children}
+        </div>
+      </ImportModalProvider>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-beige-50 dark:bg-dpurple-950 transition-colors">
-      <Sidebar initialCollections={initialCollections} tier={tier} />
-      <main className="flex-1 w-full pt-14 md:pt-0">{children}</main>
-    </div>
+    <ImportModalProvider clientTier={tier}>
+      <div className="flex min-h-screen bg-beige-50 dark:bg-dpurple-950 transition-colors">
+        <Sidebar initialCollections={initialCollections} tier={tier} />
+        <main className="flex-1 w-full pt-14 md:pt-0">{children}</main>
+      </div>
+    </ImportModalProvider>
   );
 }

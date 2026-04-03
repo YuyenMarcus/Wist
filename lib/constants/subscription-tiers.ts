@@ -8,6 +8,7 @@ export interface TierConfig {
   priceLabel: string;
   itemLimit: number | null;
   collectionLimit: number | null;
+  collaboratorLimit: number | null;
   frequency: 'weekly' | 'daily' | 'instant';
   intervalMs: number;
   badgeColor: string;
@@ -23,6 +24,7 @@ export const TIERS: Record<SubscriptionTier, TierConfig> = {
     priceLabel: '$0',
     itemLimit: 30,
     collectionLimit: 10,
+    collaboratorLimit: 2,
     frequency: 'weekly',
     intervalMs: 7 * 24 * 60 * 60 * 1000,
     badgeColor: 'zinc',
@@ -44,6 +46,7 @@ export const TIERS: Record<SubscriptionTier, TierConfig> = {
     priceLabel: '$8/mo',
     itemLimit: null,
     collectionLimit: null,
+    collaboratorLimit: 10,
     frequency: 'daily',
     intervalMs: 12 * 60 * 60 * 1000,
     badgeColor: 'violet',
@@ -67,6 +70,7 @@ export const TIERS: Record<SubscriptionTier, TierConfig> = {
     priceLabel: '$15/mo',
     itemLimit: null,
     collectionLimit: null,
+    collaboratorLimit: null,
     frequency: 'instant',
     intervalMs: 0,
     badgeColor: 'amber',
@@ -87,6 +91,7 @@ export const TIERS: Record<SubscriptionTier, TierConfig> = {
     priceLabel: 'Custom',
     itemLimit: null,
     collectionLimit: null,
+    collaboratorLimit: null,
     frequency: 'instant',
     intervalMs: 0,
     badgeColor: 'emerald',
@@ -133,11 +138,23 @@ export function getNextNotificationTime(
 }
 
 export function getItemLimit(tier: SubscriptionTier): number | null {
-  return TIERS[tier]?.itemLimit ?? TIERS.free.itemLimit;
+  // Paid tiers must never fall through to the free cap (e.g. unknown key / bad cast).
+  if (tier === 'pro' || tier === 'creator' || tier === 'enterprise') {
+    return TIERS[tier].itemLimit;
+  }
+  return TIERS.free.itemLimit;
 }
 
 export function getCollectionLimit(tier: SubscriptionTier): number | null {
-  return TIERS[tier]?.collectionLimit ?? TIERS.free.collectionLimit;
+  const config = TIERS[tier];
+  if (!config) return TIERS.free.collectionLimit;
+  return config.collectionLimit;
+}
+
+export function getCollaboratorLimit(tier: SubscriptionTier): number | null {
+  const config = TIERS[tier];
+  if (!config) return TIERS.free.collaboratorLimit;
+  return config.collaboratorLimit;
 }
 
 export function getTierDisplayName(tier: SubscriptionTier): string {

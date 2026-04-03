@@ -596,9 +596,13 @@ export async function POST(request: Request) {
     const contentType = request.headers.get('content-type') || ''
     let rows: ImportCell[][] = []
     let sourceLabel = 'spreadsheet'
+    let clientTier: string | undefined
 
     if (contentType.includes('application/json')) {
       const body = await request.json().catch(() => ({}))
+      if (body?.client_tier != null && String(body.client_tier).trim() !== '') {
+        clientTier = String(body.client_tier).trim()
+      }
       const sheetsUrl = String(
         body?.url ?? body?.link ?? body?.sheetUrl ?? body?.data?.url ?? body?.data?.link ?? ''
       ).trim()
@@ -620,6 +624,8 @@ export async function POST(request: Request) {
     } else if (contentType.includes('application/x-www-form-urlencoded')) {
       const text = await request.text()
       const params = new URLSearchParams(text)
+      const ct = params.get('client_tier')?.trim()
+      if (ct) clientTier = ct
       const sheetsUrl = String(params.get('url') ?? params.get('link') ?? '').trim()
       const sheetId = extractGoogleSheetsId(sheetsUrl)
       if (!sheetId) {
@@ -633,6 +639,10 @@ export async function POST(request: Request) {
     } else if (contentType.includes('multipart/form-data')) {
       // File upload (Excel or CSV)
       const formData = await request.formData()
+      const ctField = formData.get('client_tier')
+      if (ctField != null && String(ctField).trim() !== '') {
+        clientTier = String(ctField).trim()
+      }
       const file = formData.get('file') as File | null
       if (!file) {
         return NextResponse.json({ error: 'No file provided' }, { status: 400, headers: corsHeaders(origin) })
@@ -650,6 +660,9 @@ export async function POST(request: Request) {
       if (looksLikeJson) {
         try {
           const body = JSON.parse(text)
+          if (body?.client_tier != null && String(body.client_tier).trim() !== '') {
+            clientTier = String(body.client_tier).trim()
+          }
           const sheetsUrl = String(body?.url ?? body?.link ?? body?.sheetUrl ?? '').trim()
           const sheetId = extractGoogleSheetsId(sheetsUrl) || (/^[a-zA-Z0-9_-]{40,}$/.test(sheetsUrl) ? sheetsUrl : null)
           if (sheetId) {
@@ -756,7 +769,7 @@ export async function POST(request: Request) {
       }
 
       try {
-        const limitCheck = await checkItemLimitForApi(user.id, supabaseClient)
+        const limitCheck = await checkItemLimitForApi(user.id, supabaseClient, clientTier)
         if (!limitCheck.allowed) {
           errors.push(`Row ${i + 2}: Item limit reached (${limitCheck.limit}). Upgrade for more.`)
           failed += dataRows.length - i - skipped

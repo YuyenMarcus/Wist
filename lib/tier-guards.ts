@@ -174,7 +174,7 @@ async function runLimitCheck(client: any, userId: string, fallbackSupabase?: any
 
   const { data: profile, error: profileError } = await client
     .from('profiles')
-    .select('subscription_tier')
+    .select('subscription_tier, stripe_subscription_id')
     .eq('id', userId)
     .maybeSingle();
 
@@ -183,6 +183,19 @@ async function runLimitCheck(client: any, userId: string, fallbackSupabase?: any
   }
 
   let raw = profile?.subscription_tier;
+
+  // Paid user but DB still says "free" (webhook lag, env mismatch) while Stripe sub exists — sync once before enforcing cap.
+  const stripeSubRaw = (profile as { stripe_subscription_id?: string | null } | null)?.stripe_subscription_id;
+  const stripeSub = typeof stripeSubRaw === 'string' ? stripeSubRaw.trim() : '';
+  if (normalizeTier(raw == null || raw === '' ? '' : String(raw)) === 'free' && stripeSub.startsWith('sub_')) {
+    const synced = await tryResyncTierFromStripe(userId);
+    if (synced) {
+      const { data: p2 } = await client.from('profiles').select('subscription_tier').eq('id', userId).maybeSingle();
+      if (p2?.subscription_tier != null && String(p2.subscription_tier).trim() !== '') {
+        raw = p2.subscription_tier;
+      }
+    }
+  }
 
   // JWT client sometimes sees tier when service role row shape differs; take higher tier
   if (fallbackSupabase && fallbackSupabase !== client) {
@@ -294,6 +307,7 @@ export function normalizeTier(tier: string | null | undefined): SubscriptionTier
   const t = tier.trim().toLowerCase();
   if (t === '' || t === 'free') return 'free';
   if (t === 'pro_plus' || t === 'pro plus') return 'pro';
+  if (t === 'wist_creator' || t === 'creator_tier' || t === 'creator plan') return 'creator';
   const valid: SubscriptionTier[] = ['free', 'pro', 'creator', 'enterprise'];
   return valid.includes(t as SubscriptionTier) ? (t as SubscriptionTier) : 'free';
 }

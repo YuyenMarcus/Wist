@@ -170,6 +170,10 @@ export async function POST(request: Request) {
 
     const body = await request.json()
     const wishlistUrl = body.url as string
+    const clientTier =
+      body?.client_tier != null && String(body.client_tier).trim() !== ''
+        ? String(body.client_tier).trim()
+        : undefined
 
     if (!wishlistUrl) {
       return NextResponse.json({ error: 'Amazon wishlist URL is required' }, { status: 400, headers: corsHeaders(origin) })
@@ -242,7 +246,7 @@ export async function POST(request: Request) {
 
     for (const item of amazonItems) {
       try {
-        const limitCheck = await checkItemLimitForApi(user.id, supabaseClient)
+        const limitCheck = await checkItemLimitForApi(user.id, supabaseClient, clientTier)
         if (!limitCheck.allowed) {
           errors.push(`Item limit reached (${limitCheck.limit}). Upgrade for more.`)
           failed += amazonItems.length - imported - failed

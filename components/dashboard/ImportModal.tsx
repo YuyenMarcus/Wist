@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useMemo, memo } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Upload, FileSpreadsheet, Loader2, CheckCircle2, AlertCircle, FileText, Link2, ShoppingCart, ArrowRight } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
@@ -12,6 +12,10 @@ interface ImportResult {
   failed: number
   skipped?: number
   errors: string[]
+  /** Rows in the sheet/file before the 150-row cap */
+  totalRowsInSheet?: number
+  maxImportRows?: number
+  truncatedRowCount?: number
   mapping?: {
     name: string | null
     price: string | null
@@ -25,11 +29,13 @@ interface ImportModalProps {
   isOpen: boolean
   onClose: () => void
   onComplete: () => void
+  /** Dashboard subscription tier — sent with import so limits match the UI plan */
+  clientTier?: string | null
 }
 
 type Tab = 'spreadsheet' | 'sheets' | 'amazon'
 
-export default function ImportModal({ isOpen, onClose, onComplete }: ImportModalProps) {
+function ImportModal({ isOpen, onClose, onComplete, clientTier }: ImportModalProps) {
   const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<Tab>('spreadsheet')
   const [importing, setImporting] = useState(false)
@@ -40,8 +46,6 @@ export default function ImportModal({ isOpen, onClose, onComplete }: ImportModal
   const [filePreview, setFilePreview] = useState<string[][] | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => { setMounted(true) }, [])
 
   const resetState = useCallback(() => {
     setResult(null)
@@ -119,6 +123,9 @@ export default function ImportModal({ isOpen, onClose, onComplete }: ImportModal
         errors: json.errors || [],
         mapping: json.mapping,
         source: json.source,
+        totalRowsInSheet: json.totalRowsInSheet,
+        maxImportRows: json.maxImportRows,
+        truncatedRowCount: json.truncatedRowCount,
       })
       if (json.imported > 0) onComplete()
     } catch (err: any) {
@@ -143,7 +150,10 @@ export default function ImportModal({ isOpen, onClose, onComplete }: ImportModal
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ url: sheetsUrl.trim() }),
+        body: JSON.stringify({
+          url: sheetsUrl.trim(),
+          ...(clientTier?.trim() ? { client_tier: clientTier.trim() } : {}),
+        }),
       })
 
       const json = await res.json()
@@ -160,6 +170,9 @@ export default function ImportModal({ isOpen, onClose, onComplete }: ImportModal
         errors: json.errors || [],
         mapping: json.mapping,
         source: json.source,
+        totalRowsInSheet: json.totalRowsInSheet,
+        maxImportRows: json.maxImportRows,
+        truncatedRowCount: json.truncatedRowCount,
       })
       if (json.imported > 0) onComplete()
     } catch (err: any) {
@@ -184,7 +197,10 @@ export default function ImportModal({ isOpen, onClose, onComplete }: ImportModal
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ url: amazonUrl.trim() }),
+        body: JSON.stringify({
+          url: amazonUrl.trim(),
+          ...(clientTier?.trim() ? { client_tier: clientTier.trim() } : {}),
+        }),
       })
 
       const json = await res.json()
@@ -214,18 +230,23 @@ export default function ImportModal({ isOpen, onClose, onComplete }: ImportModal
     }
   }
 
-  if (!isOpen || !mounted) return null
+  const tabs = useMemo(
+    () =>
+      [
+        { id: 'spreadsheet' as const, label: t('Excel / CSV'), icon: FileSpreadsheet },
+        { id: 'sheets' as const, label: t('Google Sheets'), icon: Link2 },
+        { id: 'amazon' as const, label: t('Amazon'), icon: ShoppingCart },
+      ] as const,
+    [t]
+  )
 
-  const tabs: { id: Tab; label: string; icon: typeof FileSpreadsheet }[] = [
-    { id: 'spreadsheet', label: t('Excel / CSV'), icon: FileSpreadsheet },
-    { id: 'sheets', label: t('Google Sheets'), icon: Link2 },
-    { id: 'amazon', label: t('Amazon'), icon: ShoppingCart },
-  ]
+  if (!isOpen) return null
 
   return createPortal(
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={handleClose} />
-      <div className="relative bg-beige-50 dark:bg-dpurple-900 rounded-2xl shadow-xl max-w-lg w-full mx-4 max-h-[85vh] overflow-y-auto">
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+      {/* Solid overlay only — backdrop-blur is very expensive on large viewports */}
+      <div className="absolute inset-0 bg-black/55" onClick={handleClose} aria-hidden />
+      <div className="relative isolate z-10 bg-beige-50 dark:bg-dpurple-900 rounded-2xl shadow-xl max-w-lg w-full max-h-[85vh] overflow-y-auto contain-paint">
 
         {/* Header */}
         <div className="sticky top-0 bg-beige-50 dark:bg-dpurple-900 z-10 px-6 pt-6 pb-4 border-b border-beige-200 dark:border-dpurple-700">
@@ -267,6 +288,9 @@ export default function ImportModal({ isOpen, onClose, onComplete }: ImportModal
               <div className="space-y-2">
                 <p className="text-sm text-zinc-600 dark:text-zinc-400">
                   {t('Upload an Excel (.xlsx) or CSV file. Wist will automatically detect columns for')} <span className="font-medium">{t('name')}</span>, <span className="font-medium">{t('price')}</span>, <span className="font-medium">{t('link')}</span>, {t('and')} <span className="font-medium">{t('image')}</span>.
+                </p>
+                <p className="text-xs text-zinc-600 dark:text-zinc-400 rounded-lg px-3 py-2 bg-beige-100/80 dark:bg-dpurple-800/60 border border-beige-200 dark:border-dpurple-600">
+                  {t('Up to 150 rows per import. Add Link and Image columns when possible — cell hyperlinks and Google Sheets =HYPERLINK / =IMAGE formulas are detected automatically.')}
                 </p>
                 <div
                   role="button"
@@ -373,10 +397,13 @@ export default function ImportModal({ isOpen, onClose, onComplete }: ImportModal
                 <p className="text-sm text-zinc-600 dark:text-zinc-400">
                   {t('Paste a Google Sheets link (edit, htmlview, or published-to-web URLs all work).')}
                 </p>
+                <p className="text-xs text-zinc-600 dark:text-zinc-400 rounded-lg px-3 py-2 bg-beige-100/80 dark:bg-dpurple-800/60 border border-beige-200 dark:border-dpurple-600">
+                  {t('Up to 150 rows per import. Link and image columns work best; published HTML preserves hyperlinks and embedded images from cells.')}
+                </p>
                 <input
                   type="url"
                   value={sheetsUrl}
-                  onChange={e => { setSheetsUrl(e.target.value); setResult(null) }}
+                  onChange={e => setSheetsUrl(e.target.value)}
                   placeholder="https://docs.google.com/spreadsheets/d/..."
                   className="w-full rounded-xl border border-beige-200 dark:border-dpurple-600 bg-beige-50 dark:bg-dpurple-800 px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
                 />
@@ -415,7 +442,7 @@ export default function ImportModal({ isOpen, onClose, onComplete }: ImportModal
                 <input
                   type="url"
                   value={amazonUrl}
-                  onChange={e => { setAmazonUrl(e.target.value); setResult(null) }}
+                  onChange={e => setAmazonUrl(e.target.value)}
                   placeholder="https://www.amazon.com/hz/wishlist/ls/..."
                   className="w-full rounded-xl border border-beige-200 dark:border-dpurple-600 bg-beige-50 dark:bg-dpurple-800 px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
                 />
@@ -463,9 +490,18 @@ export default function ImportModal({ isOpen, onClose, onComplete }: ImportModal
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm font-medium ${result.imported > 0 ? 'text-green-800 dark:text-green-300' : 'text-red-800 dark:text-red-300'}`}>
                     {result.imported > 0
-                      ? `${t('Imported')} ${result.imported} ${t('of')} ${result.total} ${t('items')}`
+                      ? `${t('Imported')} ${result.imported} ${t('of')} ${result.total} ${t('rows')}` +
+                        (result.totalRowsInSheet != null && result.totalRowsInSheet > result.total
+                          ? ` (${result.totalRowsInSheet} ${t('rows in sheet')})`
+                          : '')
                       : t('Import failed')}
                   </p>
+                  {result.imported > 0 && (result.truncatedRowCount ?? 0) > 0 && (
+                    <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                      {t('Row limit: only the first 150 rows are processed per import.')}{' '}
+                      {result.truncatedRowCount} {t('rows from your file were skipped — move them to a new sheet to import next.')}
+                    </p>
+                  )}
 
                   {/* Column mapping info */}
                   {result.mapping && result.imported > 0 && (
@@ -519,3 +555,5 @@ export default function ImportModal({ isOpen, onClose, onComplete }: ImportModal
     document.body
   )
 }
+
+export default memo(ImportModal)
