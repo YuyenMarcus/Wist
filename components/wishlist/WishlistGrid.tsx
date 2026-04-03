@@ -136,7 +136,7 @@ export default function WishlistGrid({ items, isOwner = true, onDelete, onReserv
 
       {!isEmpty && (
         <div className="flex gap-3 sm:gap-6">
-          <AnimatePresence mode="popLayout">
+          <AnimatePresence mode="sync">
             {columns.map((col, colIdx) => (
               <div key={colIdx} className="flex-1 space-y-3 sm:space-y-6">
                 {col.map((item, rowIdx) => (

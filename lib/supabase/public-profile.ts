@@ -115,7 +115,10 @@ async function resolveUsernameToUserId(username: string): Promise<{
  * @param userId - The user's UUID
  * @returns Array of items with only public-safe fields
  */
-async function fetchActiveItems(userId: string): Promise<{
+async function fetchActiveItems(
+  userId: string,
+  collectionId?: string | null
+): Promise<{
   items: any[];
   error: any;
 }> {
@@ -123,12 +126,17 @@ async function fetchActiveItems(userId: string): Promise<{
 
   // Only fetch from items table (the source of truth for a user's active wishlist)
   // The products table is used purely for hydration of missing images/prices
-  const { data, error } = await supabase
+  let query = supabase
     .from('items')
     .select('id, title, url, current_price, image_url, retailer, created_at')
     .eq('user_id', userId)
-    .eq('status', 'active')
-    .order('created_at', { ascending: false });
+    .eq('status', 'active');
+
+  if (collectionId) {
+    query = query.eq('collection_id', collectionId);
+  }
+
+  const { data, error } = await query.order('created_at', { ascending: false });
 
   if (error) {
     console.error('Error fetching active items:', error);
@@ -254,11 +262,27 @@ function sanitizeItems(items: any[]): PublicItem[] {
  * 4. Sanitize data for frontend
  * 
  * @param username - Username from URL (will be URL-decoded)
+ * @param options.collectionSlug - When set, only items in that collection (public share link).
  * @returns Public profile data with sanitized items
  */
-export async function getPublicProfile(username: string): Promise<{
+export interface SharedCollectionData {
+  name: string;
+  slug: string;
+  id?: string;
+  registry_mode?: boolean;
+  background_image_url?: string | null;
+  /** Present when owner enabled collaboration; path e.g. /invite/AbCdEf12 */
+  collab_join_href?: string | null;
+}
+
+export async function getPublicProfile(
+  username: string,
+  options?: { collectionSlug?: string }
+): Promise<{
   profile: PublicProfileData | null;
   items: PublicItem[];
+  sharedCollection: SharedCollectionData | null;
+  reservations: Record<string, { name: string | null }>;
   error: any;
 }> {
   try {
@@ -266,19 +290,63 @@ export async function getPublicProfile(username: string): Promise<{
     const { userId, profile, error: resolveError } = await resolveUsernameToUserId(username);
 
     if (resolveError) {
-      return { profile: null, items: [], error: resolveError };
+      return { profile: null, items: [], sharedCollection: null, reservations: {}, error: resolveError };
     }
 
     if (!userId || !profile) {
-      // User not found - return 404
-      return { profile: null, items: [], error: { message: 'User not found', code: 'NOT_FOUND' } };
+      return {
+        profile: null,
+        items: [],
+        sharedCollection: null,
+        reservations: {},
+        error: { message: 'User not found', code: 'NOT_FOUND' },
+      };
     }
 
-    // Step B: Fetch active items
-    const { items: rawItems, error: itemsError } = await fetchActiveItems(userId);
+    let collectionId: string | null = null;
+    let sharedCollection: SharedCollectionData | null = null;
+
+    if (options?.collectionSlug) {
+      const slug = decodeURIComponent(options.collectionSlug).toLowerCase().trim();
+      const supabase = getSupabaseAdmin();
+      const { data: col, error: colError } = await supabase
+        .from('collections')
+        .select(
+          'id, name, slug, registry_mode, background_image_url, collaborative_enabled, collaboration_invite_code'
+        )
+        .eq('user_id', userId)
+        .eq('slug', slug)
+        .maybeSingle();
+
+      if (colError || !col) {
+        return {
+          profile: null,
+          items: [],
+          sharedCollection: null,
+          reservations: {},
+          error: { message: 'Collection not found', code: 'NOT_FOUND' },
+        };
+      }
+      collectionId = col.id;
+      const collabOn = col.collaborative_enabled === true;
+      const inviteCode =
+        typeof col.collaboration_invite_code === 'string' ? col.collaboration_invite_code.trim() : '';
+      sharedCollection = {
+        name: col.name,
+        slug: col.slug,
+        registry_mode: col.registry_mode ?? false,
+        background_image_url: col.background_image_url ?? null,
+        id: col.id,
+        collab_join_href:
+          collabOn && inviteCode ? `/invite/${encodeURIComponent(inviteCode)}` : null,
+      };
+    }
+
+    // Step B: Fetch active items (optionally scoped to one collection)
+    const { items: rawItems, error: itemsError } = await fetchActiveItems(userId, collectionId);
 
     if (itemsError) {
-      return { profile, items: [], error: itemsError };
+      return { profile, items: [], sharedCollection, reservations: {}, error: itemsError };
     }
 
     // Step C: Deduplicate by URL (keep the newest entry)
@@ -297,9 +365,27 @@ export async function getPublicProfile(username: string): Promise<{
     // Step E: Sanitize data
     const sanitizedItems = sanitizeItems(hydratedItems);
 
+    // Fetch reservations if registry mode is on
+    let reservations: Record<string, { name: string | null }> = {};
+    if (sharedCollection?.registry_mode && collectionId) {
+      const supabase = getSupabaseAdmin();
+      const { data: res } = await supabase
+        .from('item_reservations')
+        .select('item_id, reserver_name')
+        .eq('collection_id', collectionId);
+
+      if (res) {
+        for (const r of res) {
+          reservations[r.item_id] = { name: r.reserver_name };
+        }
+      }
+    }
+
     return {
       profile,
       items: sanitizedItems,
+      sharedCollection,
+      reservations,
       error: null,
     };
   } catch (error: any) {
@@ -307,6 +393,8 @@ export async function getPublicProfile(username: string): Promise<{
     return {
       profile: null,
       items: [],
+      sharedCollection: null,
+      reservations: {},
       error: { message: error.message || 'Failed to load public profile' },
     };
   }

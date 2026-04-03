@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { extractDomain, isDynamic } from '../../../lib/scraper/utils';
 import { staticScrape } from '../../../lib/scraper/static-scraper';
+import { isSafeUrl } from '@/lib/scraper/url-validation';
 
 function corsHeaders() {
   return {
@@ -20,6 +21,11 @@ export async function POST(request: Request) {
 
     if (!url) {
       return NextResponse.json({ error: 'URL required' }, { status: 400, headers: corsHeaders() });
+    }
+
+    const urlCheck = isSafeUrl(url);
+    if (!urlCheck.safe) {
+      return NextResponse.json({ error: urlCheck.reason }, { status: 400, headers: corsHeaders() });
     }
 
     console.log(`🔍 [Preview] Scraping: ${url}`);
@@ -79,8 +85,8 @@ export async function POST(request: Request) {
     if (scrapeResult.price) {
       finalPrice = scrapeResult.price;
     } else if (scrapeResult.priceRaw) {
-      const cleanPrice = scrapeResult.priceRaw.replace(/[^0-9.]/g, '');
-      finalPrice = parseFloat(cleanPrice) || 0;
+      const { cleanPrice: cleanPriceUtil } = await import('@/lib/scraper/utils');
+      finalPrice = cleanPriceUtil(scrapeResult.priceRaw) || 0;
     }
 
     const data = {

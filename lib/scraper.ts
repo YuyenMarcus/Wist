@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio';
 import axios from 'axios';
+import { cleanPrice as cleanPriceValue } from '@/lib/scraper/utils';
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36';
 
@@ -224,8 +225,7 @@ export async function scrapeProduct(url: string): Promise<ScrapedProduct | null>
 
     // Clean and parse price
     if (priceString) {
-      const cleanPrice = priceString.replace(/[^0-9.]/g, '');
-      price = cleanPrice ? parseFloat(cleanPrice) : null;
+      price = cleanPriceValue(priceString);
     }
 
     // Extract retailer from URL

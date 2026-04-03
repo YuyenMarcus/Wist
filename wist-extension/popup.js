@@ -15,7 +15,8 @@ const privacyText = document.getElementById('privacy-text');
 
 // State
 let currentProduct = null;
-let isPrivate = true; // Default to Private
+// false = normal wishlist; true = save to Hidden (see /api/items is_public → status)
+let isPrivate = false;
 let uiMode = 'popup'; // 'popup' or 'floating'
 
 // Floating panel toggle (same pattern as privacy switch)
@@ -180,6 +181,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       // 3. Render Preview
       renderPreview(data);
       showState('preview');
+      updatePrivacyUI();
 
     } catch (err) {
       console.error("Client scrape failed:", err);
@@ -260,12 +262,12 @@ privacyBtn.addEventListener('click', () => {
 function updatePrivacyUI() {
   if (isPrivate) {
     privacySwitch.classList.remove('active');
-    privacyText.textContent = 'Private Wishlist';
+    privacyText.textContent = 'Hidden';
     // Update lock icon
     document.getElementById('lock-icon').innerHTML = '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>';
   } else {
     privacySwitch.classList.add('active');
-    privacyText.textContent = 'Public Feed';
+    privacyText.textContent = 'Wishlist';
     // Update to globe icon
     document.getElementById('lock-icon').innerHTML = '<circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>';
   }
@@ -286,7 +288,8 @@ async function handleSave(item) {
   const payload = {
     ...item,
     is_public: !isPrivate,
-    collection_id: null // Explicitly null - backend will handle categorization later
+    save_hidden: isPrivate === true,
+    collection_id: null,
   };
 
   // Send to background.js which handles authentication

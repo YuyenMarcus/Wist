@@ -81,6 +81,7 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
 
   const handleDelete = async () => {
     if (!onDelete) return
+    setIsMenuOpen(false)
     setIsDeleting(true)
     try {
       await onDelete(item.id)
@@ -469,11 +470,10 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
 
   return (
     <motion.div
-      layout
-      initial={{ opacity: 0, y: 16 }}
+      initial={false}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }}
-      transition={{ duration: 0.35, delay: Math.min(index * 0.04, 0.4), ease: [0.25, 0.1, 0.25, 1] }}
+      exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.12 } }}
+      transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
       className="relative mb-3 sm:mb-6 break-inside-avoid"
@@ -832,7 +832,7 @@ export default function ItemCard({ item, isOwner = true, onDelete, onReserve, on
                   className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 dark:hover:bg-dpurple-800 text-zinc-600 dark:text-zinc-300 transition-colors"
                 >
                   <FolderInput size={14} />
-                  <span>{t('Uncategorized')}</span>
+                  <span>{t('No collection')}</span>
                   {!itemCollectionId && (
                     <Check size={14} className="ml-auto text-violet-500" />
                   )}

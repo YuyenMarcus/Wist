@@ -16,6 +16,7 @@ import {
 import PageTransition from '@/components/ui/PageTransition'
 import Link from 'next/link'
 import { CHROME_WEB_STORE_URL } from '@/lib/constants/chrome-web-store'
+import SupportContactForm from '@/components/support/SupportContactForm'
 
 interface FAQItem {
   question: string
@@ -131,7 +132,7 @@ const faqSections: FAQSection[] = [
       },
       {
         question: 'How do I create a collection?',
-        answer: 'From your dashboard, switch to the "Categories" view. You can create new collections and drag items into them to organize your wishlist.',
+        answer: 'From your dashboard, switch to the "Collections" view. You can create lists and move items into them to organize your wishlist.',
       },
       {
         question: 'Can I make some items private?',
@@ -157,7 +158,7 @@ const faqSections: FAQSection[] = [
       },
       {
         question: 'How do I delete my account?',
-        answer: 'Contact us at support@nuvio.cloud to request account deletion. We\'ll remove all your data within 48 hours.',
+        answer: 'Use the contact form at the bottom of this page to request account deletion. We\'ll remove all your data within 48 hours.',
       },
     ],
   },
@@ -179,7 +180,7 @@ const faqSections: FAQSection[] = [
       },
       {
         question: 'I need more help.',
-        answer: 'Reach out to us at support@nuvio.cloud and we\'ll get back to you as soon as possible. Include details about the issue, what device and browser you\'re using, and any error messages you see.',
+        answer: 'Use the contact form at the bottom of this page — we\'ll reply by email. Include details about the issue, what device and browser you\'re using, and any error messages you see.',
       },
     ],
   },
@@ -270,27 +271,21 @@ export default function SupportPage() {
           ))}
         </div>
 
-        {/* Contact CTA */}
-        <div className="mt-12 text-center">
+        {/* Contact — sends to team inbox; destination email is not shown */}
+        <div id="contact" className="mt-12 scroll-mt-24">
           <div className="relative overflow-hidden rounded-2xl border border-violet-200/60 p-8 sm:p-12">
             <div className="absolute inset-0 bg-gradient-to-br from-violet-50 via-white to-purple-50 pointer-events-none" />
-            <div className="relative">
+            <div className="relative text-center">
               <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-violet-100 text-violet-600 mb-4">
                 <Mail size={22} />
               </div>
               <h2 className="text-lg sm:text-xl font-semibold text-zinc-900 mb-2 tracking-tight">
                 Still need help?
               </h2>
-              <p className="text-sm text-zinc-500 mb-6 max-w-xs mx-auto leading-relaxed">
-                Can't find what you're looking for? We're happy to help.
+              <p className="text-sm text-zinc-500 mb-8 max-w-md mx-auto leading-relaxed">
+                Can&apos;t find what you&apos;re looking for? Send us a message — we&apos;ll reply to the email you provide.
               </p>
-              <a
-                href="mailto:support@nuvio.cloud"
-                className="btn btn-primary inline-flex items-center gap-2 !px-6 !py-3 !text-sm !rounded-xl"
-                style={{ display: 'inline-flex' }}
-              >
-                Contact Support
-              </a>
+              <SupportContactForm />
             </div>
           </div>
         </div>
@@ -305,8 +300,8 @@ export default function SupportPage() {
             Dashboard
           </Link>
           <span className="w-0.5 h-0.5 rounded-full bg-zinc-300" />
-          <a href="mailto:support@nuvio.cloud" className="hover:text-violet-500 transition-colors">
-            support@nuvio.cloud
+          <a href="#contact" className="hover:text-violet-500 transition-colors">
+            Contact form
           </a>
         </div>
       </div>

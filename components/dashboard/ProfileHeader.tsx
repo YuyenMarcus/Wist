@@ -1,15 +1,13 @@
 'use client'
 
-import { useState } from 'react'
 import { ShoppingBag, Upload } from 'lucide-react'
 import Link from 'next/link'
 import ShareButton from '@/components/dashboard/ShareButton'
 import TierBadge from '@/components/ui/TierBadge'
-import ImportModal from '@/components/dashboard/ImportModal'
+import { useDashboardImportModal } from '@/components/dashboard/ImportModalProvider'
 import { Profile } from '@/lib/supabase/profile'
 import { useTranslation } from '@/lib/i18n/context'
 import NotificationCenter from '@/components/dashboard/NotificationCenter'
-import TreatYourselfMeter from '@/components/dashboard/TreatYourselfMeter'
 
 interface ProfileHeaderProps {
   user: {
@@ -18,15 +16,11 @@ interface ProfileHeaderProps {
   }
   profile: Profile | null
   itemCount: number
-  /** Total $ saved from tracked price drops (used for Treat yourself meter). */
-  totalSavings: number
-  onRefreshPrices: () => void | Promise<void>
-  refreshing: boolean
 }
 
-export default function ProfileHeader({ user, profile, itemCount, totalSavings, onRefreshPrices, refreshing }: ProfileHeaderProps) {
+export default function ProfileHeader({ user, profile, itemCount }: ProfileHeaderProps) {
   const { t } = useTranslation()
-  const [showImport, setShowImport] = useState(false)
+  const { openImport } = useDashboardImportModal()
   const displayName = profile?.full_name || 'Curator'
   const username = profile?.username || 'username'
   const avatarUrl = profile?.avatar_url || `https://avatar.vercel.sh/${user.id}`
@@ -82,12 +76,11 @@ export default function ProfileHeader({ user, profile, itemCount, totalSavings, 
 
         {/* Stats + Actions — bell only with desktop header; mobile uses Sidebar MobileHeader bell */}
         <div className="flex flex-shrink-0 items-center justify-end gap-3 sm:gap-5 pb-1 max-md:w-full md:max-w-none">
-          <div className="hidden sm:flex gap-5 text-center mr-2 items-start">
+          <div className="hidden sm:flex gap-6 text-center mr-2 items-center">
             <div>
               <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{itemCount}</div>
               <div className="text-[10px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-semibold">{t('Items')}</div>
             </div>
-            <TreatYourselfMeter variant="inline" savedAmount={totalSavings} />
             <Link href="/dashboard/purchased" className="group">
               <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-green-600 transition-colors flex items-center justify-center">
                 <ShoppingBag className="w-4 h-4" />
@@ -97,7 +90,7 @@ export default function ProfileHeader({ user, profile, itemCount, totalSavings, 
           </div>
           <div className="flex gap-1.5 sm:gap-2">
             <button
-              onClick={() => setShowImport(true)}
+              onClick={() => openImport()}
               className="rounded-full p-2 sm:p-2.5 shadow-sm border bg-beige-100 dark:bg-dpurple-900 text-zinc-400 dark:text-zinc-500 border-beige-200 dark:border-dpurple-600 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-200 dark:hover:border-violet-800 transition-all"
               title={t('Import from spreadsheet or Amazon')}
             >
@@ -119,12 +112,11 @@ export default function ProfileHeader({ user, profile, itemCount, totalSavings, 
       )}
 
       {/* Mobile-only stats row */}
-      <div className="flex sm:hidden gap-5 mt-3 pl-2 text-center items-start justify-center flex-wrap">
+      <div className="flex sm:hidden gap-8 mt-3 pl-2 text-center items-center justify-center">
         <div>
           <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{itemCount}</div>
           <div className="text-[10px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-semibold">{t('Items')}</div>
         </div>
-        <TreatYourselfMeter variant="inline" savedAmount={totalSavings} />
         <Link href="/dashboard/purchased" className="group">
           <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-green-600 transition-colors flex items-center justify-center">
             <ShoppingBag className="w-4 h-4" />
@@ -133,15 +125,6 @@ export default function ProfileHeader({ user, profile, itemCount, totalSavings, 
         </Link>
       </div>
 
-      {/* Import Modal */}
-      <ImportModal
-        isOpen={showImport}
-        onClose={() => setShowImport(false)}
-        onComplete={() => {
-          setShowImport(false)
-          window.location.reload()
-        }}
-      />
     </div>
   )
 }

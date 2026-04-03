@@ -79,12 +79,12 @@ export async function GET(request: Request) {
     }
 
     // Filter notification types by tier:
-    // - Free: price_drop only
-    // - Pro+: price_drop + back_in_stock + price_increase
+    // - Everyone: price_drop + price_increase
+    // - Pro+: also back_in_stock
     const filtered = (notifications || []).filter(n => {
       if (n.notification_type === 'price_drop') return true;
+      if (n.notification_type === 'price_increase') return true;
       if (n.notification_type === 'back_in_stock') return isTierAtLeast(tier, 'pro');
-      if (n.notification_type === 'price_increase') return isTierAtLeast(tier, 'pro');
       return false;
     });
 

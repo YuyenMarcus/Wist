@@ -33,7 +33,7 @@ export default function NavBar() {
   const handleLogout = async () => {
     try {
       // Sign out and wait for it to complete
-      const { error } = await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
       if (error) {
         console.error('Logout error:', error);
       }

@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { checkItemLimitForApi } from '@/lib/tier-guards';
 import { convertPrice } from '@/lib/currency';
+import { cleanPrice as cleanPriceValue } from '@/lib/scraper/utils';
 
 // HELPER: Dynamic CORS Headers
 function corsHeaders(origin: string | null) {
@@ -164,7 +165,7 @@ export async function POST(req: Request) {
 
     // 8. Convert foreign currency to USD before storing
     const sourceCurrency = currency || 'USD';
-    let parsedPrice = price ? parseFloat(price.toString().replace(/[^0-9.]/g, '')) : 0;
+    let parsedPrice = price ? (cleanPriceValue(price.toString()) || 0) : 0;
     let storedPrice = parsedPrice;
 
     if (sourceCurrency !== 'USD' && parsedPrice > 0) {

@@ -4,6 +4,7 @@
  * Enhanced with site-specific selectors for Amazon, Target, etc.
  */
 import * as cheerio from 'cheerio';
+import { cleanPrice as cleanPriceValue } from './utils';
 
 export interface ScrapeResult {
   title: string | null;
@@ -485,8 +486,7 @@ export async function staticScrape(url: string): Promise<ScrapeResult> {
   // Parse price to number
   let price: number | null = null;
   if (priceRaw) {
-    const cleaned = priceRaw.replace(/[^0-9.,]/g, '');
-    price = parseFloat(cleaned.replace(',', '')) || null;
+    price = cleanPriceValue(priceRaw);
   }
 
   const urlCurrency = detectCurrencyFromUrl(url);

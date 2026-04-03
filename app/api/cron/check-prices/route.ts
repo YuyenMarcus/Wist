@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { TIERS, type SubscriptionTier } from '@/lib/constants/subscription-tiers';
 import { staticScrape } from '@/lib/scraper/static-scraper';
+import { cleanPrice as cleanPriceValue } from '@/lib/scraper/utils';
 import {
   queuePriceDropNotification,
   queueBackInStockNotification,
@@ -31,13 +32,10 @@ export const maxDuration = 120;
 
 export async function GET(req: Request) {
   try {
-    // Verify cron secret to prevent unauthorized access (if CRON_SECRET is set)
     const authHeader = req.headers.get('authorization');
     const cronSecret = process.env.CRON_SECRET;
     
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      // If CRON_SECRET is set, require authentication
-      // Vercel cron jobs automatically add this header, but manual calls need it
+    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
       console.warn('⚠️ Unauthorized cron access attempt');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -250,8 +248,8 @@ export async function GET(req: Request) {
               };
               console.log(`   ✅ Static scraper: $${freshData.current_price}`);
             } else if (result && result.priceRaw) {
-              const parsed = parseFloat(result.priceRaw.replace(/[^0-9.]/g, ''));
-              if (parsed > 0) {
+              const parsed = cleanPriceValue(result.priceRaw);
+              if (parsed && parsed > 0) {
                 freshData = {
                   current_price: parsed,
                   title: result.title || item.title,

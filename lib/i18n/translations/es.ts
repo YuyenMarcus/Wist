@@ -69,6 +69,14 @@ const es: Record<string, string> = {
   'Purchased': 'Comprados',
   'Timeline': 'Línea de tiempo',
   'Categories': 'Categorías',
+  'Your lists': 'Tus listas',
+  'No collection': 'Sin colección',
+  'Share collection': 'Compartir colección',
+  'Link copied!': '¡Enlace copiado!',
+  'Set a username in Settings to share collection links.':
+    'Configura un nombre de usuario en Ajustes para compartir enlaces de colección.',
+  "Delete this collection? Items will move to 'No collection'.":
+    '¿Eliminar esta colección? Los artículos pasarán a «Sin colección».',
   'Light Mode': 'Modo Claro',
   'Dark Mode': 'Modo Oscuro',
   'Manage Lists': 'Administrar Listas',
@@ -78,7 +86,7 @@ const es: Record<string, string> = {
   'Add': 'Agregar',
   'Cancel': 'Cancelar',
   'Move to...': 'Mover a...',
-  'Uncategorized': 'Sin categoría',
+  'Uncategorized': 'Sin colección',
   'Choose Icon': 'Elegir Ícono',
 
   // === DASHBOARD ===
@@ -170,7 +178,7 @@ const es: Record<string, string> = {
   'We watch prices 24/7 and let you know the perfect time to buy.': 'Vigilamos precios 24/7 y te avisamos el momento perfecto para comprar.',
   'Get alerts': 'Recibir alertas',
   'Go unlimited': 'Sin límites',
-  'Unlimited items, 12-hour price checks, receipt tracking, and more.': 'Artículos ilimitados, revisiones cada 12 horas, rastreo de recibos y más.',
+  'Unlimited items, 12-hour price checks, advanced alerts, and more.': 'Artículos ilimitados, revisiones cada 12 horas, alertas avanzadas y más.',
   'See plans': 'Ver planes',
   'Wist Pro starts at $8/mo': 'Wist Pro desde $8/mes',
   'More items, faster checks, back-in-stock detection, and zero ads.': 'Más artículos, revisiones más rápidas, detección de disponibilidad y sin anuncios.',
@@ -205,7 +213,6 @@ const es: Record<string, string> = {
   'Similar product comparison': 'Comparación de productos similares',
   'Unlimited items': 'Artículos ilimitados',
   '12-hour price checks': 'Revisiones de precio cada 12 horas',
-  'Receipt & warranty tracking': 'Rastreo de recibos y garantías',
   '2-year pricing history': 'Historial de precios de 2 años',
   'Gifting service': 'Servicio de regalos',
   'Amazon & spreadsheet sync': 'Sincronización con Amazon y hojas de cálculo',
@@ -216,9 +223,6 @@ const es: Record<string, string> = {
   'Community analytics': 'Análisis de comunidad',
   'Profile customization': 'Personalización de perfil',
   'Creator badge on profile': 'Insignia Creator en perfil',
-  'Need something bigger?': '¿Necesitas algo más grande?',
-  'Wist Enterprise includes API access, team wishlists, bulk gifting, custom branding, and a dedicated account manager.': 'Wist Enterprise incluye acceso a API, listas de equipo, regalos masivos, marca personalizada y un gerente de cuenta dedicado.',
-  'Talk to Sales': 'Hablar con Ventas',
   'No credit card required': 'No se requiere tarjeta de crédito',
   'Cancel anytime': 'Cancela cuando quieras',
 
@@ -361,6 +365,15 @@ const es: Record<string, string> = {
     'Sube un archivo Excel (.xlsx, .xls) o CSV.',
   'Preview': 'Vista previa',
   'rows': 'filas',
+  'rows in sheet': 'filas en la hoja',
+  'Up to 150 rows per import. Add Link and Image columns when possible — cell hyperlinks and Google Sheets =HYPERLINK / =IMAGE formulas are detected automatically.':
+    'Hasta 150 filas por importación. Añade columnas de enlace e imagen si puedes; se detectan hipervínculos en celdas y fórmulas =HYPERLINK / =IMAGE de Google Sheets.',
+  'Up to 150 rows per import. Link and image columns work best; published HTML preserves hyperlinks and embedded images from cells.':
+    'Hasta 150 filas por importación. Las columnas de enlace e imagen funcionan mejor; el HTML publicado conserva hipervínculos e imágenes incrustadas en las celdas.',
+  'Row limit: only the first 150 rows are processed per import.':
+    'Límite: solo se procesan las primeras 150 filas por importación.',
+  'rows from your file were skipped — move them to a new sheet to import next.':
+    'filas de tu archivo se omitieron — pásalas a una hoja nueva para importarlas después.',
   'Import Spreadsheet': 'Importar Hoja de Cálculo',
   'Paste a Google Sheets link (edit, htmlview, or published-to-web URLs all work).': 'Pega un enlace de Google Sheets (edición, htmlview o URLs publicadas en la web funcionan).',
   'How to share your Google Sheet:': 'Cómo compartir tu Google Sheet:',

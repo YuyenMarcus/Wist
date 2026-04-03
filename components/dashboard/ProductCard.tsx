@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { BarChart3 } from 'lucide-react';
 import { isAdultContent } from '@/lib/content-filter';
 import { affiliateUrl } from '@/lib/amazon-affiliate';
+import { useTranslation } from '@/lib/i18n/context';
 
 interface ProductItem {
   id: string;
@@ -48,6 +49,7 @@ interface Props {
 }
 
 export default function ProductCard({ item, userCollections = [], onDelete, onHide, onPinItem, adultFilterEnabled = false, index = 0, tier, pinnedItemId, amazonTag }: Props) {
+  const { t } = useTranslation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
   const [isEditingImage, setIsEditingImage] = useState(false);
@@ -265,10 +267,8 @@ export default function ProductCard({ item, userCollections = [], onDelete, onHi
   };
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this item?')) return;
-    if (onDelete) {
-      onDelete(item.id);
-    }
+    setIsMenuOpen(false);
+    if (onDelete) await onDelete(item.id);
   };
 
   const handleChangeImage = () => {
@@ -357,10 +357,10 @@ export default function ProductCard({ item, userCollections = [], onDelete, onHi
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16 }}
+      initial={false}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }}
-      transition={{ duration: 0.35, delay: Math.min(index * 0.04, 0.4), ease: [0.25, 0.1, 0.25, 1] }}
+      exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.12 } }}
+      transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
       className={`group relative rounded-xl overflow-hidden border transition-all duration-300 ${
         item.out_of_stock
           ? 'border-red-200 dark:border-red-900/40 hover:border-red-300 hover:shadow-lg'
@@ -411,7 +411,7 @@ export default function ProductCard({ item, userCollections = [], onDelete, onHi
             </div>
           )}
           {/* Price Drop Badge */}
-          {item.price_change != null && item.price_change < 0 && (item.price_change_percent || 0) <= -5 && !item.out_of_stock && (
+          {item.price_change != null && item.price_change < 0 && !item.out_of_stock && (
             <span className="inline-flex items-center gap-0.5 sm:gap-1 bg-green-500 text-white text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full shadow-lg animate-pulse">
               <TrendingDown className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
               <span className="hidden sm:inline">Price Drop!</span>
@@ -494,7 +494,7 @@ export default function ProductCard({ item, userCollections = [], onDelete, onHi
                 className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-zinc-100 dark:hover:bg-dpurple-800 text-zinc-600 dark:text-zinc-300 transition-colors"
               >
                 <FolderInput size={14} />
-                <span>Uncategorized</span>
+                <span>{t('No collection')}</span>
                 {!item.collection_id && (
                   <Check size={14} className="ml-auto text-violet-500" />
                 )}
@@ -685,7 +685,7 @@ export default function ProductCard({ item, userCollections = [], onDelete, onHi
         )}
 
         {/* Action Buttons - hidden until hover on desktop, always visible on mobile */}
-        <div className="mt-2 sm:mt-3 flex items-center gap-1.5 sm:gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
+        <div className="mt-2 sm:mt-3 flex items-center gap-1.5 sm:gap-2">
           <Link 
             href={`/dashboard/item/${item.id}`}
             className="flex-1 inline-flex items-center justify-center gap-0.5 sm:gap-1 text-[10px] sm:text-xs text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white bg-zinc-100 dark:bg-dpurple-800 hover:bg-zinc-200 dark:hover:bg-dpurple-700 px-2 sm:px-3 py-1.5 sm:py-2 rounded-md sm:rounded-lg transition-colors"

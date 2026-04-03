@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { checkItemLimitForApi } from '@/lib/tier-guards';
 import { convertPrice } from '@/lib/currency';
+import { cleanPrice as cleanPriceValue } from '@/lib/scraper/utils';
 // Dynamic import to avoid webpack analyzing scraper dependencies during build
 
 // HELPER: Dynamic CORS Headers
@@ -30,7 +31,21 @@ export async function POST(request: Request) {
   try {
     // 1. Get the data sent from the extension or dashboard
     const body = await request.json();
-    let { title, price, url, image_url, status, retailer, note, collection_id, is_public, currency, out_of_stock, client_tier } = body;
+    let {
+      title,
+      price,
+      url,
+      image_url,
+      status,
+      retailer,
+      note,
+      collection_id,
+      is_public,
+      save_hidden,
+      currency,
+      out_of_stock,
+      client_tier,
+    } = body;
 
     console.log("📥 [API] Incoming Item Request:", { url, hasTitle: !!title, hasPrice: !!price });
 
@@ -244,15 +259,15 @@ export async function POST(request: Request) {
     if (hasExtensionData) {
       // ⚡ TRUST MODE: Extension already scraped the data
       // Clean the price string (e.g. "$29.99" -> 29.99)
-      currentPrice = parseFloat(price.toString().replace(/[^0-9.]/g, '')) || 0;
+      currentPrice = cleanPriceValue(price.toString()) || 0;
       retailer = retailer || new URL(url).hostname.replace('www.', '').split('.')[0];
       console.log("⚡ [API] Using extension-provided data. Skipping server scrape.");
     } else if (existingProduct) {
       // A. USE EXISTING PRODUCT DATA (from products table)
       title = title || existingProduct.title || null;
       currentPrice = price 
-        ? parseFloat(price.toString().replace(/[^0-9.]/g, '')) 
-        : (existingProduct.price ? parseFloat(existingProduct.price.toString().replace(/[^0-9.]/g, '')) : 0);
+        ? (cleanPriceValue(price.toString()) || 0)
+        : (existingProduct.price ? (cleanPriceValue(existingProduct.price.toString()) || 0) : 0);
       image_url = image_url || existingProduct.image || null;
       retailer = retailer || existingProduct.domain || 'Unknown';
       console.log("✅ Using existing product data from catalog");
@@ -266,7 +281,7 @@ export async function POST(request: Request) {
         
         if (scrapeResult && scrapeResult.ok && scrapeResult.data) {
           title = scrapeResult.data.title || title || 'New Item';
-          currentPrice = price ? parseFloat(price.toString().replace(/[^0-9.]/g, '')) : (scrapeResult.data.price || 0);
+          currentPrice = price ? (cleanPriceValue(price.toString()) || 0) : (scrapeResult.data.price || 0);
           image_url = image_url || scrapeResult.data.image || null;
           retailer = retailer || scrapeResult.data.domain || 'Unknown';
           if (scrapeResult.data.outOfStock !== undefined) {
@@ -281,12 +296,12 @@ export async function POST(request: Request) {
           const errorMsg = scrapeResult?.error || scrapeResult?.detail || 'Unknown error';
           console.warn("⚠️ [API] Server scrape failed (non-fatal):", errorMsg);
           title = title || 'New Item';
-          currentPrice = price ? parseFloat(price.toString().replace(/[^0-9.]/g, '')) : 0;
+          currentPrice = price ? (cleanPriceValue(price.toString()) || 0) : 0;
         }
       } catch (err: any) {
         console.warn("⚠️ [API] Server scrape failed (non-fatal):", err.message);
         title = title || 'New Item';
-        currentPrice = price ? parseFloat(price.toString().replace(/[^0-9.]/g, '')) : 0;
+        currentPrice = price ? (cleanPriceValue(price.toString()) || 0) : 0;
       }
       
       // If scrape quality is poor (no real title or image), queue the item
@@ -350,8 +365,15 @@ export async function POST(request: Request) {
       wishlistId = wishlists[0].id;
     }
 
-    // 6b. Check item limit for active items
-    const effectiveStatus = status || 'active';
+    // 6b. Hidden folder: only when client sends save_hidden: true (new extension).
+    // Do not use is_public — older extensions default is_public:false and would hide every item.
+    let effectiveStatus: string =
+      typeof status === 'string' && status.length > 0 ? status : 'active';
+    if (save_hidden === true) {
+      effectiveStatus = 'hidden';
+    }
+
+    // Check item limit for active items only (hidden/queued don't count toward cap)
     if (effectiveStatus === 'active') {
       const limitCheck = await checkItemLimitForApi(user.id, supabaseClient, client_tier);
       if (!limitCheck.allowed) {
@@ -381,7 +403,7 @@ export async function POST(request: Request) {
         url,
         image_url,
         retailer: retailer || 'Amazon',
-        status: status || 'active',
+        status: effectiveStatus,
         user_id: user.id,
         wishlist_id: wishlistId,
         original_currency: sourceCurrency,
@@ -404,9 +426,6 @@ export async function POST(request: Request) {
         console.warn("⚠️ [API] Collection not found or doesn't belong to user, ignoring collection_id");
       }
     }
-
-    // Note: is_public is not stored in items table - visibility is controlled by wishlist visibility
-    // The is_public parameter from the extension is ignored for now
 
     const { data, error } = await supabaseClient
       .from('items')
@@ -526,7 +545,7 @@ export async function PATCH(request: Request) {
 
   try {
     const body = await request.json();
-    const { id, title, price, image_url, status: newStatus, client_tier } = body;
+    const { id, title, price, image_url, status: newStatus, client_tier, out_of_stock: patchOos } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -613,9 +632,12 @@ export async function PATCH(request: Request) {
 
     const updateData: any = {};
     if (title !== undefined) updateData.title = title;
-    if (price !== undefined) updateData.current_price = parseFloat(price.toString().replace(/[^0-9.]/g, '')) || 0;
+    if (price !== undefined) updateData.current_price = cleanPriceValue(price.toString()) || 0;
     if (image_url !== undefined) updateData.image_url = image_url;
-    if (newStatus !== undefined) updateData.status = newStatus;
+    if (newStatus !== undefined) {
+      updateData.status = newStatus;
+      if (newStatus === 'active') updateData.out_of_stock = patchOos === true;
+    }
 
     const { data, error } = await supabaseClient
       .from('items')

@@ -107,6 +107,18 @@ export default function QueuedItemCard({ item, onUpdate, onDelete, amazonTag }: 
           .single()
         clientTier = prof?.subscription_tier || undefined
       }
+      const rawScrapePrice = scraped?.original_price_raw ?? scraped?.price
+      let patchPrice: number | string | undefined
+      if (rawScrapePrice != null && rawScrapePrice !== '') {
+        if (typeof rawScrapePrice === 'number' && Number.isFinite(rawScrapePrice) && rawScrapePrice > 0) {
+          patchPrice = rawScrapePrice
+        } else {
+          const cleaned = String(rawScrapePrice).replace(/[^0-9.]/g, '')
+          const n = parseFloat(cleaned)
+          if (Number.isFinite(n) && n > 0) patchPrice = cleaned
+        }
+      }
+
       const res = await fetch('/api/items', {
         method: 'PATCH',
         headers: {
@@ -116,9 +128,10 @@ export default function QueuedItemCard({ item, onUpdate, onDelete, amazonTag }: 
         body: JSON.stringify({
           id: item.id,
           title: scraped?.title || item.title,
-          price: scraped?.price?.replace?.(/[^0-9.]/g, '') || undefined,
+          price: patchPrice,
           image_url: scraped?.image || scraped?.image_url || undefined,
           status: 'active',
+          out_of_stock: scraped?.out_of_stock === true,
           client_tier: clientTier,
         }),
       })

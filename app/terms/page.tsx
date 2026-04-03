@@ -7,7 +7,7 @@ export const metadata = {
 }
 
 export default function TermsPage() {
-  const effectiveDate = 'February 19, 2026'
+  const effectiveDate = 'April 2, 2026'
 
   return (
     <div className="min-h-screen bg-white">
@@ -29,9 +29,10 @@ export default function TermsPage() {
 
           <p>
             Welcome to <strong>Wist</strong> ("we," "us," or "our"). Wist is a wishlist and price-tracking
-            platform available at <strong>wist.app</strong> and through our browser extension
-            (collectively, the "Service"). By accessing or using the Service, you agree to be bound by
-            these Terms of Service ("Terms"). If you do not agree, do not use the Service.
+            platform available at <strong>wist.app</strong>, through our browser extension, and through
+            our mobile application (collectively, the "Service"). By accessing or using the Service, you
+            agree to be bound by these Terms of Service ("Terms"). If you do not agree, do not use the
+            Service.
           </p>
 
           <h2>1. Eligibility</h2>
@@ -102,6 +103,36 @@ export default function TermsPage() {
             use it. It does not track your browsing history, collect data from pages you do not interact
             with, or run in the background when not in use.
           </p>
+
+          <h2>7a. Mobile Application</h2>
+          <p>
+            Our iOS mobile application provides access to your wishlist, collections, and notifications.
+            The app communicates with our servers using the same authenticated APIs as the web platform.
+            It does not access your contacts, camera, microphone, or location data unless you explicitly
+            grant permission for a specific feature.
+          </p>
+
+          <h2>7b. Collaborative Collections</h2>
+          <p>
+            Collections may be shared with other Wist users via invite links. When you join a shared
+            collection as a collaborator, you can view and add items to that collection. The collection
+            owner controls access and may remove collaborators at any time. Collaborators may leave a
+            shared collection at any time. The number of collaborators per collection may be limited
+            based on your subscription tier.
+          </p>
+
+          <h2>7c. Gift Registry</h2>
+          <p>
+            Collection owners may enable "registry mode" on a collection, which allows public visitors
+            to reserve items. When registry mode is enabled:
+          </p>
+          <ul>
+            <li>Visitors may reserve items by providing a name. No account or login is required to reserve.</li>
+            <li>Reserved items are visually marked so other visitors know the item has been claimed.</li>
+            <li>Reservations can be undone by the same visitor using a token stored in their browser.</li>
+            <li>The collection owner and collaborators can see who reserved each item.</li>
+            <li>We do not verify the identity of visitors who reserve items. Reservations are provided as a convenience and do not constitute a purchase or binding commitment.</li>
+          </ul>
 
           <h2>8. Intellectual Property</h2>
           <p>
@@ -174,6 +205,8 @@ export default function TermsPage() {
               <li><strong>Account Information:</strong> Email address, name, username, profile picture, and age (collected during onboarding).</li>
               <li><strong>Profile Data:</strong> Bio, social media handles, and Amazon affiliate ID (optional).</li>
               <li><strong>Wishlist Data:</strong> Product URLs, titles, prices, images, notes, and collection assignments that you save to the Service.</li>
+              <li><strong>Collaboration Data:</strong> When you join a shared collection, we store your user ID and role within that collection. When you create invite links, we store the invite code and usage count.</li>
+              <li><strong>Reservation Data:</strong> When a visitor reserves an item in a gift registry, we store the name they provide and a browser-based token for unreserving. No account or email is required.</li>
             </ul>
 
             <h3>b. Information Collected Automatically</h3>
@@ -201,12 +234,14 @@ export default function TermsPage() {
             <h2>3. How We Share Your Information</h2>
             <p>We do <strong>not</strong> sell your personal information. We may share information in the following limited circumstances:</p>
             <ul>
-              <li><strong>Public Profiles:</strong> If you set up a username, your profile page (name, bio, avatar, and active wishlist items) is publicly visible at your profile URL.</li>
+              <li><strong>Public Profiles:</strong> If you set up a username, your profile page (name, bio, avatar, and active wishlist items) is publicly visible at your profile URL. Shared collections are visible at their public link.</li>
+              <li><strong>Collaborators:</strong> When you join a shared collection, your name and avatar are visible to the collection owner and other collaborators.</li>
+              <li><strong>Gift Registry Visitors:</strong> When you reserve an item, the name you provide is visible to the collection owner, collaborators, and other visitors viewing the registry.</li>
               <li><strong>Service Providers:</strong> We use Supabase for authentication and data storage, and Vercel for hosting. These providers process data on our behalf under their respective privacy policies.</li>
               <li><strong>Legal Requirements:</strong> We may disclose your information if required by law, subpoena, or other legal process, or if we believe disclosure is necessary to protect our rights or the safety of others.</li>
             </ul>
 
-            <h2>4. Browser Extension</h2>
+            <h2>4. Browser Extension & Mobile App</h2>
             <p>
               Our browser extension accesses webpage content (product title, price, image) only when you
               actively click the extension button or use the "Add to Wist" feature. The extension:
@@ -217,12 +252,21 @@ export default function TermsPage() {
               <li>Does <strong>not</strong> run background scripts that monitor your activity.</li>
               <li>Only sends data to our servers when you choose to save an item.</li>
             </ul>
+            <p>
+              Our iOS mobile application communicates with our servers using authenticated APIs. It stores
+              your session token securely on your device. The app does not access your contacts, photos,
+              camera, microphone, or precise location. If the app requests any device permission in the
+              future, it will be clearly explained at the time of the request.
+            </p>
 
             <h2>5. Data Retention</h2>
             <p>
               We retain your account data and wishlist items for as long as your account is active. If you
               delete your account, we will delete your personal data within 30 days, except where we are
-              required to retain it for legal or compliance purposes.
+              required to retain it for legal or compliance purposes. This includes removing you from
+              shared collections and deleting any collaborator records associated with your account.
+              Item reservations made by visitors (without an account) are retained as long as the
+              associated collection exists and are deleted when the collection or item is removed.
             </p>
 
             <h2>6. Data Security</h2>
@@ -276,7 +320,7 @@ export default function TermsPage() {
               If you want to delete your Wist account and all associated data (including any data we received from Facebook or Instagram if you connected those accounts), you may:
             </p>
             <ul>
-              <li><strong>Email us:</strong> Send a request to <strong>support@wist.app</strong> (or support@nuvio.cloud) with the email address of your Wist account and the subject line &quot;Data deletion request.&quot;</li>
+              <li><strong>Contact us:</strong> Use the <Link href="/support#contact" className="text-violet-600 underline">Support contact form</Link>, or email <strong>support@wist.app</strong> with the email address of your Wist account and the subject line &quot;Data deletion request.&quot;</li>
               <li>We will confirm receipt and remove your account and personal data within 30 days (typically within 48 hours).</li>
               <li>After deletion, we will not retain your personal data except where required by law.</li>
             </ul>
@@ -286,7 +330,8 @@ export default function TermsPage() {
 
             <h2>12. Contact Us</h2>
             <p>
-              If you have questions or concerns about these Terms or this Privacy Policy, please contact us at:
+              If you have questions or concerns about these Terms or this Privacy Policy, reach us through the{' '}
+              <Link href="/support#contact" className="text-violet-600 underline">Support contact form</Link>, or at:
             </p>
             <p>
               <strong>Email:</strong> support@wist.app

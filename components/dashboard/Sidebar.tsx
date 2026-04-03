@@ -8,14 +8,14 @@ import {
   Heart, Home, ShoppingBag, Star, Bookmark, Tag, Box, Package, 
   Sparkles, Zap, Coffee, Music, Gamepad2, Shirt, Car, Plane, 
   Camera, Palette, Dumbbell, BookOpen, Laptop, Phone, Watch, 
-  Headphones, Utensils, Bed, Sofa, TreePine, Menu, X, EyeOff,
-  Moon, Sun, Upload
+  Headphones, Utensils, Bed, Sofa, TreePine,   Menu, X, EyeOff,
+  Moon, Sun, Upload, Share2
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useDarkMode } from '@/lib/hooks/useDarkMode';
 import NotificationCenter from '@/components/dashboard/NotificationCenter';
-import ImportModal from '@/components/dashboard/ImportModal';
+import { useDashboardImportModal } from '@/components/dashboard/ImportModalProvider';
 import AddItemForm from '@/components/dashboard/AddItemForm';
 import { getCollectionLimit, type SubscriptionTier } from '@/lib/constants/subscription-tiers';
 import { useTranslation } from '@/lib/i18n/context';
@@ -90,6 +90,8 @@ function CollectionItem({
   onIconChange,
   onRename,
   onNavigate,
+  publicUsername,
+  t,
 }: {
   collection: Collection;
   pathname: string | null;
@@ -99,6 +101,8 @@ function CollectionItem({
   onRename: (id: string, newName: string) => Promise<void>;
   /** e.g. close mobile drawer when a collection link is followed */
   onNavigate?: () => void;
+  publicUsername: string | null;
+  t: (key: string) => string;
 }) {
   const IconComponent = getIconComponent(collection.icon);
   const colorClass = COLOR_PALETTE.find(c => c.name === collection.color)?.class || 'text-violet-600 dark:text-violet-400';
@@ -109,6 +113,7 @@ function CollectionItem({
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(collection.name);
   const [renameSubmitting, setRenameSubmitting] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
 
   // Close icon picker when clicking outside
   useEffect(() => {
@@ -132,13 +137,33 @@ function CollectionItem({
     if (!isRenaming) setRenameValue(collection.name);
   }, [collection.name, isRenaming]);
 
-  const activeClass = pathname?.includes(collection.slug)
+  const collectionHref = `/dashboard/collection/${collection.slug}`;
+  const isCollectionActive = pathname === collectionHref;
+  const activeClass = isCollectionActive
     ? 'text-violet-600 dark:text-violet-400'
     : 'text-zinc-500 dark:text-zinc-400';
 
   const cancelRename = () => {
     setIsRenaming(false);
     setRenameValue(collection.name);
+  };
+
+  const handleShareCollection = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!publicUsername?.trim()) {
+      alert(t('Set a username in Settings to share collection links.'));
+      return;
+    }
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const url = `${origin}/u/${encodeURIComponent(publicUsername.trim())}/c/${encodeURIComponent(collection.slug)}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    } catch {
+      alert(url);
+    }
   };
 
   const submitRename = async (e: React.FormEvent) => {
@@ -163,14 +188,25 @@ function CollectionItem({
   return (
     <div className="group/item flex items-center justify-between px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-dpurple-900 transition-colors relative gap-1" ref={iconPickerRef}>
       {!isManaging ? (
-        <Link
-          href={`/dashboard?view=grouped&collection=${collection.slug}`}
-          onClick={() => onNavigate?.()}
-          className={`flex-1 flex items-center gap-3 text-sm font-medium truncate min-w-0 ${activeClass}`}
-        >
-          <IconComponent size={18} className={`flex-shrink-0 ${colorClass}`} />
-          <span className="truncate">{collection.name}</span>
-        </Link>
+        <>
+          <Link
+            href={collectionHref}
+            onClick={() => onNavigate?.()}
+            className={`flex-1 flex items-center gap-3 text-sm font-medium truncate min-w-0 ${activeClass}`}
+          >
+            <IconComponent size={18} className={`flex-shrink-0 ${colorClass}`} />
+            <span className="truncate">{collection.name}</span>
+          </Link>
+          <button
+            type="button"
+            onClick={handleShareCollection}
+            className="flex-shrink-0 p-1.5 rounded-md text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-zinc-100 dark:hover:bg-dpurple-800 transition-colors opacity-70 hover:opacity-100"
+            title={shareCopied ? t('Link copied!') : t('Share collection')}
+            aria-label={t('Share collection')}
+          >
+            {shareCopied ? <Check size={14} className="text-emerald-500" /> : <Share2 size={14} />}
+          </button>
+        </>
       ) : (
         <div className={`flex-1 flex items-center gap-2 text-sm font-medium min-w-0 ${activeClass}`}>
           <button
@@ -345,7 +381,7 @@ export function MobileHeader({ onMenuClick }: { onMenuClick: () => void }) {
           className="w-8 h-8 hidden dark:block"
         />
       </Link>
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 overflow-visible">
         <NotificationCenter compact />
         <button 
           onClick={onMenuClick}
@@ -387,7 +423,8 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
   const [showCreateIconPicker, setShowCreateIconPicker] = useState(false);
   const [loading, setLoading] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [showImport, setShowImport] = useState(false);
+  const [publicUsername, setPublicUsername] = useState<string | null>(null);
+  const { openImport } = useDashboardImportModal();
   const { t } = useTranslation();
   const createIconPickerRef = useRef<HTMLDivElement>(null);
   const createIconButtonRef = useRef<HTMLButtonElement>(null);
@@ -462,6 +499,14 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
     fetchCollections();
   }, []); // Runs once when component mounts
 
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from('profiles').select('username').eq('id', user.id).maybeSingle();
+      setPublicUsername(data?.username?.trim() || null);
+    })();
+  }, []);
 
   const collectionLimit = getCollectionLimit((tier || 'free') as SubscriptionTier);
   const isAtCollectionLimit = collectionLimit !== null && collections.length >= collectionLimit;
@@ -545,7 +590,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
 
   // Delete Collection (Directly from Sidebar)
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this collection? Items will move to 'Uncategorized'.")) return;
+    if (!confirm(t("Delete this collection? Items will move to 'No collection'."))) return;
     
     const { error } = await supabase.from('collections').delete().eq('id', id);
 
@@ -554,7 +599,10 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
       setCollections(collections.filter(c => c.id !== id));
       router.refresh();
       // If we're on the deleted collection's page, redirect to dashboard
-      if (pathname?.includes(deletedCollection?.slug || '')) {
+      if (
+        deletedCollection &&
+        pathname === `/dashboard/collection/${deletedCollection.slug}`
+      ) {
         router.push('/dashboard');
       }
     } else {
@@ -626,7 +674,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
   // Sidebar content - shared between desktop and mobile
   const sidebarContent = (
     <>
-      {/* View Switcher (Timeline / Categories) */}
+      {/* View Switcher (Timeline / Collections) */}
       <div className="px-4 pt-4 mb-4">
         <div className="flex p-1 bg-beige-100 dark:bg-dpurple-900 border border-beige-200 dark:border-dpurple-600 rounded-lg shadow-sm">
           <Link 
@@ -649,7 +697,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
             }`}
           >
             <Layers size={16} />
-            {t('Categories')}
+            {t('Collections')}
           </Link>
         </div>
       </div>
@@ -671,7 +719,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
 
       {/* Collections Header with Manage Button */}
       <div className="flex items-center justify-between mb-2 px-4 group">
-        <h3 className="text-xs font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-wider">{t('Collections')}</h3>
+        <h3 className="text-xs font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-wider">{t('Your lists')}</h3>
         <div className="flex gap-1 md:opacity-40 md:group-hover:opacity-100 transition-opacity">
           <button 
             onClick={() => setIsManaging(!isManaging)}
@@ -903,6 +951,8 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
                   onIconChange={handleIconChange}
                   onRename={handleRenameCollection}
                   onNavigate={() => setMobileMenuOpen(false)}
+                  publicUsername={publicUsername}
+                  t={t}
                 />
               ))}
             </div>
@@ -910,7 +960,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
             {/* Settings & Dark Mode at Bottom */}
             <div className="border-t border-zinc-200 dark:border-dpurple-700 px-4 py-4 mt-auto space-y-1">
               <button
-                onClick={() => { setMobileMenuOpen(false); setShowImport(true) }}
+                onClick={() => { setMobileMenuOpen(false); openImport() }}
                 className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-zinc-400 dark:text-zinc-500 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-zinc-50 dark:hover:bg-dpurple-900 transition-colors"
               >
                 <Upload size={18} />
@@ -1116,6 +1166,8 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
             onDelete={handleDelete}
             onIconChange={handleIconChange}
             onRename={handleRenameCollection}
+            publicUsername={publicUsername}
+            t={t}
           />
         ))}
       </div>
@@ -1123,7 +1175,7 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
       {/* Bottom actions */}
       <div className="border-t border-zinc-200 dark:border-dpurple-700 px-4 py-3 mt-auto space-y-1">
         <button
-          onClick={() => setShowImport(true)}
+          onClick={() => openImport()}
           className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-zinc-400 dark:text-zinc-500 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-zinc-50 dark:hover:bg-dpurple-900 transition-colors"
         >
           <Upload size={18} />
@@ -1132,14 +1184,6 @@ export default function Sidebar({ initialCollections = [], tier }: { initialColl
         <DarkModeToggle />
       </div>
 
-      <ImportModal
-        isOpen={showImport}
-        onClose={() => setShowImport(false)}
-        onComplete={() => {
-          setShowImport(false)
-          window.location.reload()
-        }}
-      />
     </aside>
     </>
   );

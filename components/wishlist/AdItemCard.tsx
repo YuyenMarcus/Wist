@@ -41,7 +41,7 @@ const AD_CREATIVES = [
     gradient: 'from-violet-600 to-purple-700',
     icon: Crown,
     headline: 'Go unlimited',
-    body: 'Unlimited items, 12-hour price checks, receipt tracking, and more.',
+    body: 'Unlimited items, 12-hour price checks, advanced alerts, and more.',
     cta: 'See plans',
     href: '/#pricing',
     accent: 'violet',

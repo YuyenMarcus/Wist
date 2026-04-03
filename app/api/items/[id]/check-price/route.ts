@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { staticScrape } from '@/lib/scraper/static-scraper'
+import { cleanPrice as cleanPriceValue } from '@/lib/scraper/utils'
 import { getServiceRoleSupabase, hasServiceRoleKey } from '@/lib/supabase/service-role'
 import {
   queuePriceDropNotification,
@@ -41,9 +42,9 @@ export async function POST(
         const waitSec = Math.ceil((COOLDOWN_MS - msSinceLast) / 1000)
         const { data: priceHistory } = await supabase
           .from('price_history')
-          .select('price, recorded_at')
+          .select('price, created_at')
           .eq('item_id', itemId)
-          .order('recorded_at', { ascending: false })
+          .order('created_at', { ascending: false })
           .limit(10)
 
         return NextResponse.json({
@@ -102,8 +103,8 @@ export async function POST(
           newPrice = result.price
           scrapeSource = 'static'
         } else if (result?.priceRaw) {
-          const parsed = parseFloat(result.priceRaw.replace(/[^0-9.]/g, ''))
-          if (parsed > 0) {
+          const parsed = cleanPriceValue(result.priceRaw)
+          if (parsed && parsed > 0) {
             newPrice = parsed
             scrapeSource = 'static-parsed'
           }
@@ -127,24 +128,22 @@ export async function POST(
 
       await supabase.from('items').update(updateData).eq('id', itemId)
 
-      // Bell + /api/notifications read `notification_queue`; badge uses `price_history` only — keep both in sync.
-      if (
-        priceChanged &&
-        oldPrice > 0 &&
-        hasServiceRoleKey()
-      ) {
+      // Bell reads `notification_queue` via GET /api/notifications. Use service role when
+      // available; otherwise the user session can insert if RLS policy
+      // "Users can insert notifications for own items" exists (see supabase-notification-queue-user-insert.sql).
+      if (priceChanged && oldPrice > 0) {
         try {
-          const admin = getServiceRoleSupabase()
-          const { data: profile } = await admin
+          const queueClient = hasServiceRoleKey() ? getServiceRoleSupabase() : supabase
+          const { data: profile } = await supabase
             .from('profiles')
             .select('subscription_tier')
             .eq('id', user.id)
             .maybeSingle()
           const tier = profile?.subscription_tier || 'free'
           if (newPrice < oldPrice) {
-            await queuePriceDropNotification(admin, user.id, itemId, oldPrice, newPrice, tier)
+            await queuePriceDropNotification(queueClient, user.id, itemId, oldPrice, newPrice, tier)
           } else if (newPrice > oldPrice) {
-            await queuePriceIncreaseNotification(admin, user.id, itemId, oldPrice, newPrice, tier)
+            await queuePriceIncreaseNotification(queueClient, user.id, itemId, oldPrice, newPrice, tier)
           }
         } catch (e) {
           console.warn('[check-price] notification queue skipped:', e)
@@ -155,9 +154,9 @@ export async function POST(
 
       const { data: priceHistory } = await supabase
         .from('price_history')
-        .select('price, recorded_at')
+        .select('price, created_at')
         .eq('item_id', itemId)
-        .order('recorded_at', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(10)
 
       let priceChange = null
@@ -192,9 +191,9 @@ export async function POST(
 
     const { data: priceHistory } = await supabase
       .from('price_history')
-      .select('price, recorded_at')
+      .select('price, created_at')
       .eq('item_id', itemId)
-      .order('recorded_at', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(10)
 
     return NextResponse.json({

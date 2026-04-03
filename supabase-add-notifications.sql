@@ -62,3 +62,21 @@ DO $$ BEGIN
       WITH CHECK (true);
   END IF;
 END $$;
+
+-- Authenticated users can queue rows for their own items (manual check-price without service role)
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'notification_queue' AND policyname = 'Users can insert notifications for own items'
+  ) THEN
+    CREATE POLICY "Users can insert notifications for own items"
+      ON notification_queue FOR INSERT TO authenticated
+      WITH CHECK (
+        auth.uid() = user_id
+        AND item_id IS NOT NULL
+        AND EXISTS (
+          SELECT 1 FROM items
+          WHERE items.id = item_id AND items.user_id = auth.uid()
+        )
+      );
+  END IF;
+END $$;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Share2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase/client';
@@ -15,12 +15,30 @@ export default function CollectionShareButton({ collectionId, collectionSlug, in
   const [isPublic, setIsPublic] = useState(initialIsPublic);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [username, setUsername] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user?.id) {
+        supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', data.user.id)
+          .single()
+          .then(({ data: profile }) => {
+            setUsername(profile?.username || null);
+          });
+      }
+    });
+  }, []);
 
   const handleShare = async () => {
     try {
-      // For now, just copy the collection URL to clipboard
-      // In the future, this can toggle is_public and generate share_token
-      const shareUrl = `${window.location.origin}/dashboard/collection/${collectionSlug}`;
+      if (!username) {
+        alert('Set a username in Settings to share collection links.');
+        return;
+      }
+      const shareUrl = `${window.location.origin}/u/${encodeURIComponent(username)}/c/${encodeURIComponent(collectionSlug)}`;
       
       await navigator.clipboard.writeText(shareUrl);
       setSuccess(true);

@@ -586,7 +586,7 @@ export default function AccountPage() {
         <div className="mt-4 p-4 text-center">
           <button
             onClick={async () => {
-              await supabase.auth.signOut()
+              await supabase.auth.signOut({ scope: 'local' })
               router.push('/login')
               router.refresh()
             }}

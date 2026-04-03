@@ -72,8 +72,15 @@ export default function NotificationCenter({ compact = false }: NotificationCent
 
   useEffect(() => {
     fetchNotifications()
-    const interval = setInterval(fetchNotifications, 60000)
-    return () => clearInterval(interval)
+    const interval = setInterval(fetchNotifications, 20000)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') fetchNotifications()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [fetchNotifications])
 
   useLayoutEffect(() => {
@@ -175,6 +182,11 @@ export default function NotificationCenter({ compact = false }: NotificationCent
             <span className="font-semibold text-zinc-900 dark:text-zinc-100">{short}</span>{' '}
             {t('went up')}{' '}
             <span className="font-bold text-red-500">{pct}%</span>
+            {n.old_price != null && n.new_price != null ? (
+              <span className="text-zinc-400 dark:text-zinc-500">
+                {' '}(${n.old_price.toFixed(2)} → ${n.new_price.toFixed(2)})
+              </span>
+            ) : null}
           </>
         )
       }
@@ -196,7 +208,7 @@ export default function NotificationCenter({ compact = false }: NotificationCent
   }
 
   return (
-    <div className="relative">
+    <div className="relative overflow-visible">
       {/* Bell Button */}
       <button
         ref={bellRef}
@@ -207,19 +219,30 @@ export default function NotificationCenter({ compact = false }: NotificationCent
             return next
           })
         }}
-        className={`relative rounded-full p-2.5 sm:p-3 shadow-sm border transition-all ${
+        className={`relative shrink-0 overflow-visible rounded-full p-2.5 sm:p-3 shadow-sm border transition-all ${
           unreadCount > 0
             ? 'bg-beige-100 dark:bg-dpurple-900 text-violet-600 dark:text-violet-400 border-violet-200 dark:border-violet-800 hover:bg-violet-50 dark:hover:bg-violet-950'
             : 'bg-beige-100 dark:bg-dpurple-900 text-zinc-400 dark:text-zinc-500 border-beige-200 dark:border-dpurple-600 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-beige-50 dark:hover:bg-dpurple-800'
         }`}
-        title={t('Notifications')}
+        title={unreadCount > 0 ? `${t('Notifications')} (${unreadCount})` : t('Notifications')}
+        aria-label={unreadCount > 0 ? `${t('Notifications')}, ${unreadCount}` : t('Notifications')}
       >
         <Bell size={compact ? 16 : 18} className="sm:w-5 sm:h-5" />
 
-        {/* Badge */}
+        {/* Unread bubble — dot for one; pill with count for multiple (stays inside tap target, high contrast) */}
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-red-500 rounded-full ring-2 ring-white dark:ring-dpurple-950">
-            {unreadCount > 9 ? '9+' : unreadCount}
+          <span
+            className={`pointer-events-none absolute z-10 flex items-center justify-center rounded-full bg-red-500 font-bold text-white shadow-md ring-2 ring-white dark:ring-dpurple-950 ${
+              unreadCount === 1
+                ? compact
+                  ? 'right-0.5 top-0.5 h-2.5 w-2.5'
+                  : 'right-1 top-1 h-2.5 w-2.5 sm:h-3 sm:w-3'
+                : compact
+                  ? 'right-0 top-0 min-h-[16px] min-w-[16px] translate-x-1/4 -translate-y-1/4 px-1 text-[9px] leading-none'
+                  : 'right-0 top-0 min-h-[18px] min-w-[18px] translate-x-[15%] -translate-y-[20%] px-1 text-[10px] leading-none'
+            }`}
+          >
+            {unreadCount > 1 ? (unreadCount > 9 ? '9+' : unreadCount) : null}
           </span>
         )}
       </button>

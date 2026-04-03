@@ -1,16 +1,27 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { PublicProfileData, PublicItem } from '@/lib/supabase/public-profile';
 import { getProfileTheme, type ProfileTheme } from '@/lib/constants/profile-themes';
 import TierBadge from '@/components/ui/TierBadge';
-import { Globe, Sparkles, Plus, Check, Loader2 } from 'lucide-react';
+import { Globe, Sparkles, Plus, Check, Loader2, Gift, Users } from 'lucide-react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase/client';
+
+interface SharedCollectionProps {
+  name: string;
+  slug: string;
+  id?: string;
+  registry_mode?: boolean;
+  background_image_url?: string | null;
+  collab_join_href?: string | null;
+}
 
 interface PublicProfileViewProps {
   profile: PublicProfileData;
   items: PublicItem[];
+  sharedCollection?: SharedCollectionProps | null;
+  reservations?: Record<string, { name: string | null }>;
 }
 
 function InstagramIcon({ className }: { className?: string }) {
@@ -104,14 +115,179 @@ function AddToMyListButton({ item, theme }: { item: PublicItem; theme: ProfileTh
   );
 }
 
+const reserveBtnBase =
+  'absolute top-2 right-2 z-20 flex items-center justify-center gap-2 min-h-[44px] px-4 py-2.5 rounded-full text-white shadow-lg text-sm font-semibold active:scale-[0.98] transition-all';
+
+function ReserveButton({
+  item,
+  collectionId,
+  isReserved,
+  reserverName,
+  theme,
+  onReserved,
+  onUnreserved,
+}: {
+  item: PublicItem;
+  collectionId: string;
+  isReserved: boolean;
+  reserverName: string | null;
+  theme: ProfileTheme;
+  onReserved: (itemId: string, token: string, name: string) => void;
+  onUnreserved: (itemId: string) => void;
+}) {
+  const [state, setState] = useState<'idle' | 'confirm'>('idle');
+  const [unreserveLoading, setUnreserveLoading] = useState(false);
+  const [reserveSubmitting, setReserveSubmitting] = useState(false);
+  const [name, setName] = useState('');
+  const storageKey = `wist_reserve_${item.id}`;
+  const savedToken = typeof window !== 'undefined' ? localStorage.getItem(storageKey) : null;
+
+  if (isReserved) {
+    if (savedToken) {
+      return (
+        <button
+          type="button"
+          disabled={unreserveLoading}
+          onClick={async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setUnreserveLoading(true);
+            try {
+              const res = await fetch(`/api/collections/${collectionId}/items/${item.id}/reserve`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ unreserveToken: savedToken }),
+              });
+              const data = await res.json().catch(() => ({}));
+              if (res.ok) {
+                localStorage.removeItem(storageKey);
+                onUnreserved(item.id);
+              } else {
+                alert(typeof data.error === 'string' ? data.error : 'Could not unreserve. Try again.');
+              }
+            } catch {
+              alert('Could not unreserve. Check your connection and try again.');
+            } finally {
+              setUnreserveLoading(false);
+            }
+          }}
+          className={`${reserveBtnBase} bg-zinc-700 hover:bg-zinc-800 disabled:opacity-60`}
+        >
+          {unreserveLoading ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : (
+            'Unreserve'
+          )}
+        </button>
+      );
+    }
+    return (
+      <div className={`${reserveBtnBase} bg-emerald-600 pointer-events-none cursor-default`}>
+        <Check className="w-5 h-5 shrink-0" />
+        <span className="max-w-[140px] sm:max-w-[200px] truncate">
+          {reserverName ? `Reserved by ${reserverName}` : 'Reserved'}
+        </span>
+      </div>
+    );
+  }
+
+  if (state === 'confirm') {
+    return (
+      <div
+        className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/60 rounded-xl p-4"
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Reserve this gift"
+      >
+        <p className="text-white text-sm font-semibold mb-2">Your name (optional)</p>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g. Sarah"
+          className="w-full rounded-lg px-3 py-2 text-sm bg-white/90 text-zinc-900 placeholder:text-zinc-400 mb-3"
+          autoFocus
+          onClick={(e) => e.stopPropagation()}
+        />
+        <div className="flex gap-2 w-full">
+          <button
+            type="button"
+            disabled={reserveSubmitting}
+            onClick={async (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setReserveSubmitting(true);
+              try {
+                const res = await fetch(`/api/collections/${collectionId}/items/${item.id}/reserve`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ name: name.trim() || undefined }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok && data.token) {
+                  localStorage.setItem(storageKey, data.token);
+                  onReserved(item.id, data.token, name.trim());
+                  setState('idle');
+                } else {
+                  alert(typeof data.error === 'string' ? data.error : 'Could not reserve this item.');
+                }
+              } catch {
+                alert('Could not reserve. Check your connection and try again.');
+              } finally {
+                setReserveSubmitting(false);
+              }
+            }}
+            className="flex-1 rounded-xl bg-emerald-500 text-white text-sm font-semibold py-2.5 hover:bg-emerald-600 transition-colors disabled:opacity-60"
+          >
+            {reserveSubmitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Confirm'}
+          </button>
+          <button
+            type="button"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setState('idle'); }}
+            disabled={reserveSubmitting}
+            className="flex-1 rounded-xl bg-zinc-200 text-zinc-800 text-sm font-semibold py-2.5 hover:bg-zinc-300 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setState('confirm'); }}
+      className={`${reserveBtnBase} bg-gradient-to-r ${theme.avatarGradient} hover:opacity-95`}
+      title="Reserve this item"
+    >
+      <Gift className="w-5 h-5 shrink-0" />
+      Reserve
+    </button>
+  );
+}
+
 function PublicItemCard({
   item,
   amazonTag,
   theme,
+  registryMode,
+  collectionId,
+  isReserved,
+  reserverName,
+  onReserved,
+  onUnreserved,
 }: {
   item: PublicItem;
   amazonTag?: string | null;
   theme: ProfileTheme;
+  registryMode?: boolean;
+  collectionId?: string;
+  isReserved?: boolean;
+  reserverName?: string | null;
+  onReserved?: (itemId: string, token: string, name: string) => void;
+  onUnreserved?: (itemId: string) => void;
 }) {
   let href = item.url;
   if (amazonTag && href && /amazon\./i.test(href)) {
@@ -123,44 +299,91 @@ function PublicItemCard({
   }
 
   return (
-    <a
-      href={href || '#'}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={`relative block rounded-xl overflow-hidden border ${theme.borderColor} ${theme.cardBg} shadow-sm hover:shadow-md transition-shadow group`}
+    <div
+      className={`relative rounded-xl overflow-hidden border ${theme.borderColor} ${theme.cardBg} shadow-sm hover:shadow-md transition-shadow group`}
     >
-      <AddToMyListButton item={item} theme={theme} />
-      {item.image && (
-        <div className="aspect-square overflow-hidden bg-zinc-100">
-          <img
-            src={item.image}
-            alt={item.title || ''}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            loading="lazy"
-          />
-        </div>
+      {registryMode && collectionId && onReserved && onUnreserved ? (
+        <ReserveButton
+          item={item}
+          collectionId={collectionId}
+          isReserved={!!isReserved}
+          reserverName={reserverName ?? null}
+          theme={theme}
+          onReserved={onReserved}
+          onUnreserved={onUnreserved}
+        />
+      ) : (
+        <AddToMyListButton item={item} theme={theme} />
       )}
-      <div className="p-3">
-        {item.title && (
-          <h3 className={`text-sm font-medium ${theme.text} line-clamp-2 leading-snug`}>
-            {item.title}
-          </h3>
+      <a
+        href={href || '#'}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent rounded-b-xl"
+        onClick={(e) => {
+          if (!href || href === '#') e.preventDefault();
+        }}
+      >
+        {item.image && (
+          <div className={`aspect-square overflow-hidden bg-zinc-100 relative ${isReserved ? 'after:absolute after:inset-0 after:bg-black/30' : ''}`}>
+            <img
+              src={item.image}
+              alt={item.title || ''}
+              className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${isReserved ? 'blur-[2px]' : ''}`}
+              loading="lazy"
+            />
+            {isReserved && (
+              <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+                <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg">
+                  <Check className="w-6 h-6 text-white" />
+                </div>
+              </div>
+            )}
+          </div>
         )}
-        {item.price != null && item.price > 0 && (
-          <p className={`mt-1.5 text-sm font-bold ${theme.accent}`}>
-            ${Number(item.price).toFixed(2)}
-          </p>
-        )}
-      </div>
-    </a>
+        <div className="p-3">
+          {item.title && (
+            <h3 className={`text-sm font-medium ${theme.text} line-clamp-2 leading-snug`}>
+              {item.title}
+            </h3>
+          )}
+          {item.price != null && item.price > 0 && (
+            <p className={`mt-1.5 text-sm font-bold ${theme.accent}`}>
+              ${Number(item.price).toFixed(2)}
+            </p>
+          )}
+        </div>
+      </a>
+    </div>
   );
 }
 
-export default function PublicProfileView({ profile, items }: PublicProfileViewProps) {
+export default function PublicProfileView({
+  profile,
+  items,
+  sharedCollection = null,
+  reservations: initialReservations = {},
+}: PublicProfileViewProps) {
   const hasSocials = profile.instagram_handle || profile.tiktok_handle || profile.website;
   const theme = getProfileTheme(profile.profile_theme);
   const isDarkTheme = theme.isDark;
   const [isSignedIn, setIsSignedIn] = useState<boolean | null>(null);
+  const [reservations, setReservations] = useState(initialReservations);
+  const isRegistryMode = sharedCollection?.registry_mode === true;
+  const collectionId = sharedCollection?.id;
+  const backgroundImage = sharedCollection?.background_image_url;
+
+  const handleReserved = useCallback((itemId: string, _token: string, name: string) => {
+    setReservations(prev => ({ ...prev, [itemId]: { name: name || null } }));
+  }, []);
+
+  const handleUnreserved = useCallback((itemId: string) => {
+    setReservations(prev => {
+      const next = { ...prev };
+      delete next[itemId];
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -178,8 +401,19 @@ export default function PublicProfileView({ profile, items }: PublicProfileViewP
   }, [isDarkTheme]);
 
   return (
-    <div className={`min-h-screen ${theme.bg} transition-colors`}>
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 sm:pt-20 pb-32">
+    <div
+      className={`min-h-screen transition-colors relative isolate ${backgroundImage ? '' : theme.bg}`}
+    >
+      {backgroundImage ? (
+        <div className="pointer-events-none fixed inset-0 z-0" aria-hidden>
+          <div
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+            style={{ backgroundImage: `url(${backgroundImage})` }}
+          />
+          <div className="absolute inset-0 bg-black/50" />
+        </div>
+      ) : null}
+      <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 sm:pt-20 pb-32">
         {/* Header */}
         <header className="flex flex-col items-center text-center mb-10 sm:mb-16 px-2">
           {profile.avatar_url ? (
@@ -197,11 +431,24 @@ export default function PublicProfileView({ profile, items }: PublicProfileViewP
           )}
 
           <h1 className={`mt-4 text-xl sm:text-3xl font-bold ${theme.text} tracking-tight flex items-center justify-center gap-2 flex-wrap`}>
-            {profile.full_name || `${profile.username}'s Wishlist`}
+            {sharedCollection
+              ? `${profile.full_name || profile.username}'s ${sharedCollection.name}`
+              : profile.full_name || `${profile.username}'s Wishlist`}
             <TierBadge tier={profile.subscription_tier} size="md" />
           </h1>
 
           <p className={`mt-1 text-sm ${theme.textSecondary} font-medium`}>@{profile.username}</p>
+
+          {sharedCollection && (
+            <p className={`mt-2 text-xs sm:text-sm ${theme.textSecondary}`}>
+              <Link
+                href={`/u/${encodeURIComponent(profile.username)}`}
+                className={`font-medium underline-offset-2 hover:underline ${theme.accent}`}
+              >
+                View full wishlist
+              </Link>
+            </p>
+          )}
 
           {profile.bio && (
             <p className={`mt-3 text-sm sm:text-base ${theme.textSecondary} max-w-md leading-relaxed`}>
@@ -249,8 +496,45 @@ export default function PublicProfileView({ profile, items }: PublicProfileViewP
 
           <p className={`mt-3 text-sm ${theme.textSecondary}`}>
             {items.length} {items.length === 1 ? 'item' : 'items'}
+            {sharedCollection ? ' in this collection' : ''}
           </p>
         </header>
+
+        {/* Collaboration join — only when owner enabled it on the shared collection */}
+        {sharedCollection?.collab_join_href && (
+          <div className="flex justify-center mb-6 px-2">
+            <div
+              className={`flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 w-full max-w-md px-4 py-3 rounded-xl border ${theme.borderColor} ${theme.cardBg} shadow-sm`}
+            >
+              <div className="flex items-start gap-2 text-left flex-1 min-w-0">
+                <Users className="w-5 h-5 text-violet-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className={`text-sm font-semibold ${theme.text}`}>Join this collection</p>
+                  <p className={`text-xs mt-0.5 ${theme.textSecondary}`}>
+                    The list owner invited collaborators. Sign in to join and help manage items.
+                  </p>
+                </div>
+              </div>
+              <Link
+                href={sharedCollection.collab_join_href}
+                className={`shrink-0 inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 transition-colors shadow-sm`}
+              >
+                Join
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* Registry badge */}
+        {isRegistryMode && (
+          <div className="flex justify-center mb-6">
+            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border ${theme.borderColor} ${theme.cardBg} shadow-sm`}>
+              <Gift className="w-4 h-4 text-emerald-500" />
+              <span className={`text-sm font-medium ${theme.text}`}>Gift Registry</span>
+              <span className={`text-xs ${theme.textSecondary}`}>— tap an item to reserve it</span>
+            </div>
+          </div>
+        )}
 
         {/* Grid */}
         {items.length > 0 ? (
@@ -261,12 +545,20 @@ export default function PublicProfileView({ profile, items }: PublicProfileViewP
                 item={item}
                 amazonTag={profile.amazon_affiliate_id}
                 theme={theme}
+                registryMode={isRegistryMode}
+                collectionId={collectionId}
+                isReserved={!!reservations[item.id]}
+                reserverName={reservations[item.id]?.name}
+                onReserved={handleReserved}
+                onUnreserved={handleUnreserved}
               />
             ))}
           </div>
         ) : (
           <div className="text-center py-20">
-            <p className={theme.textSecondary}>This wishlist is empty.</p>
+            <p className={theme.textSecondary}>
+              {sharedCollection ? 'This collection is empty.' : 'This wishlist is empty.'}
+            </p>
           </div>
         )}
       </div>

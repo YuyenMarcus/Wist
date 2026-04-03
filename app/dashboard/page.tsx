@@ -12,10 +12,10 @@ import { getProfile, ensureProfile, Profile } from '@/lib/supabase/profile'
 import LavenderLoader from '@/components/ui/LavenderLoader'
 import SkeletonDashboard from '@/components/ui/SkeletonDashboard'
 import OnboardingFlow from '@/components/onboarding/OnboardingFlow'
-import { Layers, LayoutGrid, Sparkles, Loader2, Clock, Plus, X, Pin } from 'lucide-react'
+import { Layers, LayoutGrid, Sparkles, Loader2, Clock, Plus, X, Pin, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import QueuedItemCard from '@/components/dashboard/QueuedItemCard'
-import ImportModal from '@/components/dashboard/ImportModal'
+import { useDashboardImportModal } from '@/components/dashboard/ImportModalProvider'
 import AddItemForm from '@/components/dashboard/AddItemForm'
 import PageTransition from '@/components/ui/PageTransition'
 import { useTranslation } from '@/lib/i18n/context'
@@ -76,10 +76,10 @@ export default function DashboardPage() {
   const [queuedItems, setQueuedItems] = useState<any[]>([])
   const [collections, setCollections] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
   const [autoOrganizing, setAutoOrganizing] = useState(false)
+  const [clearingQueue, setClearingQueue] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
-  const [showImportFromGrid, setShowImportFromGrid] = useState(false)
+  const { openImport } = useDashboardImportModal()
   const [showMobileAddForm, setShowMobileAddForm] = useState(false)
   const [autoOrganizeStats, setAutoOrganizeStats] = useState<{
     canAutoCategorize: number;
@@ -91,7 +91,12 @@ export default function DashboardPage() {
   // Determine view mode from URL parameter
   const viewMode = searchParams?.get('view') === 'grouped' ? 'grouped' : 'timeline'
 
-  // Group items by collection for the Categories view - use useMemo to ensure proper computation
+  const collectionIdSet = useMemo(
+    () => new Set(collections.map((c: any) => c.id?.toString()).filter(Boolean)),
+    [collections]
+  )
+
+  // Group items by collection for the Collections view - use useMemo to ensure proper computation
   const groupedItems = useMemo(() => {
     if (!products.length) {
       return []
@@ -120,8 +125,14 @@ export default function DashboardPage() {
 
   const uncategorizedItems = useMemo(() => {
     const uncategorized = products.filter((item: any) => {
-      const hasCollectionId = item.collection_id !== null && item.collection_id !== undefined && item.collection_id !== ''
-      return !hasCollectionId
+      const cid =
+        item.collection_id !== null && item.collection_id !== undefined && item.collection_id !== ''
+          ? String(item.collection_id)
+          : null
+      if (!cid) return true
+      // Orphaned: collection_id points to a list we didn't load (deleted, RLS, etc.) — still show the item
+      if (!collectionIdSet.has(cid)) return true
+      return false
     })
     
     // Debug logging
@@ -133,16 +144,7 @@ export default function DashboardPage() {
     }
     
     return uncategorized
-  }, [products, viewMode])
-
-  /** Sum of $ saved from price drops (negative price_change vs last history point). */
-  const totalSavings = useMemo(() => {
-    return products.reduce((sum, p: any) => {
-      const pc = p.price_change
-      if (typeof pc === 'number' && pc < 0) return sum - pc
-      return sum
-    }, 0)
-  }, [products])
+  }, [products, viewMode, collectionIdSet])
 
   // Load user, profile, and products
   useEffect(() => {
@@ -371,9 +373,15 @@ export default function DashboardPage() {
                 body: JSON.stringify({
                   id: item.id,
                   title: scraped.title,
-                  price: scraped.price || undefined,
+                  price:
+                    typeof scraped.price === 'number' && scraped.price > 0
+                      ? scraped.price
+                      : scraped.original_price_raw != null && scraped.original_price_raw !== ''
+                        ? String(scraped.original_price_raw).replace(/[^0-9.]/g, '')
+                        : undefined,
                   image_url: scraped.image || scraped.image_url || undefined,
                   status: 'active',
+                  out_of_stock: scraped.out_of_stock === true,
                   client_tier: profile?.subscription_tier || undefined,
                 }),
               })
@@ -403,49 +411,40 @@ export default function DashboardPage() {
 
   const handleDelete = async (productId: string) => {
     if (!user) return
-    
+
     if (!confirm('Are you sure you want to delete this item?')) return
 
-    // 1. Optimistic Update
-    setProducts(prev => prev.filter(p => p.id !== productId))
+    setProducts((prev) => prev.filter((p) => p.id !== productId))
 
     try {
-      // Get token
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      const token = session?.access_token
+
       if (!token) {
-        alert("Please log in again.");
-        return;
+        alert('Please log in again.')
+        await fetchItems()
+        return
       }
 
-      // 2. LOG the URL we are about to hit
-      const url = `/api/delete-item?id=${productId}`;
-      console.log("🚀 Sending DELETE request to:", url);
-
-      // 3. Send request (ID is in the URL, not the body)
-      const res = await fetch(url, {
+      const res = await fetch(`/api/delete-item?id=${productId}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      
-        const data = await res.json();
-      
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      const data = await res.json()
+
       if (!res.ok || !data.success) {
-        console.error("❌ Server Response:", data);
-        throw new Error(data.message || 'Failed to delete');
+        console.error('Delete failed:', data)
+        throw new Error(data.message || 'Failed to delete')
       }
-      
-      console.log("✅ Deleted successfully!");
-      // Refresh the list after successful delete
-      await fetchItems();
-    } catch (error: any) {
-      console.error(error);
-      alert("Could not delete item. Reloading...");
-      // Re-fetch to restore UI if delete failed
-      await fetchItems();
+      // Do not refetch the full list here — that was causing a 1s+ re-render of the
+      // entire dashboard. Optimistic state already matches the server.
+    } catch (error: unknown) {
+      console.error(error)
+      alert('Could not delete item. Restoring your list…')
+      await fetchItems()
     }
   }
 
@@ -461,25 +460,6 @@ export default function DashboardPage() {
     if (!result.error && result.data) {
       setProducts(result.data)
       setQueuedItems(result.queued || [])
-    }
-  }
-
-  async function handleRefreshPrices() {
-    setRefreshing(true)
-    try {
-      const res = await fetch('/api/cron/check-prices')
-      const result = await res.json()
-      if (result.success) {
-        alert(`Scanned ${result.checked} items. Updated ${result.updates} prices.`)
-      } else {
-        alert('Failed to refresh prices: ' + (result.error || 'Unknown error'))
-      }
-      fetchItems() // Reload the list to see changes
-    } catch (e: any) {
-      console.error(e)
-      alert('Failed to refresh prices: ' + (e.message || 'Network error'))
-    } finally {
-      setRefreshing(false)
     }
   }
 
@@ -505,7 +485,8 @@ export default function DashboardPage() {
     }
     
     fetchAutoOrganizeStats()
-  }, [viewMode, user, products])
+    // Use length (not full `products`) so reflows like title edits don’t hit the API; deletes/hides still update length.
+  }, [viewMode, user, products.length])
 
   async function handleAutoOrganize() {
     if (autoOrganizing) return
@@ -597,6 +578,35 @@ export default function DashboardPage() {
     setQueuedItems(prev => prev.filter(q => q.id !== id))
   }
 
+  const handleDeleteAllQueued = async () => {
+    if (!user || queuedItems.length === 0) return
+    const n = queuedItems.length
+    if (!confirm(`Delete all ${n} item${n === 1 ? '' : 's'} in your queue? This cannot be undone.`)) {
+      return
+    }
+    setClearingQueue(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/items/queue', {
+        method: 'DELETE',
+        headers: {
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+      })
+      const payload = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        alert(typeof payload.error === 'string' ? payload.error : 'Could not clear queue.')
+        return
+      }
+      setQueuedItems([])
+    } catch (e) {
+      console.error('Clear queue failed:', e)
+      alert('Could not clear queue.')
+    } finally {
+      setClearingQueue(false)
+    }
+  }
+
   const handleOnboardingComplete = async () => {
     setShowOnboarding(false)
     if (user) {
@@ -635,9 +645,6 @@ export default function DashboardPage() {
         user={user} 
         profile={profile}
         itemCount={products.length}
-        totalSavings={totalSavings}
-        onRefreshPrices={handleRefreshPrices}
-        refreshing={refreshing}
       />
 
 
@@ -679,16 +686,31 @@ export default function DashboardPage() {
         {/* Queued Items Banner */}
         {queuedItems.length > 0 && (
           <div className="mb-8">
-            <div className="flex items-center gap-2 mb-4">
-              <Clock className="w-4 h-4 text-amber-600" />
-              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                Queue ({queuedItems.length})
-              </h3>
-              <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                {autoActivateEnabled
-                  ? 'Items auto-activate on desktop with the extension'
-                  : 'Press Activate on each item to scrape and add it'}
-              </span>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+              <div className="flex flex-wrap items-center gap-2 min-w-0">
+                <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  Queue ({queuedItems.length})
+                </h3>
+                <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                  {autoActivateEnabled
+                    ? 'Items auto-activate on desktop with the extension'
+                    : 'Press Activate on each item to scrape and add it'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleDeleteAllQueued}
+                disabled={clearingQueue}
+                className="shrink-0 self-end sm:self-auto inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border border-red-200/80 dark:border-red-900/50 hover:bg-red-100 dark:hover:bg-red-950/70 disabled:opacity-50 transition-colors"
+              >
+                {clearingQueue ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                Delete all
+              </button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {queuedItems.map((item: any) => (
@@ -718,11 +740,11 @@ export default function DashboardPage() {
             adultFilterEnabled={adultFilterEnabled}
             tier={profile?.subscription_tier}
             amazonTag={profile?.amazon_affiliate_id}
-            onImport={() => setShowImportFromGrid(true)}
+            onImport={() => openImport()}
           />
         )}
 
-        {/* Categories View (Grouped by Collection) */}
+        {/* Collections view (grouped by list) */}
         {viewMode === 'grouped' && (
           <div className="space-y-12">
             {/* Auto-organize Banner - Stacks on mobile */}
@@ -787,12 +809,12 @@ export default function DashboardPage() {
               </section>
             )}
 
-            {/* Uncategorized Section */}
+            {/* Items not in any list */}
             {collections.length > 0 && uncategorizedItems.length > 0 && (
               <section>
                 <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2 opacity-50">
                   <span className="w-2 h-2 rounded-full bg-zinc-300 dark:bg-dpurple-500"></span>
-                  {t('Uncategorized')}
+                  {t('No collection')}
                 </h2>
                 <RoundRobinGrid items={uncategorizedItems} renderItem={(item: any, i: number) => (
                   <ProductCard 
@@ -873,15 +895,6 @@ export default function DashboardPage() {
           </div>
         )}
       </main>
-
-      <ImportModal
-        isOpen={showImportFromGrid}
-        onClose={() => setShowImportFromGrid(false)}
-        onComplete={() => {
-          setShowImportFromGrid(false)
-          window.location.reload()
-        }}
-      />
 
       {/* Mobile Floating Add Button */}
       <button

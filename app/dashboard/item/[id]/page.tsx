@@ -6,8 +6,9 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import PageTransition from '@/components/ui/PageTransition';
-import { Receipt, FileText, Plus, Trash2, Shield, BarChart3, Lock, PackageX, PackageCheck, TrendingDown, TrendingUp, AlertTriangle } from 'lucide-react';
+import { BarChart3, PackageX, PackageCheck, TrendingDown, TrendingUp, AlertTriangle, Sparkles } from 'lucide-react';
 import { affiliateUrl } from '@/lib/amazon-affiliate';
+import { priceHistoryTimeMs } from '@/lib/price-history-utils';
 
 export default function ItemDetail() {
   const params = useParams(); 
@@ -15,11 +16,7 @@ export default function ItemDetail() {
   const [item, setItem] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [receipts, setReceipts] = useState<any[]>([]);
   const [userTier, setUserTier] = useState('free');
-  const [showReceiptForm, setShowReceiptForm] = useState(false);
-  const [receiptForm, setReceiptForm] = useState({ title: '', purchase_date: '', warranty_expiry: '', receipt_url: '', notes: '' });
-  const [savingReceipt, setSavingReceipt] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [amazonTag, setAmazonTag] = useState<string | null>(null);
   /** Last time we successfully wrote a row to price_history (may differ from last_price_check when checks fail). */
@@ -95,32 +92,35 @@ export default function ItemDetail() {
       const histCfg = TIER_HISTORY[tier] || TIER_HISTORY.free;
 
       const since = new Date(Date.now() - histCfg.days * 24 * 60 * 60 * 1000).toISOString();
+      const sinceMs = new Date(since).getTime();
 
-      const [
-        { data: historyData, error: historyError },
-        { data: lastEverRow },
-      ] = await Promise.all([
-        supabase
-          .from('price_history')
-          .select('price, recorded_at')
-          .eq('item_id', itemId)
-          .gte('recorded_at', since)
-          .order('recorded_at', { ascending: true })
-          .limit(histCfg.limit),
-        supabase
-          .from('price_history')
-          .select('price, recorded_at')
-          .eq('item_id', itemId)
-          .order('recorded_at', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-      ]);
+      const { data: allHistoryRows, error: historyError } = await supabase
+        .from('price_history')
+        .select('*')
+        .eq('item_id', itemId);
 
       if (historyError) {
         console.error("History Error:", historyError);
       }
 
-      setLastSuccessfulTrackAt(lastEverRow?.recorded_at ?? null);
+      let historyData: any[] = [];
+      let lastEverRow: any = null;
+
+      if (allHistoryRows?.length) {
+        const sortedDesc = [...allHistoryRows].sort(
+          (a, b) => priceHistoryTimeMs(b) - priceHistoryTimeMs(a)
+        );
+        lastEverRow = sortedDesc[0] ?? null;
+        historyData = [...allHistoryRows]
+          .filter((e) => priceHistoryTimeMs(e) >= sinceMs)
+          .sort((a, b) => priceHistoryTimeMs(a) - priceHistoryTimeMs(b))
+          .slice(0, histCfg.limit);
+      }
+
+      const lastTrackIso = lastEverRow
+        ? String(lastEverRow.created_at ?? lastEverRow.recorded_at ?? '')
+        : '';
+      setLastSuccessfulTrackAt(lastTrackIso || null);
 
       // Build chart from real history rows only when checks are failing: we must NOT inject a fake
       // "today" point from current_price — that made the chart look freshly checked while the
@@ -131,24 +131,27 @@ export default function ItemDetail() {
       const checkFailures = itemData.price_check_failures ?? 0;
       const trustDisplayedPrice = checkFailures === 0;
 
-      const lastHistTs = historyData?.length ? new Date(historyData[historyData.length - 1].recorded_at).getTime() : null;
+      const lastRow = historyData?.length ? historyData[historyData.length - 1] : null;
+      const lastHistTs = lastRow ? priceHistoryTimeMs(lastRow) : null;
 
       const chartData: { timestamp: number; price: number; fullDate: string }[] = [];
 
       if (historyData?.length) {
         for (const entry of historyData) {
-          const d = new Date(entry.recorded_at);
+          const t = priceHistoryTimeMs(entry);
+          const d = new Date(t || Date.now());
           chartData.push({ timestamp: d.getTime(), price: Number(entry.price), fullDate: d.toISOString() });
         }
       }
 
       // If checks are failing and the tier window hid all history, still show the last known logged point
-      if (trustDisplayedPrice === false && chartData.length === 0 && lastEverRow?.recorded_at) {
-        const d = new Date(lastEverRow.recorded_at);
+      if (trustDisplayedPrice === false && chartData.length === 0 && lastEverRow && priceHistoryTimeMs(lastEverRow)) {
+        const t = priceHistoryTimeMs(lastEverRow);
+        const d = new Date(t);
         chartData.push({
           timestamp: d.getTime(),
-          price: Number(lastEverRow.price),
-          fullDate: new Date(lastEverRow.recorded_at).toISOString(),
+          price: Number((lastEverRow as { price?: unknown }).price),
+          fullDate: d.toISOString(),
         });
       }
 
@@ -174,47 +177,6 @@ export default function ItemDetail() {
 
     fetchData();
   }, [params, router, refreshKey]);
-
-  useEffect(() => {
-    async function loadReceipts() {
-      if (!params?.id) return;
-      const res = await fetch(`/api/receipts?item_id=${params.id}`);
-      if (res.ok) {
-        const json = await res.json();
-        setReceipts(json.receipts || []);
-      }
-    }
-    loadReceipts();
-  }, [params?.id]);
-
-  async function handleSaveReceipt() {
-    if (!params?.id || !receiptForm.title.trim()) return;
-    setSavingReceipt(true);
-    try {
-      const res = await fetch('/api/receipts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...receiptForm, item_id: params.id }),
-      });
-      if (res.ok) {
-        const json = await res.json();
-        setReceipts(prev => [...prev, json.receipt]);
-        setReceiptForm({ title: '', purchase_date: '', warranty_expiry: '', receipt_url: '', notes: '' });
-        setShowReceiptForm(false);
-      }
-    } catch (e) {
-      console.error('Failed to save receipt:', e);
-    } finally {
-      setSavingReceipt(false);
-    }
-  }
-
-  async function handleDeleteReceipt(id: string) {
-    const res = await fetch(`/api/receipts?id=${id}`, { method: 'DELETE' });
-    if (res.ok) {
-      setReceipts(prev => prev.filter(r => r.id !== id));
-    }
-  }
 
   if (loading) return (
     <div className="flex h-screen items-center justify-center bg-gray-50">
@@ -411,8 +373,9 @@ export default function ItemDetail() {
                       </p>
                     )}
                     {(item.price_check_failures ?? 0) > 0 && history.length > 0 && (
-                      <p className="text-xs text-amber-700/90 dark:text-amber-400/90 text-center mt-2 max-w-md mx-auto">
-                        Chart points are from saved checks only. There is no &quot;today&quot; point while verification is failing.
+                      <p className="text-xs text-amber-700/90 dark:text-amber-400/90 text-center mt-2 max-w-md mx-auto leading-relaxed">
+                        Price checks are failing for this link (site blocking, layout change, etc.), so the chart only shows your{' '}
+                        <span className="font-medium">last successful</span> scrapes—not a fresh &quot;today&quot; point until a check succeeds again.
                       </p>
                     )}
                   </div>
@@ -430,7 +393,7 @@ export default function ItemDetail() {
             {/* Weekly Price Log */}
             {history.length > 0 && (
               <div className="rounded-xl bg-beige-100 p-6 shadow-sm ring-1 ring-gray-900/5">
-                <h3 className="font-bold text-gray-900 dark:text-zinc-100 mb-4">Weekly Price Log</h3>
+                <h3 className="font-bold text-gray-900 dark:text-violet-400 mb-4">Weekly Price Log</h3>
                 <div className="divide-y divide-gray-100">
                   {(() => {
                     const weeks: { weekLabel: string; price: number; date: Date }[] = []
@@ -473,166 +436,23 @@ export default function ItemDetail() {
               </div>
             )}
 
-            {/* Receipts & Warranties */}
-            <div className="rounded-xl bg-beige-100 p-6 shadow-sm ring-1 ring-gray-900/5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                  <Receipt className="w-4 h-4 text-violet-500" />
-                  Receipts & Warranties
+            {/* Compare Prices — coming soon (all tiers) */}
+            <div className="rounded-xl bg-gradient-to-br from-violet-50/90 to-beige-100 dark:from-dpurple-900/80 dark:to-dpurple-950 p-6 shadow-sm ring-1 ring-violet-200/60 dark:ring-dpurple-600/50">
+              <div className="flex flex-col items-center text-center py-2 sm:py-4">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white/80 dark:bg-dpurple-800/80 shadow-sm ring-1 ring-violet-100 dark:ring-dpurple-600 mb-4">
+                  <BarChart3 className="w-7 h-7 text-violet-500 dark:text-violet-400" />
+                </div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-100/90 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 text-xs font-semibold uppercase tracking-wide mb-2">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Coming soon
+                </div>
+                <h3 className="font-bold text-gray-900 dark:text-zinc-100 text-lg mb-1">
+                  Compare prices across retailers
                 </h3>
-                {['pro', 'creator', 'enterprise'].includes(userTier) && (
-                  <button
-                    onClick={() => setShowReceiptForm(!showReceiptForm)}
-                    className="flex items-center gap-1 text-xs font-medium text-violet-600 hover:text-violet-700 transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Add Receipt
-                  </button>
-                )}
+                <p className="text-sm text-gray-600 dark:text-zinc-400 max-w-sm leading-relaxed">
+                  We&apos;re building a way to surface the best current price for this product at major stores—right from your wishlist.
+                </p>
               </div>
-
-              {!['pro', 'creator', 'enterprise'].includes(userTier) ? (
-                <div className="text-center py-6 space-y-2">
-                  <Shield className="w-8 h-8 text-gray-300 mx-auto" />
-                  <p className="text-sm text-gray-500">Upgrade to <span className="font-semibold text-violet-600">Wist Pro</span> to track receipts and warranties</p>
-                </div>
-              ) : (
-                <>
-                  {showReceiptForm && (
-                    <div className="mb-4 space-y-3 p-4 rounded-lg bg-gray-50 border border-gray-200">
-                      <input
-                        type="text"
-                        placeholder="Receipt title (e.g. Amazon Purchase)"
-                        value={receiptForm.title}
-                        onChange={e => setReceiptForm(prev => ({ ...prev, title: e.target.value }))}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
-                      />
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs text-gray-500 mb-1">Purchase Date</label>
-                          <input
-                            type="date"
-                            value={receiptForm.purchase_date}
-                            onChange={e => setReceiptForm(prev => ({ ...prev, purchase_date: e.target.value }))}
-                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-500 mb-1">Warranty Expiry</label>
-                          <input
-                            type="date"
-                            value={receiptForm.warranty_expiry}
-                            onChange={e => setReceiptForm(prev => ({ ...prev, warranty_expiry: e.target.value }))}
-                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
-                          />
-                        </div>
-                      </div>
-                      <input
-                        type="url"
-                        placeholder="Receipt URL (optional)"
-                        value={receiptForm.receipt_url}
-                        onChange={e => setReceiptForm(prev => ({ ...prev, receipt_url: e.target.value }))}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
-                      />
-                      <textarea
-                        placeholder="Notes (optional)"
-                        value={receiptForm.notes}
-                        onChange={e => setReceiptForm(prev => ({ ...prev, notes: e.target.value }))}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500 resize-none"
-                        rows={2}
-                      />
-                      <div className="flex gap-2">
-                        <button
-                          onClick={handleSaveReceipt}
-                          disabled={savingReceipt || !receiptForm.title.trim()}
-                          className="px-4 py-2 bg-violet-600 text-white text-xs font-medium rounded-lg hover:bg-violet-700 disabled:opacity-50 transition-colors"
-                        >
-                          {savingReceipt ? 'Saving...' : 'Save Receipt'}
-                        </button>
-                        <button
-                          onClick={() => setShowReceiptForm(false)}
-                          className="px-4 py-2 text-xs font-medium text-gray-600 hover:text-gray-800 transition-colors"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {receipts.length === 0 ? (
-                    <p className="text-sm text-gray-400 text-center py-4">No receipts added yet</p>
-                  ) : (
-                    <div className="divide-y divide-gray-100">
-                      {receipts.map(r => (
-                        <div key={r.id} className="flex items-start justify-between py-3 gap-3">
-                          <div className="flex items-start gap-3 min-w-0">
-                            <FileText className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-gray-900 truncate">{r.title}</p>
-                              <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
-                                {r.purchase_date && (
-                                  <span className="text-xs text-gray-500">Purchased: {new Date(r.purchase_date).toLocaleDateString()}</span>
-                                )}
-                                {r.warranty_expiry && (
-                                  <span className={`text-xs font-medium ${new Date(r.warranty_expiry) < new Date() ? 'text-red-500' : 'text-green-600'}`}>
-                                    Warranty: {new Date(r.warranty_expiry).toLocaleDateString()}
-                                  </span>
-                                )}
-                              </div>
-                              {r.notes && <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{r.notes}</p>}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1 flex-shrink-0">
-                            {r.receipt_url && (
-                              <a
-                                href={r.receipt_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-1.5 text-gray-400 hover:text-violet-600 transition-colors"
-                                title="View receipt"
-                              >
-                                <FileText className="w-3.5 h-3.5" />
-                              </a>
-                            )}
-                            <button
-                              onClick={() => handleDeleteReceipt(r.id)}
-                              className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
-                              title="Delete receipt"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-
-            {/* Compare Prices */}
-            <div className="rounded-xl bg-beige-100 p-6 shadow-sm ring-1 ring-gray-900/5">
-              <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-4">
-                <BarChart3 className="w-4 h-4 text-violet-500" />
-                Compare Prices
-              </h3>
-
-              {!['pro', 'creator', 'enterprise'].includes(userTier) ? (
-                <div className="text-center py-6 space-y-2">
-                  <Lock className="w-8 h-8 text-gray-300 mx-auto" />
-                  <p className="text-sm text-gray-500">
-                    Upgrade to <span className="font-semibold text-violet-600">Wist Pro</span> to compare prices across retailers
-                  </p>
-                </div>
-              ) : (
-                <div className="text-center py-6 space-y-2">
-                  <BarChart3 className="w-8 h-8 text-gray-300 mx-auto" />
-                  <p className="text-sm text-gray-500">No comparisons found yet</p>
-                  <p className="text-xs text-gray-400">
-                    Price comparison is being rolled out. We&apos;ll automatically find the best prices for this item across retailers.
-                  </p>
-                </div>
-              )}
             </div>
 
           </div>

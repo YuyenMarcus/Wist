@@ -29,11 +29,10 @@ export async function GET(request: Request) {
   try {
     console.log('\n--- 🧹 STARTING AUTOMATIC CLEANUP ---');
     
-    // Optional: Verify this is actually a cron job
     const authHeader = request.headers.get('authorization');
     const cronSecret = process.env.CRON_SECRET;
     
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
       console.log('❌ Unauthorized: Invalid or missing CRON_SECRET');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

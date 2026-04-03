@@ -13,28 +13,26 @@ const HIGHLIGHTS = [
 export default function AppStoreSection() {
   return (
     <section
-      className="relative py-24 sm:py-32 px-4 sm:px-6 overflow-hidden"
+      className="relative py-24 sm:py-32 px-4 sm:px-6 bg-zinc-50"
       style={{ fontFamily: "'DM Sans', sans-serif" }}
     >
-      <div className="absolute inset-0 bg-gradient-to-b from-white via-zinc-50/60 to-white pointer-events-none" />
-      <div
-        className="absolute inset-0 opacity-[0.012] pointer-events-none"
-        style={{
-          backgroundImage:
-            'radial-gradient(circle at 1px 1px, #8b5cf6 1px, transparent 0)',
-          backgroundSize: '40px 40px',
-        }}
-      />
+      {/*
+        Avoid backdrop-blur and full-viewport repeating patterns here — they force expensive
+        compositing on iOS Safari while scrolling past this block.
+      */}
 
-      <div className="relative max-w-7xl mx-auto rounded-3xl border-2 border-violet-200/60 bg-white/50 backdrop-blur-sm p-12 sm:p-16 lg:p-24 flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
+      <div className="relative max-w-7xl mx-auto rounded-3xl border-2 border-violet-200/60 bg-white p-12 sm:p-16 lg:p-24 flex flex-col lg:flex-row items-center gap-12 lg:gap-20 shadow-sm">
         {/* Phone mockup */}
         <div className="relative flex-shrink-0 w-[220px] sm:w-[260px]">
-          <div className="relative rounded-[2.5rem] border-[14px] border-zinc-900 bg-zinc-900 shadow-2xl shadow-zinc-900/20 overflow-hidden aspect-[9/19.5]">
+          <div className="relative rounded-[2.5rem] border-[14px] border-zinc-900 bg-zinc-900 shadow-lg shadow-zinc-900/25 overflow-hidden aspect-[9/19.5]">
             <div className="absolute inset-0 bg-gradient-to-br from-violet-50 via-white to-purple-50 flex flex-col items-center justify-center px-5">
               <img
                 src="/logo.png"
                 alt="Wist"
-                className="w-14 h-14 mb-4 rounded-2xl shadow-md"
+                width={56}
+                height={56}
+                decoding="async"
+                className="w-14 h-14 mb-4 rounded-2xl"
               />
               <span
                 className="text-xl font-bold text-zinc-900 tracking-tight mb-1"
@@ -120,7 +118,7 @@ export default function AppStoreSection() {
               href={APP_STORE_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-3 px-7 py-3.5 bg-zinc-900 text-white rounded-xl text-sm font-bold hover:bg-zinc-800 transition-colors shadow-md hover:shadow-lg"
+              className="inline-flex items-center gap-3 px-7 py-3.5 bg-zinc-900 text-white rounded-xl text-sm font-bold hover:bg-zinc-800 transition-colors shadow-sm"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />

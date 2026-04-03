@@ -4,6 +4,7 @@ export const maxDuration = 60;
 import { NextRequest, NextResponse } from 'next/server';
 import { getRetailerFromUrl } from '@/lib/instagram/api';
 import { extractResolvedWishlistUrls, isDuplicateQueuedUrl } from '@/lib/messaging/wishlist-urls';
+import { verifyMetaSignature } from '@/lib/messaging/verify-meta-signature';
 import { sendReply } from '@/lib/messenger/api';
 import { checkItemLimitForApi } from '@/lib/tier-guards';
 import { getServiceRoleSupabase } from '@/lib/supabase/service-role';
@@ -60,7 +61,15 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const rawBody = await req.text();
+    const signature = req.headers.get('x-hub-signature-256');
+
+    if (!verifyMetaSignature(rawBody, signature)) {
+      console.warn('[Messenger Webhook] Invalid or missing signature — rejecting');
+      return new NextResponse('Forbidden', { status: 403 });
+    }
+
+    const body = JSON.parse(rawBody);
 
     if (body.object !== 'page') {
       return new NextResponse('EVENT_RECEIVED', { status: 200 });

@@ -11,6 +11,7 @@ import {
   getInstagramBusinessHandleForCopy,
 } from '@/lib/instagram/api';
 import { extractResolvedWishlistUrls, isDuplicateQueuedUrl } from '@/lib/messaging/wishlist-urls';
+import { verifyMetaSignature } from '@/lib/messaging/verify-meta-signature';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { checkItemLimitForApi } from '@/lib/tier-guards';
 import { getServiceRoleSupabase } from '@/lib/supabase/service-role';
@@ -84,25 +85,26 @@ export async function GET(request: Request) {
  */
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const rawBody = await request.text();
+    const signature = request.headers.get('x-hub-signature-256');
 
-    // Log every webhook call so we can see if Meta is hitting us at all
+    if (!verifyMetaSignature(rawBody, signature)) {
+      console.warn('[Instagram Webhook] Invalid or missing signature — rejecting');
+      return new Response('Forbidden', { status: 403 });
+    }
+
+    const body = JSON.parse(rawBody);
+
     const obj = body?.object ?? 'missing';
     const entryCount = Array.isArray(body?.entry) ? body.entry.length : 0;
     console.log('[Instagram Webhook] POST received. object=' + obj + ', entryCount=' + entryCount);
-    if (obj !== 'instagram') {
-      console.log('[Instagram Webhook] Payload snippet:', JSON.stringify(body).slice(0, 300));
-    }
 
-    // Only Instagram DM events have object === 'instagram'. Messenger uses object === 'page'.
     if (body.object !== 'instagram') {
-      console.log('[Instagram Webhook] Ignoring (expected "instagram" for Instagram DMs). Add Instagram webhook in Meta and message the Instagram account, not Messenger.');
+      console.log('[Instagram Webhook] Ignoring (expected "instagram" for Instagram DMs).');
       return NextResponse.json({ received: true }, { status: 200 });
     }
 
     console.log('[Instagram Webhook] Received Instagram event, entries:', body.entry?.length);
-    // Must await: if we return 200 first, Vercel/serverless can freeze the isolate and kill
-    // handleConnectCommand / DB work mid-flight (logs stop right after arbitrary lines).
     try {
       await processEntries(body.entry);
     } catch (err) {
@@ -293,12 +295,6 @@ async function handleMessage(event: any) {
  * they entered in Wist settings, then link their IGSID to their profile.
  */
 async function handleConnectCommand(igsid: string, appUrl: string) {
-  // Log env *before* getServiceRoleSupabase() — that call can throw synchronously if URL/key missing.
-  console.log('[Instagram Webhook] Token present:', !!process.env.INSTAGRAM_ACCESS_TOKEN);
-  console.log('[Instagram Webhook] Token length:', process.env.INSTAGRAM_ACCESS_TOKEN?.length ?? 0);
-  console.log('[Instagram Webhook] Supabase URL present:', !!process.env.NEXT_PUBLIC_SUPABASE_URL);
-  console.log('[Instagram Webhook] Service role key present:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
-
   console.log('[Instagram Webhook] About to call getServiceRoleSupabase...');
   let supabase: SupabaseClient;
   try {

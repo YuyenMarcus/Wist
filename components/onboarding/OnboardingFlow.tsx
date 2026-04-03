@@ -223,7 +223,7 @@ export default function OnboardingFlow({ userId, onComplete }: OnboardingFlowPro
           </div>
           <p className="text-sm text-zinc-500 text-center max-w-xs leading-relaxed">
             {t('Switch to ')}
-            <strong>{t('Categories')}</strong>
+            <strong>{t('Collections')}</strong>
             {t(' view to see your collections. Drag items between collections or let Wist auto-organize them for you.')}
           </p>
         </div>

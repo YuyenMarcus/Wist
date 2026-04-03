@@ -154,22 +154,42 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 async function refreshWithSupabase(refreshToken) {
   try {
-    console.log("🔄 [Background] Refreshing token via Supabase API...");
+    if (!refreshToken || typeof refreshToken !== 'string') {
+      console.warn('⚠️ [Background] No refresh_token to exchange');
+      return null;
+    }
+    console.log('🔄 [Background] Refreshing token via Supabase API...');
     const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': SUPABASE_ANON_KEY
+        apikey: SUPABASE_ANON_KEY,
       },
-      body: JSON.stringify({ refresh_token: refreshToken })
+      body: JSON.stringify({ refresh_token: refreshToken }),
     });
 
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = null;
+    }
+
     if (!response.ok) {
-      console.error("❌ [Background] Supabase refresh failed:", response.status);
+      const reason =
+        (data && (data.error_description || data.msg || data.message || data.error)) ||
+        text.slice(0, 200) ||
+        '(empty body)';
+      // 400 = invalid/expired/reused refresh token — user should open the site and log in again
+      console.warn('⚠️ [Background] Supabase refresh failed:', response.status, String(reason));
       return null;
     }
 
-    const data = await response.json();
+    if (!data) {
+      console.warn('⚠️ [Background] Supabase refresh: non-JSON response');
+      return null;
+    }
     if (!data.access_token) return null;
 
     const payload = JSON.parse(atob(data.access_token.split('.')[1]));
@@ -1344,6 +1364,7 @@ async function handleSaveItem(payload, sendResponse) {
       note: payload.note || "",
       collection_id: payload.collection_id || null,
       is_public: payload.is_public !== undefined ? Boolean(payload.is_public) : false,
+      save_hidden: payload.save_hidden === true,
       currency: payload.currency || "USD",
       client_tier: clientTier,
     };
@@ -1367,7 +1388,11 @@ async function handleSaveItem(payload, sendResponse) {
     const errMsg = formatItemsApiError(result, response.status);
 
     if (!response.ok) {
-      console.error("❌ [Extension] API Error:", errMsg, result);
+      console.error(
+        '❌ [Extension] API Error:',
+        errMsg,
+        result && typeof result === 'object' ? JSON.stringify(result) : result
+      );
 
       if (response.status === 401 && errMsg.toLowerCase().includes('expired')) {
         throw new Error("Token expired. Please open wishlist.nuvio.cloud in a new tab to refresh.");

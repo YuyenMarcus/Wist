@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { extractDomain, isDynamic } from '@/lib/scraper/utils'
 import { staticScrape } from '@/lib/scraper/static-scraper'
+import { isSafeUrl } from '@/lib/scraper/url-validation'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -8,6 +9,11 @@ export async function GET(request: Request) {
 
   if (!url) {
     return NextResponse.json({ error: 'URL is required' }, { status: 400 })
+  }
+
+  const urlCheck = isSafeUrl(url)
+  if (!urlCheck.safe) {
+    return NextResponse.json({ error: urlCheck.reason }, { status: 400 })
   }
 
   try {

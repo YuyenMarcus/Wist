@@ -20,5 +20,5 @@ CREATE TABLE IF NOT EXISTS banned_emails (
 CREATE INDEX IF NOT EXISTS idx_banned_emails_email ON banned_emails(email);
 
 -- Set your account as admin (update the email to match yours)
-UPDATE profiles SET is_admin = true WHERE email = 'julien@nitron.digital';
-UPDATE profiles SET is_admin = true WHERE email = 'julien.marcus.c@gmail.com';
+-- Set is_admin via Supabase Dashboard for your account:
+-- UPDATE profiles SET is_admin = true WHERE email = 'YOUR_EMAIL_HERE';

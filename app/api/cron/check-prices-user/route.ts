@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getServiceRoleSupabase, hasServiceRoleKey } from '@/lib/supabase/service-role';
 import { isTierAtLeast } from '@/lib/tier-guards';
 import { staticScrape } from '@/lib/scraper/static-scraper';
+import { cleanPrice as cleanPriceValue } from '@/lib/scraper/utils';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -109,8 +110,8 @@ export async function POST() {
           if (result?.price && result.price > 0) {
             newPrice = result.price;
           } else if (result?.priceRaw) {
-            const parsed = parseFloat(result.priceRaw.replace(/[^0-9.]/g, ''));
-            if (parsed > 0) newPrice = parsed;
+            const parsed = cleanPriceValue(result.priceRaw);
+            if (parsed && parsed > 0) newPrice = parsed;
           }
         } catch {}
       }

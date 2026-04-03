@@ -1,4 +1,5 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
 
 const SPANISH_COUNTRIES = new Set([
@@ -80,7 +81,26 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (request.nextUrl.pathname.startsWith('/admin')) {
+    if (!user) {
+      const login = new URL('/login', request.url)
+      login.searchParams.set('next', '/admin')
+      return NextResponse.redirect(login)
+    }
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+    if (!serviceKey) {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+    const adminSb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey)
+    const { data: prof } = await adminSb.from('profiles').select('is_admin').eq('id', user.id).maybeSingle()
+    if (!prof?.is_admin) {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+  }
 
   // Always set locale cookie on the final response
   if (!existingLocale || existingLocale !== detectedLocale) {

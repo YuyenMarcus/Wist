@@ -1229,7 +1229,7 @@ async function handleJustGotIt(item) {
   let fabVisible = false;
   let panelOpen = false;
   let panelProduct = null;
-  let isPrivate = true;
+  let isPrivate = false;
   let fabHost = null;
   let drawerHost = null;
   let fabShadow = null;
@@ -1652,6 +1652,12 @@ async function handleJustGotIt(item) {
       }
     }
 
+    isPrivate = false;
+    const ps = s.querySelector('#wist-p-privacy-switch');
+    const pt = s.querySelector('#wist-p-privacy-text');
+    if (ps) ps.classList.add('active');
+    if (pt) pt.textContent = 'Wishlist';
+
     wireUpEvents();
   }
 
@@ -1669,7 +1675,7 @@ async function handleJustGotIt(item) {
       privacyBtn.onclick = () => {
         isPrivate = !isPrivate;
         if (privacySwitch) privacySwitch.classList.toggle('active', !isPrivate);
-        if (privacyText) privacyText.textContent = isPrivate ? 'Private' : 'Public';
+        if (privacyText) privacyText.textContent = isPrivate ? 'Hidden' : 'Wishlist';
       };
     }
 
@@ -1688,6 +1694,7 @@ async function handleJustGotIt(item) {
           retailer: panelProduct.retailer || '',
           currency: panelProduct.currency || 'USD',
           is_public: !isPrivate,
+          save_hidden: isPrivate === true,
           collection_id: null,
         };
 
@@ -1806,9 +1813,9 @@ async function handleJustGotIt(item) {
           <div id="wist-p-privacy" class="wist-p-privacy">
             <div class="wist-p-privacy-left">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-              <span id="wist-p-privacy-text" class="wist-p-privacy-label">Private</span>
+              <span id="wist-p-privacy-text" class="wist-p-privacy-label">Wishlist</span>
             </div>
-            <div id="wist-p-privacy-switch" class="wist-p-switch">
+            <div id="wist-p-privacy-switch" class="wist-p-switch active">
               <div class="wist-p-knob"></div>
             </div>
           </div>

@@ -168,22 +168,7 @@ export default function PricingSection() {
           })}
         </div>
 
-        <div className="mt-14 rounded-2xl bg-zinc-900 p-8 sm:p-10 flex flex-col sm:flex-row items-center gap-6 sm:gap-8">
-          <div className="flex-1 text-center sm:text-left">
-            <h3 className="text-lg font-bold text-white mb-1">{t('Need something bigger?')}</h3>
-            <p className="text-sm text-zinc-400 max-w-lg">
-              {t('Wist Enterprise includes API access, team wishlists, bulk gifting, custom branding, and a dedicated account manager.')}
-            </p>
-          </div>
-          <Link
-            href="mailto:julien@nitron.digital?subject=Wist Enterprise"
-            className="flex-shrink-0 inline-flex items-center gap-2 px-6 py-3 bg-white text-zinc-900 text-sm font-bold rounded-xl hover:bg-zinc-100 transition-colors"
-          >
-            {t('Talk to Sales')} <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-
-        <div className="mt-10 flex flex-wrap justify-center gap-x-8 gap-y-2 text-xs text-zinc-400">
+        <div className="mt-14 flex flex-wrap justify-center gap-x-8 gap-y-2 text-xs text-zinc-400">
           <span>{t('No credit card required')}</span>
           <span className="hidden sm:inline">·</span>
           <span>{t('Cancel anytime')}</span>
