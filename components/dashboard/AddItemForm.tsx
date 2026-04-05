@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Puzzle, Check, ExternalLink, Smartphone, Link as LinkIcon, Package } from 'lucide-react'
 import { useTranslation } from '@/lib/i18n/context'
+import { cleanPrice } from '@/lib/scraper/utils'
 
 type Priority = 'high' | 'medium' | 'low'
 
@@ -238,13 +239,13 @@ export default function AddItemForm({ compact = false }: { compact?: boolean }) 
         }
       }
 
-      let priceValue: string | null = null
-      if (metadata.price) {
-        if (typeof metadata.price === 'string') {
-          const priceMatch = metadata.price.replace(/[^0-9.]/g, '')
-          priceValue = priceMatch ? priceMatch : null
-        } else {
-          priceValue = metadata.price.toString()
+      let priceValue: string | number | null = null
+      if (metadata.price != null && metadata.price !== '') {
+        if (typeof metadata.price === 'number' && Number.isFinite(metadata.price) && metadata.price > 0) {
+          priceValue = metadata.price
+        } else if (typeof metadata.price === 'string') {
+          const n = cleanPrice(metadata.price)
+          priceValue = n != null && n > 0 ? n : null
         }
       }
 

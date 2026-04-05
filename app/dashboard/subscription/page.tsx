@@ -45,7 +45,6 @@ import {
   Sparkles,
   Shield,
   Zap,
-  Diamond,
   Crown,
   HelpCircle,
 } from 'lucide-react';
@@ -525,7 +524,7 @@ export default function SubscriptionPage() {
             price={TIERS.pro.priceLabel}
             description={t('Unlimited items, 12-hour checks, gifting, sync, and more.')}
             features={TIERS.pro.features.slice(0, 7)}
-            icon={<Diamond className="w-4 h-4 text-violet-600" />}
+            icon={<ProTierIcon size={16} />}
             variant="popular"
             popularLabel={t('Most popular')}
             cta={
@@ -552,7 +551,7 @@ export default function SubscriptionPage() {
             price={TIERS.creator.priceLabel}
             description={t('Everything in Pro plus faster checks, analytics, and creator badge.')}
             features={TIERS.creator.features}
-            icon={<Crown className="w-4 h-4 text-amber-600" />}
+            icon={<CreatorTierIcon size={16} />}
             variant="creator"
             cta={
               tier === 'creator'

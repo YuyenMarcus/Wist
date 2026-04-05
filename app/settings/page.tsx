@@ -907,59 +907,17 @@ export default function SettingsPage() {
             )}
           </div>
 
-          {/* --- SECTION 5: GIFTING (Pro+) --- */}
+          {/* --- SECTION 5: GIFTING (coming soon) --- */}
           <div id="gifting" className="bg-beige-100 dark:bg-dpurple-900 p-8 rounded-2xl border border-zinc-200 dark:border-dpurple-700 shadow-sm space-y-6 scroll-mt-20">
             <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-dpurple-700 pb-2 flex items-center gap-2">
-              <Gift size={16} /> Gifting
+              <Gift size={16} /> {t('Gifting')}
             </h2>
-
-            {!isTierAtLeast(profile?.subscription_tier, 'pro') ? (
-              <div className="text-center py-4 space-y-2">
-                <Lock size={24} className="text-zinc-300 mx-auto" />
-                <p className="text-sm text-zinc-500">Upgrade to <span className="font-semibold text-violet-600">Wist Pro</span> to enable gifting on your profile</p>
-              </div>
-            ) : (
-              <>
-                <div className="flex items-center justify-between">
-                  <div className="flex-1 pr-4">
-                    <label className="block text-sm font-medium text-zinc-700 flex items-center gap-2">
-                      <Gift size={14} /> Enable Gifting
-                    </label>
-                    <p className="text-xs text-zinc-500 mt-0.5">
-                      Allow visitors to see a &quot;Gift this item&quot; button on your public profile items.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, giftingEnabled: !prev.giftingEnabled }))}
-                    className={`relative w-11 h-6 rounded-full transition-colors ${
-                      formData.giftingEnabled ? 'bg-violet-600' : 'bg-zinc-300'
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                        formData.giftingEnabled ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                {formData.giftingEnabled && (
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-700 mb-1">Thank-you Message</label>
-                    <textarea
-                      value={formData.giftingMessage}
-                      onChange={e => setFormData(prev => ({ ...prev, giftingMessage: e.target.value }))}
-                      placeholder="Thank you for the gift! 💜"
-                      className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500 resize-none"
-                      rows={2}
-                      maxLength={200}
-                    />
-                    <p className="text-xs text-zinc-400 mt-1">{formData.giftingMessage.length}/200</p>
-                  </div>
-                )}
-              </>
-            )}
+            <div className="rounded-xl border border-violet-200/70 dark:border-violet-800/40 bg-violet-50/60 dark:bg-violet-950/25 px-5 py-7 text-center">
+              <Gift size={36} strokeWidth={1.25} className="text-violet-500 dark:text-violet-400 mx-auto mb-3 opacity-90" aria-hidden />
+              <p className="text-sm text-zinc-700 dark:text-zinc-300 font-medium leading-relaxed">
+                {t('Enable gifting will be available in the next update!')}
+              </p>
+            </div>
           </div>
 
           {/* --- FEEDBACK MESSAGE --- */}

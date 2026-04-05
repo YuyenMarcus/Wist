@@ -11,6 +11,7 @@ interface ImportResult {
   imported: number
   failed: number
   skipped?: number
+  skippedReasons?: string[]
   errors: string[]
   /** Rows in the sheet/file before the 150-row cap */
   totalRowsInSheet?: number
@@ -23,6 +24,8 @@ interface ImportResult {
     image: string | null
   }
   source?: string
+  /** Server guidance when Google Sheets rows are skipped (e.g. API key, sharing). */
+  importHint?: string
 }
 
 interface ImportModalProps {
@@ -120,12 +123,14 @@ function ImportModal({ isOpen, onClose, onComplete, clientTier }: ImportModalPro
         imported: json.imported,
         failed: json.failed,
         skipped: json.skipped,
+        skippedReasons: json.skippedReasons,
         errors: json.errors || [],
         mapping: json.mapping,
         source: json.source,
         totalRowsInSheet: json.totalRowsInSheet,
         maxImportRows: json.maxImportRows,
         truncatedRowCount: json.truncatedRowCount,
+        importHint: json.importHint,
       })
       if (json.imported > 0) onComplete()
     } catch (err: any) {
@@ -167,12 +172,14 @@ function ImportModal({ isOpen, onClose, onComplete, clientTier }: ImportModalPro
         imported: json.imported,
         failed: json.failed,
         skipped: json.skipped,
+        skippedReasons: json.skippedReasons,
         errors: json.errors || [],
         mapping: json.mapping,
         source: json.source,
         totalRowsInSheet: json.totalRowsInSheet,
         maxImportRows: json.maxImportRows,
         truncatedRowCount: json.truncatedRowCount,
+        importHint: json.importHint,
       })
       if (json.imported > 0) onComplete()
     } catch (err: any) {
@@ -475,26 +482,41 @@ function ImportModal({ isOpen, onClose, onComplete, clientTier }: ImportModalPro
           )}
 
           {/* === RESULTS === */}
-          {result && (
-            <div className={`rounded-xl p-4 ${
-              result.imported > 0
-                ? 'bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800'
+          {result && (() => {
+            const skippedOnlyNoImports =
+              result.imported === 0 &&
+              (result.failed ?? 0) === 0 &&
+              (result.skipped ?? 0) > 0
+            const panelClass = result.imported > 0
+              ? 'bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800'
+              : skippedOnlyNoImports
+                ? 'bg-amber-50 dark:bg-amber-950/25 border border-amber-200 dark:border-amber-800'
                 : 'bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800'
-            }`}>
+            const titleClass = result.imported > 0
+              ? 'text-green-800 dark:text-green-300'
+              : skippedOnlyNoImports
+                ? 'text-amber-900 dark:text-amber-200'
+                : 'text-red-800 dark:text-red-300'
+            return (
+            <div className={`rounded-xl p-4 ${panelClass}`}>
               <div className="flex items-start gap-3">
                 {result.imported > 0 ? (
                   <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+                ) : skippedOnlyNoImports ? (
+                  <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
                 ) : (
                   <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium ${result.imported > 0 ? 'text-green-800 dark:text-green-300' : 'text-red-800 dark:text-red-300'}`}>
+                  <p className={`text-sm font-medium ${titleClass}`}>
                     {result.imported > 0
                       ? `${t('Imported')} ${result.imported} ${t('of')} ${result.total} ${t('rows')}` +
                         (result.totalRowsInSheet != null && result.totalRowsInSheet > result.total
                           ? ` (${result.totalRowsInSheet} ${t('rows in sheet')})`
                           : '')
-                      : t('Import failed')}
+                      : skippedOnlyNoImports
+                        ? t('No items imported — every row was skipped (see below).')
+                        : t('Import failed')}
                   </p>
                   {result.imported > 0 && (result.truncatedRowCount ?? 0) > 0 && (
                     <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
@@ -525,7 +547,26 @@ function ImportModal({ isOpen, onClose, onComplete, clientTier }: ImportModalPro
                   )}
 
                   {result.skipped && result.skipped > 0 && (
-                    <p className="mt-1 text-xs text-zinc-500">{result.skipped} {t('empty rows skipped')}</p>
+                    <div className="mt-1 space-y-1">
+                      <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                        {result.skipped}{' '}
+                        {result.skippedReasons?.length
+                          ? t('rows skipped (empty or no valid product URL)')
+                          : t('empty rows skipped')}
+                      </p>
+                      {result.skippedReasons && result.skippedReasons.length > 0 && (
+                        <ul className="space-y-0.5 pl-0 list-none">
+                          {result.skippedReasons.map((r, i) => (
+                            <li key={i} className="text-xs text-amber-800 dark:text-amber-300">{r}</li>
+                          ))}
+                        </ul>
+                      )}
+                      {result.importHint && (
+                        <p className="text-xs text-violet-800 dark:text-violet-300 mt-2 border-t border-amber-200/60 dark:border-amber-800/50 pt-2">
+                          {result.importHint}
+                        </p>
+                      )}
+                    </div>
                   )}
 
                   {result.errors.length > 0 && (
@@ -548,7 +589,8 @@ function ImportModal({ isOpen, onClose, onComplete, clientTier }: ImportModalPro
                 </div>
               </div>
             </div>
-          )}
+            )
+          })()}
         </div>
       </div>
     </div>,

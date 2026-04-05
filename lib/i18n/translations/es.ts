@@ -74,6 +74,8 @@ const es: Record<string, string> = {
   'Queue': 'Cola',
   'Items auto-activate on desktop with the extension':
     'Los artículos se activan solos en escritorio con la extensión',
+  'Items auto-activate one at a time on desktop with the extension':
+    'Los artículos se activan uno a uno en escritorio con la extensión (con pausa entre cada uno)',
   'Press Activate on each item to scrape and add it':
     'Pulsa Activar en cada artículo para extraer datos y añadirlo',
   'Delete the item in your queue? This cannot be undone.':
@@ -356,6 +358,8 @@ const es: Record<string, string> = {
   'Changes saved!': '¡Cambios guardados!',
   'Adult Content Filter': 'Filtro de Contenido Adulto',
   'Enable Gifting': 'Habilitar Regalos',
+  'Enable gifting will be available in the next update!':
+    '¡Podrás habilitar regalos en la próxima actualización!',
   'Allow visitors to see a "Gift this item" button on your public profile items.': 'Permitir que los visitantes vean un botón "Regalar" en los artículos de tu perfil público.',
   'Thank-you Message': 'Mensaje de Agradecimiento',
   'Upgrade to': 'Mejora a',
@@ -474,6 +478,20 @@ const es: Record<string, string> = {
   'Link': 'Enlace',
   'Image': 'Imagen',
   'empty rows skipped': 'filas vacías omitidas',
+  'rows skipped (empty or no valid product URL)':
+    'filas omitidas (vacías o sin URL de producto válida)',
+  'No items imported — every row was skipped (see below).':
+    'No se importó ningún artículo — todas las filas se omitieron (ver abajo).',
+  'No valid product link. Edit and paste the full https URL from the store, then Activate.':
+    'Sin enlace de producto válido. Edita y pega la URL https completa de la tienda, luego Activa.',
+  'This item has no valid product link. Use Edit to paste the full product URL, then try Activate again.':
+    'Este artículo no tiene un enlace de producto válido. Usa Editar para pegar la URL completa del producto y vuelve a Activar.',
+  'Product page URL (https://…)': 'URL de la página del producto (https://…)',
+  'No product link': 'Sin enlace de producto',
+  'Item limit reached. Upgrade your plan or remove items to activate more.':
+    'Límite de artículos alcanzado. Mejora tu plan o elimina artículos para activar más.',
+  'Could not activate this item. Try again or edit the product link.':
+    'No se pudo activar este artículo. Inténtalo de nuevo o edita el enlace del producto.',
   'more errors': 'errores más',
   "Items added to your queue. They'll appear on your dashboard shortly.": 'Artículos agregados a tu cola. Aparecerán en tu panel pronto.',
   'Importing...': 'Importando...',

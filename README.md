@@ -43,6 +43,8 @@ Create `.env.local`:
 NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 NODE_ENV=development
+# Optional: Google Sheets import hyperlinks (see VERCEL_DEPLOYMENT.md)
+# GOOGLE_SHEETS_API_KEY=your-key-from-google-cloud
 ```
 
 ### 4. Run Development Server

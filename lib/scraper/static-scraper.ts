@@ -373,9 +373,8 @@ export async function staticScrape(url: string): Promise<ScrapeResult> {
     for (const pattern of amazonPricePatterns) {
       const match = html.match(pattern);
       if (match && match[1]) {
-        const potentialPrice = parseFloat(match[1].replace(/,/g, ''));
-        // Sanity check: price should be reasonable (between $0.01 and $100,000)
-        if (potentialPrice >= 0.01 && potentialPrice <= 100000) {
+        const potentialPrice = cleanPriceValue(match[1]);
+        if (potentialPrice != null && potentialPrice >= 0.01 && potentialPrice <= 100000) {
           priceRaw = match[1];
           console.log(`[StaticScraper] Found Amazon price via regex: ${priceRaw}`);
           break;
@@ -419,8 +418,8 @@ export async function staticScrape(url: string): Promise<ScrapeResult> {
     for (const pattern of targetPricePatterns) {
       const match = html.match(pattern);
       if (match && match[1]) {
-        const potentialPrice = parseFloat(match[1].replace(/,/g, ''));
-        if (potentialPrice >= 0.01 && potentialPrice <= 100000) {
+        const potentialPrice = cleanPriceValue(match[1]);
+        if (potentialPrice != null && potentialPrice >= 0.01 && potentialPrice <= 100000) {
           priceRaw = match[1];
           console.log(`[StaticScraper] Found Target price via regex: ${priceRaw}`);
           break;
@@ -441,8 +440,8 @@ export async function staticScrape(url: string): Promise<ScrapeResult> {
     for (const pattern of genericPricePatterns) {
       const match = html.match(pattern);
       if (match && match[1]) {
-        const potentialPrice = parseFloat(match[1]);
-        if (potentialPrice >= 0.01 && potentialPrice <= 100000) {
+        const potentialPrice = cleanPriceValue(match[1]);
+        if (potentialPrice != null && potentialPrice >= 0.01 && potentialPrice <= 100000) {
           priceRaw = match[1];
           break;
         }

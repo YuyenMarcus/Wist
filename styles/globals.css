@@ -52,6 +52,28 @@
     outline: 2px solid var(--color-brand-blue);
     outline-offset: 2px;
   }
+
+  /*
+   * Find-in-page (Ctrl/Cmd+F) match highlight — violet instead of default yellow.
+   * Supported in Chromium 144+ (::search-text). Other browsers keep their default.
+   */
+  ::search-text {
+    background-color: rgba(139, 92, 246, 0.38);
+    color: inherit;
+  }
+
+  ::search-text:current {
+    background-color: rgba(124, 58, 237, 0.55);
+    color: inherit;
+  }
+
+  html.dark ::search-text {
+    background-color: rgba(167, 139, 250, 0.42);
+  }
+
+  html.dark ::search-text:current {
+    background-color: rgba(196, 181, 253, 0.55);
+  }
 }
 
 @layer utilities {

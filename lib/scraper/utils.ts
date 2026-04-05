@@ -33,8 +33,17 @@ export function cleanPrice(raw: string | null | undefined): number | null {
   } else if (normalized.indexOf(',') > -1) {
     return parseFloat(normalized.replace(',', '.'));
   } else {
-    return parseFloat(normalized);
+    const n = parseFloat(normalized);
+    return Number.isFinite(n) ? n : null;
   }
+}
+
+/** Extension / scrape payloads: comma may be the decimal separator (e.g. 85,00). */
+export function priceFromScrapeValue(raw: unknown): number | undefined {
+  if (raw == null || raw === '') return undefined;
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return raw;
+  const n = cleanPrice(String(raw).trim());
+  return n != null && n > 0 && Number.isFinite(n) ? n : undefined;
 }
 
 export function detectBlock(html: string): boolean {

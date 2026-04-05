@@ -90,6 +90,7 @@ Before deploying, add these environment variables in the Vercel dashboard:
 - `SUPABASE_SERVICE_ROLE_KEY` - For server-side operations
 - `SCRAPER_SERVICE_URL` - If using external scraper service
 - `CRON_SECRET` - Secret for cron job authentication (generate a random string)
+- `GOOGLE_SHEETS_API_KEY` - Google Sheets API key so **Import → Google Sheets** can read cell hyperlinks (see below)
 
 **How to add:**
 1. In project settings, go to **Environment Variables**

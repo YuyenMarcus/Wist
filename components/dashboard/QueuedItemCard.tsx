@@ -5,6 +5,18 @@ import { Clock, Edit2, Trash2, Check, X, ExternalLink, CircleCheck, Loader2, Sma
 import { supabase } from '@/lib/supabase/client'
 import { affiliateUrl } from '@/lib/amazon-affiliate'
 import { useTranslation } from '@/lib/i18n/context'
+import { cleanPrice, priceFromScrapeValue } from '@/lib/scraper/utils'
+
+function isActivatableProductUrl(url: string | null | undefined): boolean {
+  const u = (url || '').trim()
+  if (!u) return false
+  try {
+    const parsed = new URL(/^https?:\/\//i.test(u) ? u : `https://${u}`)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false)
@@ -44,8 +56,15 @@ export default function QueuedItemCard({ item, onUpdate, onDelete, amazonTag }: 
   const [isEditing, setIsEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(item.title || '')
   const [editPrice, setEditPrice] = useState(item.price ? item.price.toString() : '')
+  const [editUrl, setEditUrl] = useState(item.url || '')
   const [isActivating, setIsActivating] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+
+  useEffect(() => {
+    setEditTitle(item.title || '')
+    setEditPrice(item.price != null ? item.price.toString() : '')
+    setEditUrl(item.url || '')
+  }, [item.id, item.title, item.price, item.url])
 
   const domain = (() => {
     try {
@@ -76,6 +95,14 @@ export default function QueuedItemCard({ item, onUpdate, onDelete, amazonTag }: 
   })()
 
   async function handleActivate() {
+    if (!isActivatableProductUrl(item.url)) {
+      window.alert(
+        t(
+          'This item has no valid product link. Use Edit to paste the full product URL, then try Activate again.'
+        )
+      )
+      return
+    }
     setIsActivating(true)
     try {
       const extensionInstalled = document.documentElement.getAttribute('data-wist-installed') === 'true'
@@ -109,17 +136,8 @@ export default function QueuedItemCard({ item, onUpdate, onDelete, amazonTag }: 
           .single()
         clientTier = prof?.subscription_tier || undefined
       }
-      const rawScrapePrice = scraped?.original_price_raw ?? scraped?.price
-      let patchPrice: number | string | undefined
-      if (rawScrapePrice != null && rawScrapePrice !== '') {
-        if (typeof rawScrapePrice === 'number' && Number.isFinite(rawScrapePrice) && rawScrapePrice > 0) {
-          patchPrice = rawScrapePrice
-        } else {
-          const cleaned = String(rawScrapePrice).replace(/[^0-9.]/g, '')
-          const n = parseFloat(cleaned)
-          if (Number.isFinite(n) && n > 0) patchPrice = cleaned
-        }
-      }
+      const parsedScrape = priceFromScrapeValue(scraped?.original_price_raw ?? scraped?.price)
+      const patchPrice = parsedScrape
 
       const res = await fetch('/api/items', {
         method: 'PATCH',
@@ -137,10 +155,22 @@ export default function QueuedItemCard({ item, onUpdate, onDelete, amazonTag }: 
           client_tier: clientTier,
         }),
       })
-      const result = await res.json()
-      if (result.success) {
+      let result: { success?: boolean; item?: any; error?: string } = {}
+      try {
+        result = await res.json()
+      } catch {
+        result = {}
+      }
+      if (res.ok && result.success) {
         const row = result.item
         onUpdate(item.id, { ...row, status: (row?.status as string) || 'active' })
+      } else {
+        const msg =
+          result.error ||
+          (res.status === 403
+            ? t('Item limit reached. Upgrade your plan or remove items to activate more.')
+            : t('Could not activate this item. Try again or edit the product link.'))
+        window.alert(msg)
       }
     } catch (err) {
       console.error('Activate failed:', err)
@@ -154,22 +184,35 @@ export default function QueuedItemCard({ item, onUpdate, onDelete, amazonTag }: 
     setIsSaving(true)
     try {
       const { data: { session } } = await supabase.auth.getSession()
+      const payload: Record<string, unknown> = {
+        id: item.id,
+        title: editTitle.trim(),
+        price:
+          editPrice.trim() !== ''
+            ? (cleanPrice(editPrice.trim()) ?? undefined)
+            : undefined,
+      }
+      const trimmedUrl = editUrl.trim()
+      if (trimmedUrl) payload.url = trimmedUrl
       const res = await fetch('/api/items', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
         },
-        body: JSON.stringify({
-          id: item.id,
-          title: editTitle.trim(),
-          price: editPrice ? editPrice.replace(/[^0-9.]/g, '') : undefined,
-        }),
+        body: JSON.stringify(payload),
       })
-      const result = await res.json()
-      if (result.success) {
+      let result: { success?: boolean; item?: any; error?: string } = {}
+      try {
+        result = await res.json()
+      } catch {
+        result = {}
+      }
+      if (res.ok && result.success) {
         onUpdate(item.id, result.item)
         setIsEditing(false)
+      } else if (result.error) {
+        window.alert(result.error)
       }
     } catch (err) {
       console.error('Save failed:', err)
@@ -210,6 +253,13 @@ export default function QueuedItemCard({ item, onUpdate, onDelete, amazonTag }: 
           value={editPrice}
           onChange={(e) => setEditPrice(e.target.value)}
           placeholder={t('Price placeholder example')}
+          className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400"
+        />
+        <input
+          type="url"
+          value={editUrl}
+          onChange={(e) => setEditUrl(e.target.value)}
+          placeholder={t('Product page URL (https://…)')}
           className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400"
         />
         <div className="flex gap-2">
@@ -269,14 +319,23 @@ export default function QueuedItemCard({ item, onUpdate, onDelete, amazonTag }: 
         </div>
 
         {/* External link */}
-        <a
-          href={affiliateUrl(item.url, amazonTag)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex-shrink-0 p-1.5 text-zinc-400 hover:text-violet-600 transition-colors"
-        >
-          <ExternalLink className="w-3.5 h-3.5" />
-        </a>
+        {item.url?.trim() ? (
+          <a
+            href={affiliateUrl(item.url, amazonTag)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-shrink-0 p-1.5 text-zinc-400 hover:text-violet-600 transition-colors"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        ) : (
+          <span
+            className="flex-shrink-0 p-1.5 text-zinc-300 dark:text-zinc-600 cursor-not-allowed"
+            title={t('No product link')}
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+          </span>
+        )}
       </div>
 
       {/* Actions */}
@@ -294,10 +353,16 @@ export default function QueuedItemCard({ item, onUpdate, onDelete, amazonTag }: 
           </button>
         </div>
       ) : (
-        <div className="mt-3 flex gap-2">
+        <div className="mt-3 flex flex-col gap-2">
+          {!isActivatableProductUrl(item.url) && (
+            <p className="text-[10px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 rounded-lg px-2 py-1.5">
+              {t('No valid product link. Edit and paste the full https URL from the store, then Activate.')}
+            </p>
+          )}
+          <div className="flex gap-2">
           <button
             onClick={handleActivate}
-            disabled={isActivating}
+            disabled={isActivating || !isActivatableProductUrl(item.url)}
             className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-violet-50 text-violet-700 text-xs font-medium rounded-lg hover:bg-violet-100 disabled:opacity-50 transition-colors"
           >
             {isActivating ? <Loader2 className="w-3 h-3 animate-spin" /> : <CircleCheck className="w-3 h-3" />}
@@ -316,6 +381,7 @@ export default function QueuedItemCard({ item, onUpdate, onDelete, amazonTag }: 
           >
             <Trash2 className="w-3 h-3" />
           </button>
+          </div>
         </div>
       )}
     </div>

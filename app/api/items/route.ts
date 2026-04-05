@@ -545,7 +545,7 @@ export async function PATCH(request: Request) {
 
   try {
     const body = await request.json();
-    const { id, title, price, image_url, status: newStatus, client_tier, out_of_stock: patchOos } = body;
+    const { id, title, price, image_url, status: newStatus, client_tier, out_of_stock: patchOos, url: patchUrl } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -634,6 +634,32 @@ export async function PATCH(request: Request) {
     if (title !== undefined) updateData.title = title;
     if (price !== undefined) updateData.current_price = cleanPriceValue(price.toString()) || 0;
     if (image_url !== undefined) updateData.image_url = image_url;
+    if (patchUrl !== undefined) {
+      const u = String(patchUrl).trim();
+      if (!u) {
+        return NextResponse.json(
+          { error: 'Product URL cannot be empty' },
+          { status: 400, headers: corsHeaders(origin) }
+        );
+      }
+      const withScheme = /^https?:\/\//i.test(u) ? u : `https://${u}`;
+      try {
+        const parsed = new URL(withScheme);
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+          return NextResponse.json(
+            { error: 'Invalid product URL' },
+            { status: 400, headers: corsHeaders(origin) }
+          );
+        }
+        updateData.url = withScheme;
+        updateData.retailer = parsed.hostname.replace('www.', '').split('.')[0];
+      } catch {
+        return NextResponse.json(
+          { error: 'Invalid product URL' },
+          { status: 400, headers: corsHeaders(origin) }
+        );
+      }
+    }
     if (newStatus !== undefined) {
       updateData.status = newStatus;
       if (newStatus === 'active') updateData.out_of_stock = patchOos === true;

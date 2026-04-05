@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState, useMemo, useCallback } from 'react'
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import ProfileHeader from '@/components/dashboard/ProfileHeader'
@@ -21,6 +21,7 @@ import PageTransition from '@/components/ui/PageTransition'
 import { useTranslation } from '@/lib/i18n/context'
 import { updateProfile } from '@/lib/supabase/profile'
 import { effectiveAmazonAffiliateId } from '@/lib/amazon-affiliate'
+import { priceFromScrapeValue } from '@/lib/scraper/utils'
 
 function getColCount(w: number) {
   if (w < 640) return 2
@@ -88,6 +89,11 @@ export default function DashboardPage() {
   } | null>(null)
 
   const { t } = useTranslation()
+
+  const queuedItemsRef = useRef(queuedItems)
+  const profileAutoRef = useRef<Profile | null>(null)
+  const userAutoRef = useRef<{ id: string; email?: string } | null>(null)
+  const fetchItemsRef = useRef<() => Promise<void>>(async () => {})
 
   // Determine view mode from URL parameter
   const viewMode = searchParams?.get('view') === 'grouped' ? 'grouped' : 'timeline'
@@ -322,97 +328,9 @@ export default function DashboardPage() {
     const check = () => document.documentElement.getAttribute('data-wist-installed') === 'true'
     if (check()) { setExtensionReady(true); return }
     const iv = setInterval(() => { if (check()) { setExtensionReady(true); clearInterval(iv) } }, 400)
-    const stop = setTimeout(() => clearInterval(iv), 6000)
+    const stop = setTimeout(() => clearInterval(iv), 20000)
     return () => { clearInterval(iv); clearTimeout(stop) }
   }, [extensionReady])
-
-  useEffect(() => {
-    if (queuedItems.length === 0) return
-    if (!autoActivateEnabled) return
-    if (!extensionReady) return
-
-    let cancelled = false
-
-    async function autoScrapeQueue() {
-      console.log(`🔄 Auto-scraping ${queuedItems.length} queued items via extension...`)
-
-      for (const item of queuedItems) {
-        if (cancelled) break
-
-        try {
-          const result = await new Promise<any>((resolve) => {
-            const messageId = `auto-scrape-${item.id}-${Date.now()}`
-
-            const handleResponse = (event: MessageEvent) => {
-              if (event.data?.type === 'WIST_SCRAPE_RESULT' && event.data?.messageId === messageId) {
-                window.removeEventListener('message', handleResponse)
-                resolve(event.data)
-              }
-            }
-
-            window.addEventListener('message', handleResponse)
-            window.postMessage({ type: 'WIST_SCRAPE_REQUEST', messageId, url: item.url }, '*')
-
-            setTimeout(() => {
-              window.removeEventListener('message', handleResponse)
-              resolve(null)
-            }, 20000)
-          })
-
-          if (cancelled) break
-
-          if (result?.success && result?.data) {
-            const scraped = result.data
-            const title =
-              scraped.title && String(scraped.title).trim().length > 0
-                ? scraped.title
-                : item.title && item.title !== 'New Item'
-                  ? item.title
-                  : 'Untitled Item'
-            let patchPrice: number | string | undefined
-            const raw = scraped.original_price_raw ?? scraped.price
-            if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) {
-              patchPrice = raw
-            } else if (raw != null && raw !== '') {
-              const cleaned = String(raw).replace(/[^0-9.]/g, '')
-              const n = parseFloat(cleaned)
-              if (Number.isFinite(n) && n > 0) patchPrice = cleaned
-            }
-            const { data: { session } } = await supabase.auth.getSession()
-            await fetch('/api/items', {
-              method: 'PATCH',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
-              },
-              body: JSON.stringify({
-                id: item.id,
-                title,
-                price: patchPrice,
-                image_url: scraped.image || scraped.image_url || undefined,
-                status: 'active',
-                out_of_stock: scraped.out_of_stock === true,
-                client_tier: profile?.subscription_tier || undefined,
-              }),
-            })
-            console.log(`✅ Auto-scraped: ${String(title).substring(0, 40)}`)
-          }
-        } catch (err) {
-          console.warn(`⚠️ Auto-scrape failed for ${item.url}:`, err)
-        }
-      }
-
-      if (!cancelled) {
-        fetchItems()
-      }
-    }
-
-    const timer = setTimeout(autoScrapeQueue, 1000)
-    return () => {
-      cancelled = true
-      clearTimeout(timer)
-    }
-  }, [queuedItems.length > 0 ? 'has-items' : 'no-items', autoActivateEnabled, extensionReady])
 
   const handleHide = (productId: string) => {
     setProducts(prev => prev.filter(p => p.id !== productId))
@@ -471,6 +389,119 @@ export default function DashboardPage() {
       setQueuedItems(result.queued || [])
     }
   }
+
+  fetchItemsRef.current = fetchItems
+  queuedItemsRef.current = queuedItems
+  profileAutoRef.current = profile
+  userAutoRef.current = user
+
+  const hasQueuedItems = queuedItems.length > 0
+
+  // One queued item per interval (extension needs time between scrapes; avoids hammering).
+  // Effect only mounts while the queue is non-empty so we don't spin when idle; refs stay fresh for new URLs.
+  useEffect(() => {
+    if (!autoActivateEnabled || !extensionReady || !user?.id) return
+    if (!hasQueuedItems) return
+
+    const GAP_MS = 4500
+    const INITIAL_MS = 1500
+
+    let cancelled = false
+    let inFlight = false
+    let nextTimer: ReturnType<typeof setTimeout> | null = null
+
+    const arm = (ms: number, fn: () => void) => {
+      if (cancelled) return
+      if (nextTimer) clearTimeout(nextTimer)
+      nextTimer = setTimeout(fn, ms)
+    }
+
+    const tick = async () => {
+      if (cancelled || inFlight) return
+
+      const prefOn = profileAutoRef.current?.auto_activate_queued ?? true
+      if (!prefOn) return
+
+      const uid = userAutoRef.current?.id
+      if (!uid) return
+
+      const queue = queuedItemsRef.current
+      if (!queue.length) return
+
+      const item = queue[0]
+      if (!item?.id || !item?.url) {
+        arm(GAP_MS, () => void tick())
+        return
+      }
+
+      inFlight = true
+      try {
+        const result = await new Promise<any>((resolve) => {
+          const messageId = `auto-scrape-${item.id}-${Date.now()}`
+          const handleResponse = (event: MessageEvent) => {
+            if (event.data?.type === 'WIST_SCRAPE_RESULT' && event.data?.messageId === messageId) {
+              window.removeEventListener('message', handleResponse)
+              resolve(event.data)
+            }
+          }
+          window.addEventListener('message', handleResponse)
+          window.postMessage({ type: 'WIST_SCRAPE_REQUEST', messageId, url: item.url }, '*')
+          setTimeout(() => {
+            window.removeEventListener('message', handleResponse)
+            resolve(null)
+          }, 25000)
+        })
+
+        if (cancelled) return
+
+        if (result?.success && result?.data) {
+          const scraped = result.data
+          const title =
+            scraped.title && String(scraped.title).trim().length > 0
+              ? scraped.title
+              : item.title && item.title !== 'New Item'
+                ? item.title
+                : 'Untitled Item'
+          const patchPrice = priceFromScrapeValue(scraped.original_price_raw ?? scraped.price)
+          const { data: { session } } = await supabase.auth.getSession()
+          const res = await fetch('/api/items', {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+              id: item.id,
+              title,
+              price: patchPrice,
+              image_url: scraped.image || scraped.image_url || undefined,
+              status: 'active',
+              out_of_stock: scraped.out_of_stock === true,
+              client_tier: profileAutoRef.current?.subscription_tier || undefined,
+            }),
+          })
+          const payload = await res.json().catch(() => ({}))
+          if (res.ok && payload.success) {
+            await fetchItemsRef.current()
+          }
+        }
+      } catch (e) {
+        console.warn('Auto-activate queue item failed:', e)
+      } finally {
+        inFlight = false
+      }
+
+      if (!cancelled) arm(GAP_MS, () => void tick())
+    }
+
+    arm(INITIAL_MS, () => void tick())
+
+    return () => {
+      cancelled = true
+      if (nextTimer) clearTimeout(nextTimer)
+    }
+  }, [autoActivateEnabled, extensionReady, user?.id, hasQueuedItems])
 
   // Fetch auto-categorize stats when in grouped view
   useEffect(() => {
@@ -710,7 +741,7 @@ export default function DashboardPage() {
                 </h3>
                 <span className="text-xs text-zinc-500 dark:text-zinc-400">
                   {autoActivateEnabled
-                    ? t('Items auto-activate on desktop with the extension')
+                    ? t('Items auto-activate one at a time on desktop with the extension')
                     : t('Press Activate on each item to scrape and add it')}
                 </span>
               </div>
