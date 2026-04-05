@@ -51,7 +51,7 @@ import {
 import { supabase } from '@/lib/supabase/client';
 import { getProfile, type Profile } from '@/lib/supabase/profile';
 import { TIERS, type SubscriptionTier } from '@/lib/constants/subscription-tiers';
-import TierBadge from '@/components/ui/TierBadge';
+import TierBadge, { CreatorTierIcon, ProTierIcon } from '@/components/ui/TierBadge';
 import LavenderLoader from '@/components/ui/LavenderLoader';
 import PageTransition from '@/components/ui/PageTransition';
 import { useTranslation } from '@/lib/i18n/context';
